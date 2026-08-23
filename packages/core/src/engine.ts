@@ -56,7 +56,7 @@ export type GroupRecord = {
 
 export interface WhatsAppEngine {
   /** Begin linking or restore an existing session. Idempotent per sessionId. */
-  connect(sessionId: number): Promise<{ status: SessionStatus; qr?: string }>;
+  connect(sessionId: number, opts?: { accountProtection?: boolean }): Promise<{ status: SessionStatus; qr?: string }>;
   /** Close the socket without unlinking the device. */
   disconnect(sessionId: number): Promise<void>;
   /** Close and immediately reconnect using the stored credentials. */

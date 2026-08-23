@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          # Pinned: the Docker images resolve a specific Bun, and lockfile validation can
+          # differ across versions. A CI/image mismatch shows up as a frozen-install failure
+          # at deploy time rather than here, which is the wrong place to find out.
+          bun-version: 1.2.23
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        # Every package explicitly: the workspace has no single root program, and a silent
+        # skip would defeat the point.
+        run: |
+          for p in packages/contracts packages/core packages/db packages/baileys-auth \
+                   apps/api apps/gateway apps/webhook-worker; do
+            echo "--- $p"
+            ./node_modules/.bin/tsc --noEmit -p "$p/tsconfig.json"
+          done
+
+      - name: Test
+        # The golden-fixture suite self-skips here: the mirrored spec it reads is gitignored
+        # as WasenderAPI's copyrighted prose, so those assertions only run locally. Skipped
+        # is honest; a green tick on tests that never ran would not be.
+        run: bun test
+
+      - name: Contract is in sync
+        # Only meaningful where the mirror exists. Guarded so CI does not fail on its absence.
+        run: |
+          if [ -f docs/wasenderapi/structured/endpoints.json ]; then
+            bun run contracts:generate
+            git diff --exit-code packages/contracts/src/generated/ \
+              || (echo "::error::generated contract is stale — run bun run contracts:generate" && exit 1)
+          else
+            echo "mirrored spec absent; skipping regeneration check"
+          fi

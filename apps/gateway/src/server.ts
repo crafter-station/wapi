@@ -18,6 +18,7 @@ import { createClient } from "redis";
 import { createDb } from "@wapi/db";
 import { BaileysEngine, SessionNotConnectedError } from "./engine/baileys-engine.js";
 import { quietSignal } from "./quiet-signal.js";
+import { resumeSessions } from "./resume.js";
 
 const DATABASE_URL = process.env["DATABASE_URL"];
 const REDIS_URL = process.env["REDIS_URL"];
@@ -204,3 +205,14 @@ app.onError((err, c) => {
 
 logger.info({ port: PORT }, "wapi-gateway listening (internal only)");
 serve({ fetch: app.fetch, port: PORT });
+
+/**
+ * Resume after the HTTP server is listening, not before.
+ *
+ * Reconnecting can take a while with several sessions, and the api container's health check
+ * and depends_on should not wait on it. A gateway that is up but still resuming is a better
+ * state than one that looks down.
+ */
+void resumeSessions(db, engine, logger).catch((err) =>
+  logger.error({ err: String(err) }, "resume threw"),
+);
