@@ -111,6 +111,9 @@ export const gateway = {
   contacts: (sessionId: number) =>
     call<{ contacts: ContactRecord[] }>(`/rpc/contacts/${sessionId}`, { method: "GET" }, DEADLINES.default),
 
+  syncContacts: (sessionId: number) =>
+    post<{ ok: true }>("/rpc/sync-contacts", { sessionId }, DEADLINES.connect),
+
   contact: (sessionId: number, jid: string) =>
     post<{ contact: ContactRecord | null }>("/rpc/contact", { sessionId, jid }),
 

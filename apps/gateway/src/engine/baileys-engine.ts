@@ -289,6 +289,24 @@ export class BaileysEngine implements WhatsAppEngine {
     }));
   }
 
+  /**
+   * Force an app-state resync so `contacts.upsert` is re-emitted.
+   *
+   * Needed because Baileys skips app-state sync on a reconnect that already has sync data —
+   * the log line is "Reconnection with existing sync data, skipping history sync wait". A
+   * session paired before the contacts cache existed therefore never populates it.
+   *
+   * Explicit rather than automatic on connect: this is extra protocol traffic, and PLAN.md §5
+   * records that unnecessary chatter is exactly what unofficial clients get penalised for.
+   */
+  async syncContacts(sessionId: number): Promise<void> {
+    const entry = this.live(sessionId);
+    const sock = entry.sock as unknown as {
+      resyncAppState?: (c: readonly string[], initial: boolean) => Promise<void>;
+    };
+    await sock.resyncAppState?.(["critical_unblock_low", "regular_high", "regular_low"], false);
+  }
+
   async contact(sessionId: number, jid: string): Promise<ContactRecord | null> {
     this.live(sessionId);
     const [r] = await this.db

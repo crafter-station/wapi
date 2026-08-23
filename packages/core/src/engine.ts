@@ -73,6 +73,8 @@ export interface WhatsAppEngine {
   /** Contacts. `onWhatsApp` no longer returns LIDs in v7 — see PLAN.md §1. */
   onWhatsApp(sessionId: number, identifier: string): Promise<{ exists: boolean; jid: string | null }>;
   contacts(sessionId: number): Promise<ContactRecord[]>;
+  /** Force an app-state resync so contacts.upsert is re-emitted. */
+  syncContacts(sessionId: number): Promise<void>;
   contact(sessionId: number, jid: string): Promise<ContactRecord | null>;
   lidFromPn(sessionId: number, pn: string): Promise<string | null>;
   pnFromLid(sessionId: number, lid: string): Promise<string | null>;

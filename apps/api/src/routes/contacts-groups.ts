@@ -38,7 +38,16 @@ export function contactGroupRoutes(_db: Db) {
 
   app.get("/contacts", (c) =>
     guard(c, async (sessionId) => {
-      const { contacts } = await gateway.contacts(sessionId);
+      let { contacts } = await gateway.contacts(sessionId);
+      /**
+       * An empty cache on a connected session means this session predates the cache, or was
+       * reconnected with existing sync data so Baileys never re-emitted contacts. Trigger one
+       * resync and let the caller retry, rather than returning [] as if that were the answer.
+       */
+      if (!contacts.length) {
+        await gateway.syncContacts(sessionId).catch(() => {});
+        ({ contacts } = await gateway.contacts(sessionId));
+      }
       return c.json(ok(contacts));
     }),
   );

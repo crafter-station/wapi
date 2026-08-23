@@ -142,6 +142,11 @@ app.post("/rpc/on-whatsapp", async (c) => {
 app.get("/rpc/contacts/:sessionId", (c) =>
   rpc(() => engine.contacts(Number(c.req.param("sessionId"))).then((contacts) => ({ contacts })))(c));
 
+app.post("/rpc/sync-contacts", async (c) => {
+  const { sessionId } = await c.req.json();
+  return rpc(() => engine.syncContacts(Number(sessionId)).then(() => ({ ok: true })))(c);
+});
+
 app.post("/rpc/contact", async (c) => {
   const { sessionId, jid } = await c.req.json();
   return rpc(() => engine.contact(Number(sessionId), String(jid)).then((contact) => ({ contact })))(c);
