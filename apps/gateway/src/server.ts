@@ -114,6 +114,69 @@ app.post("/rpc/send-text", async (c) => {
   }
 });
 
+/**
+ * Contacts, groups and reads. Thin pass-throughs: the engine holds all the logic, and a
+ * SessionNotConnectedError becomes a 409 so the API can return their exact documented string.
+ */
+const rpc = <T>(fn: () => Promise<T>) => async (c: { json: (b: unknown, s?: number) => Response }) => {
+  try {
+    return c.json(await fn());
+  } catch (err) {
+    if (err instanceof SessionNotConnectedError) {
+      return c.json({ error: "not_connected", message: err.message }, 409);
+    }
+    throw err;
+  }
+};
+
+app.post("/rpc/read-messages", async (c) => {
+  const { sessionId, keys } = await c.req.json();
+  return rpc(() => engine.readMessages(Number(sessionId), keys).then(() => ({ ok: true })))(c);
+});
+
+app.post("/rpc/on-whatsapp", async (c) => {
+  const { sessionId, identifier } = await c.req.json();
+  return rpc(() => engine.onWhatsApp(Number(sessionId), String(identifier)))(c);
+});
+
+app.get("/rpc/contacts/:sessionId", (c) =>
+  rpc(() => engine.contacts(Number(c.req.param("sessionId"))).then((contacts) => ({ contacts })))(c));
+
+app.post("/rpc/contact", async (c) => {
+  const { sessionId, jid } = await c.req.json();
+  return rpc(() => engine.contact(Number(sessionId), String(jid)).then((contact) => ({ contact })))(c);
+});
+
+app.post("/rpc/lid-from-pn", async (c) => {
+  const { sessionId, pn } = await c.req.json();
+  return rpc(() => engine.lidFromPn(Number(sessionId), String(pn)).then((lid) => ({ lid })))(c);
+});
+
+app.post("/rpc/pn-from-lid", async (c) => {
+  const { sessionId, lid } = await c.req.json();
+  return rpc(() => engine.pnFromLid(Number(sessionId), String(lid)).then((pn) => ({ pn })))(c);
+});
+
+app.get("/rpc/groups/:sessionId", (c) =>
+  rpc(() => engine.groups(Number(c.req.param("sessionId"))).then((groups) => ({ groups })))(c));
+
+app.post("/rpc/group-metadata", async (c) => {
+  const { sessionId, jid } = await c.req.json();
+  return rpc(() => engine.groupMetadata(Number(sessionId), String(jid)).then((group) => ({ group })))(c);
+});
+
+app.post("/rpc/group-create", async (c) => {
+  const { sessionId, subject, participants } = await c.req.json();
+  return rpc(() => engine.createGroup(Number(sessionId), String(subject), participants).then((group) => ({ group })))(c);
+});
+
+app.post("/rpc/group-participants", async (c) => {
+  const { sessionId, jid, participants, action } = await c.req.json();
+  return rpc(() =>
+    engine.updateParticipants(Number(sessionId), String(jid), participants, action).then((results) => ({ results })),
+  )(c);
+});
+
 app.onError((err, c) => {
   logger.error({ err: err.message, path: c.req.path }, "gateway error");
   return c.json({ error: "internal", message: err.message }, 500);

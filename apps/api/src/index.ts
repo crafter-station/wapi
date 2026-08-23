@@ -12,6 +12,8 @@ import { authenticate, requirePat } from "./middleware/auth.ts";
 import { sessionRoutes } from "./routes/sessions.ts";
 import { connectionRoutes } from "./routes/connection.ts";
 import { messageRoutes } from "./routes/messages.ts";
+import { messageReadRoutes } from "./routes/message-reads.ts";
+import { contactGroupRoutes } from "./routes/contacts-groups.ts";
 import { notImplemented } from "./not-implemented.ts";
 
 const DATABASE_URL = process.env["DATABASE_URL"];
@@ -55,6 +57,20 @@ const IMPLEMENTED = new Set([
   "GET /api/status",
   "GET /api/user",
   "POST /api/send-message",
+  "GET /api/whatsapp-sessions/{whatsappSession}/message-logs",
+  "GET /api/messages/{msgId}/info",
+  "POST /api/messages/read",
+  "GET /api/contacts",
+  "GET /api/contacts/{contactPhoneNumber}",
+  "GET /api/on-whatsapp/{contact_identifier}",
+  "GET /api/lid-from-pn/{pn}",
+  "GET /api/pn-from-lid/{lid}",
+  "GET /api/groups",
+  "POST /api/groups",
+  "GET /api/groups/{groupJid}/metadata",
+  "GET /api/groups/{groupJid}/participants",
+  "POST /api/groups/{groupJid}/participants/add",
+  "POST /api/groups/{groupJid}/participants/remove",
 ]);
 
 /**
@@ -73,10 +89,20 @@ app.use("/api/whatsapp-sessions/*", authenticate(db), requirePat);
 app.use("/api/status", authenticate(db));
 app.use("/api/user", authenticate(db));
 app.use("/api/send-message", authenticate(db));
+app.use("/api/messages/*", authenticate(db));
+app.use("/api/contacts", authenticate(db));
+app.use("/api/contacts/*", authenticate(db));
+app.use("/api/on-whatsapp/*", authenticate(db));
+app.use("/api/lid-from-pn/*", authenticate(db));
+app.use("/api/pn-from-lid/*", authenticate(db));
+app.use("/api/groups", authenticate(db));
+app.use("/api/groups/*", authenticate(db));
 
 app.route("/api", sessionRoutes(db));
 app.route("/api", connectionRoutes(db));
 app.route("/api", messageRoutes(db));
+app.route("/api", messageReadRoutes(db));
+app.route("/api", contactGroupRoutes(db));
 
 /**
  * The remaining Tier-1 routes, registered from the generated contract so the surface is

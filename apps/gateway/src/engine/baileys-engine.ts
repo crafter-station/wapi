@@ -25,6 +25,8 @@ import type {
   SessionStatus,
   SendResult,
   EngineIdentity,
+  ContactRecord,
+  GroupRecord,
 } from "@wapi/core";
 
 /** Baileys events forwarded verbatim; their names are already our public webhook names. */
@@ -240,6 +242,87 @@ export class BaileysEngine implements WhatsAppEngine {
     this.setStatus(sessionId, "logged_out");
   }
 
+
+  /** Every operation below needs a live socket; there is no offline fallback. */
+  private live(sessionId: number) {
+    const entry = this.sessions.get(sessionId);
+    if (!entry || entry.status !== "connected") throw new SessionNotConnectedError();
+    return entry;
+  }
+
+  async readMessages(sessionId: number, keys: Record<string, unknown>[]) {
+    await this.live(sessionId).sock.readMessages(keys as never);
+  }
+
+  /**
+   * v7 removed LIDs from `onWhatsApp()` results, which is part of why the LID routes were
+   * promoted into Tier 1 — the mapping has to come from `lidFromPn` instead (PLAN.md §1).
+   */
+  async onWhatsApp(sessionId: number, identifier: string) {
+    const res = await this.live(sessionId).sock.onWhatsApp(identifier);
+    const hit = res?.[0];
+    return { exists: Boolean(hit?.exists), jid: hit?.jid ?? null };
+  }
+
+  async contacts(sessionId: number): Promise<ContactRecord[]> {
+    const entry = this.live(sessionId);
+    const store = (entry.sock as unknown as { store?: { contacts?: Record<string, unknown> } }).store;
+    const raw = store?.contacts ?? {};
+    return Object.entries(raw).map(([jid, c]) => toContact(jid, c as Record<string, unknown>));
+  }
+
+  async contact(sessionId: number, jid: string): Promise<ContactRecord | null> {
+    const all = await this.contacts(sessionId);
+    return all.find((c) => c.jid === jid) ?? null;
+  }
+
+  async lidFromPn(sessionId: number, pn: string): Promise<string | null> {
+    const repo = (this.live(sessionId).sock as unknown as {
+      signalRepository?: { lidMapping?: { getLIDForPN?: (pn: string) => Promise<string | undefined> } };
+    }).signalRepository;
+    return (await repo?.lidMapping?.getLIDForPN?.(pn)) ?? null;
+  }
+
+  /**
+   * One-way in practice: `getPNForLID` only succeeds for pairs already cached from inbound
+   * traffic, so a miss here is legitimate rather than an error (PLAN.md §1).
+   */
+  async pnFromLid(sessionId: number, lid: string): Promise<string | null> {
+    const repo = (this.live(sessionId).sock as unknown as {
+      signalRepository?: { lidMapping?: { getPNForLID?: (lid: string) => Promise<string | undefined> } };
+    }).signalRepository;
+    return (await repo?.lidMapping?.getPNForLID?.(lid)) ?? null;
+  }
+
+  async groups(sessionId: number): Promise<GroupRecord[]> {
+    const all = await this.live(sessionId).sock.groupFetchAllParticipating();
+    return Object.values(all).map((g) => toGroup(g as unknown as Record<string, unknown>));
+  }
+
+  async groupMetadata(sessionId: number, jid: string): Promise<GroupRecord | null> {
+    const md = await this.live(sessionId).sock.groupMetadata(jid).catch(() => null);
+    return md ? toGroup(md as unknown as Record<string, unknown>) : null;
+  }
+
+  async createGroup(sessionId: number, subject: string, participants: string[]): Promise<GroupRecord> {
+    const md = await this.live(sessionId).sock.groupCreate(subject, participants);
+    return toGroup(md as unknown as Record<string, unknown>);
+  }
+
+  /**
+   * Group participant changes are the highest behavioural ban risk in the research — above
+   * send volume, and the only trigger with quasi-experimental support (PLAN.md §5).
+   */
+  async updateParticipants(
+    sessionId: number,
+    jid: string,
+    participants: string[],
+    action: "add" | "remove" | "promote" | "demote",
+  ) {
+    const res = await this.live(sessionId).sock.groupParticipantsUpdate(jid, participants, action);
+    return (res ?? []).map((r) => ({ jid: String(r.jid ?? ""), status: String(r.status ?? "") }));
+  }
+
   async sendText(
     sessionId: number,
     to: string,
@@ -286,4 +369,26 @@ export class SessionNotConnectedError extends Error {
     super("Your Whatsapp Session is not connected please connect your session first.");
     this.name = "SessionNotConnectedError";
   }
+}
+
+function toContact(jid: string, c: Record<string, unknown>): ContactRecord {
+  return {
+    jid,
+    name: (c["name"] as string) ?? null,
+    notify: (c["notify"] as string) ?? null,
+    phoneNumber: (c["phoneNumber"] as string) ?? null,
+    lid: (c["lid"] as string) ?? null,
+  };
+}
+
+function toGroup(g: Record<string, unknown>): GroupRecord {
+  const parts = (g["participants"] as { id?: string; admin?: string | null }[] | undefined) ?? [];
+  return {
+    id: String(g["id"] ?? ""),
+    subject: String(g["subject"] ?? ""),
+    owner: (g["owner"] as string) ?? null,
+    creation: (g["creation"] as number) ?? null,
+    desc: (g["desc"] as string) ?? null,
+    participants: parts.map((p) => ({ id: String(p.id ?? ""), admin: p.admin ?? null })),
+  };
 }

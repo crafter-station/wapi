@@ -36,6 +36,24 @@ export type SendResult = {
 
 export type EngineIdentity = { id: string; name: string | null; lid: string | null };
 
+export type ContactRecord = {
+  jid: string;
+  name: string | null;
+  notify: string | null;
+  /** v7 makes these alternates first-class: Contact.id is primary, these are the pair. */
+  phoneNumber: string | null;
+  lid: string | null;
+};
+
+export type GroupRecord = {
+  id: string;
+  subject: string;
+  owner: string | null;
+  creation: number | null;
+  desc: string | null;
+  participants: { id: string; admin: string | null }[];
+};
+
 export interface WhatsAppEngine {
   /** Begin linking or restore an existing session. Idempotent per sessionId. */
   connect(sessionId: number): Promise<{ status: SessionStatus; qr?: string }>;
@@ -50,6 +68,26 @@ export interface WhatsAppEngine {
   currentQr(sessionId: number): string | null;
   identity(sessionId: number): EngineIdentity | null;
   sendText(sessionId: number, to: string, text: string, opts?: { quoted?: Record<string, unknown> }): Promise<SendResult>;
+  readMessages(sessionId: number, keys: Record<string, unknown>[]): Promise<void>;
+
+  /** Contacts. `onWhatsApp` no longer returns LIDs in v7 — see PLAN.md §1. */
+  onWhatsApp(sessionId: number, identifier: string): Promise<{ exists: boolean; jid: string | null }>;
+  contacts(sessionId: number): Promise<ContactRecord[]>;
+  contact(sessionId: number, jid: string): Promise<ContactRecord | null>;
+  lidFromPn(sessionId: number, pn: string): Promise<string | null>;
+  pnFromLid(sessionId: number, lid: string): Promise<string | null>;
+
+  /** Groups. */
+  groups(sessionId: number): Promise<GroupRecord[]>;
+  groupMetadata(sessionId: number, jid: string): Promise<GroupRecord | null>;
+  createGroup(sessionId: number, subject: string, participants: string[]): Promise<GroupRecord>;
+  updateParticipants(
+    sessionId: number,
+    jid: string,
+    participants: string[],
+    action: "add" | "remove" | "promote" | "demote",
+  ): Promise<{ jid: string; status: string }[]>;
+
   /** Subscribe to everything the engine emits. */
   on(handler: (e: EngineEvent) => void): void;
 }

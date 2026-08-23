@@ -5,7 +5,7 @@
  * *the failure mode of a remote WhatsApp call is silence, not an error* — its ingestor hung to
  * puppeteer's 180-second protocol timeout repeatedly. An API request must never inherit that.
  */
-import type { SessionStatus, EngineIdentity } from "@wapi/core";
+import type { SessionStatus, EngineIdentity, ContactRecord, GroupRecord } from "@wapi/core";
 
 const BASE = process.env["GATEWAY_URL"] ?? "http://gateway:3002";
 const TOKEN = process.env["GATEWAY_TOKEN"] ?? "";
@@ -100,5 +100,44 @@ export const gateway = {
       "/rpc/send-text",
       { sessionId, to, text, quoted },
       DEADLINES.send,
+    ),
+
+  readMessages: (sessionId: number, keys: Record<string, unknown>[]) =>
+    post<{ ok: true }>("/rpc/read-messages", { sessionId, keys }),
+
+  onWhatsApp: (sessionId: number, identifier: string) =>
+    post<{ exists: boolean; jid: string | null }>("/rpc/on-whatsapp", { sessionId, identifier }),
+
+  contacts: (sessionId: number) =>
+    call<{ contacts: ContactRecord[] }>(`/rpc/contacts/${sessionId}`, { method: "GET" }, DEADLINES.default),
+
+  contact: (sessionId: number, jid: string) =>
+    post<{ contact: ContactRecord | null }>("/rpc/contact", { sessionId, jid }),
+
+  lidFromPn: (sessionId: number, pn: string) =>
+    post<{ lid: string | null }>("/rpc/lid-from-pn", { sessionId, pn }),
+
+  pnFromLid: (sessionId: number, lid: string) =>
+    post<{ pn: string | null }>("/rpc/pn-from-lid", { sessionId, lid }),
+
+  groups: (sessionId: number) =>
+    call<{ groups: GroupRecord[] }>(`/rpc/groups/${sessionId}`, { method: "GET" }, DEADLINES.connect),
+
+  groupMetadata: (sessionId: number, jid: string) =>
+    post<{ group: GroupRecord | null }>("/rpc/group-metadata", { sessionId, jid }),
+
+  createGroup: (sessionId: number, subject: string, participants: string[]) =>
+    post<{ group: GroupRecord }>("/rpc/group-create", { sessionId, subject, participants }, DEADLINES.connect),
+
+  updateParticipants: (
+    sessionId: number,
+    jid: string,
+    participants: string[],
+    action: "add" | "remove" | "promote" | "demote",
+  ) =>
+    post<{ results: { jid: string; status: string }[] }>(
+      "/rpc/group-participants",
+      { sessionId, jid, participants, action },
+      DEADLINES.connect,
     ),
 };
