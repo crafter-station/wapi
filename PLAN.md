@@ -396,7 +396,9 @@ reports in the research turned out to be hijacked open instances used as spam re
 | environment | `-3bQ8kULOe03LWxojT8gn` (production) |
 | compose | `zHI9vuip7TU9vSuCH71QU`, service `api` |
 | GitHub provider | `mQ9jA2X9wMQI62PpeoWaL` — **use this one**, not `PUhK5iuG22LeojyZEW87B` |
-| test host | `wapi-api-95-111-248-246.traefik.me` (HTTP, no cert) |
+| test host | `wapi-api-95-111-248-246.traefik.me` (HTTP, no cert) — works today |
+| api domain | `api.wapi.crafter.run` → `api:3001`, HTTPS/Let's Encrypt, domain `-aWuTvbIy8zByfSmBLk8l` — **pending DNS** |
+| web domain | not created — no `web` service in the compose yet |
 
 The earlier "GitHub App has lost access" worry was wrong: provider `mQ9jA2X9wMQI62PpeoWaL` sees all
 257 org repos including this one. The existing apps' `hasGitProviderAccess: false` is them being bound
@@ -412,10 +414,16 @@ resolve to `95.111.248.246` via explicit A records; `wapi.crafter.run` and `api.
 do not resolve at all. Two A records are needed before the real domains can be attached, because
 Let's Encrypt's HTTP-01 challenge requires the hostname to already point at the box:
 
-```
-wapi.crafter.run.       A   95.111.248.246
-api.wapi.crafter.run.   A   95.111.248.246
-```
+DNS for `crafter.run` is hosted at **Spaceship** (`launch1.spaceship.net`, `launch2.spaceship.net`).
+Records needed there:
+
+| Type | Host | Value | When |
+|---|---|---|---|
+| A | `api.wapi` | `95.111.248.246` | now — the router already exists and is waiting |
+| A | `wapi` | `95.111.248.246` | once `apps/web` ships |
+
+After the first record propagates, `vps compose redeploy zHI9vuip7TU9vSuCH71QU` triggers Let's Encrypt
+issuance. Until then Traefik holds the route and ACME cannot validate.
 
 Note `api.wapi.crafter.run` is a second-level subdomain — a `*.crafter.run` wildcard would not cover
 it even if one existed, since wildcards match a single label.
