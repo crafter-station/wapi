@@ -293,6 +293,12 @@ CREATE INDEX signal_keys_type_idx ON signal_keys(session_id, type);
 
 - Implement `get`/`set`/`clear` **plus `list(type)`/`listIds(type)`** as async iterables from day one —
   `migrateAuthState` requires them.
+- **Session readiness is `creds.me?.id`, never `creds.registered`.** Confirmed on the phase 1a
+  session: `registered` is `false` on a perfectly working QR-paired account, because that flag
+  belongs to the *pairing-code* flow and is never set by QR. Gating on it rejects live credentials.
+- **Volume: one QR pair produced 813 signal-key files.** That is the churn `useMultiFileAuthState`
+  does as filesystem I/O per session, and the concrete reason it does not scale — the Redis-in-front
+  caching above is not premature.
 - **Serialize with `BufferJSON`.** Plain `JSON.stringify` corrupts Buffers.
 - Handle all four v7 key types: **`lid-mapping`, `device-list`, `tctoken`, `identity-key`.** A v6-shaped
   store silently drops LID mappings and TC tokens, and missing TC tokens directly cause error 463.

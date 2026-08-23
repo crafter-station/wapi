@@ -36,7 +36,7 @@ const AUTH_DIR = resolve(import.meta.dirname, "../.auth-scratch");
 
 /**
  * Phase 1a asks whether a *fresh* link succeeds, so we start from nothing every run.
- * A half-finished previous run leaves unregistered creds behind, and Baileys then tries to
+ * A half-finished previous run leaves partial creds behind, and Baileys then tries to
  * RESTORE that dead session instead of pairing — an immediate 401 with no QR, which reads
  * exactly like a refusal but is not one.
  */

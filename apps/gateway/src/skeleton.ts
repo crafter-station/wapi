@@ -71,8 +71,15 @@ async function main() {
   const { version } = await fetchLatestBaileysVersion();
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
 
-  if (!state.creds.registered) {
-    console.error("Saved state is not registered. Run `bun run pair` first.");
+  /**
+   * Readiness is `creds.me?.id`, NOT `creds.registered`.
+   *
+   * `registered` belongs to the pairing-code flow and stays false forever after a QR pair,
+   * even on a perfectly good session. Checking it rejects working credentials. The store in
+   * phase 2 must use the same signal.
+   */
+  if (!state.creds.me?.id) {
+    console.error("No usable session (creds.me is empty). Run `bun run pair` first.");
     process.exit(1);
   }
 
