@@ -1,0 +1,17 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: 3001
+      NODE_ENV: production
+    expose:
+      - "3001"
+    networks:
+      - dokploy-network
+
+networks:
+  dokploy-network:
+    external: true
