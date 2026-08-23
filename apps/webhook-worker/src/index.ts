@@ -78,6 +78,38 @@ await sub.subscribe("wapi:events", async (raw) => {
     .where(eq(whatsappSessions.id, sessionId))
     .catch(() => {});
 
+  /**
+   * Persist status transitions.
+   *
+   * The API writes a status when it *asks* the gateway to connect, but the transitions that
+   * follow — connecting -> connected, or a later logged_out — only exist as engine events.
+   * Without this the list endpoint reports a stale status forever, which was visible in
+   * production as "connecting" on a session that was demonstrably connected.
+   *
+   * This runs before the webhook_enabled check on purpose: session state must stay correct
+   * whether or not anyone subscribed to webhooks.
+   */
+  if (engineEvent.type === "status" && engineEvent.status && engineEvent.status !== session.status) {
+    await db
+      .update(whatsappSessions)
+      .set({ status: engineEvent.status, updatedAt: new Date() })
+      .where(eq(whatsappSessions.id, sessionId))
+      .catch((err) => logger.error({ err, sessionId }, "status persist failed"));
+    logger.info({ sessionId, from: session.status, to: engineEvent.status }, "status changed");
+  }
+
+  /** Identity arrives once on connect; LID is the canonical internal id (PLAN.md §4). */
+  if (engineEvent.type === "identity") {
+    const lid = (engineEvent as unknown as { lid?: string }).lid ?? null;
+    if (lid && lid !== session.lid) {
+      await db
+        .update(whatsappSessions)
+        .set({ lid, updatedAt: new Date() })
+        .where(eq(whatsappSessions.id, sessionId))
+        .catch(() => {});
+    }
+  }
+
   if (!session.webhookEnabled || !session.webhookUrl) return;
 
   const publicEvents: PublicEvent[] = [];
