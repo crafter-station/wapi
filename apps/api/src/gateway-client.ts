@@ -111,6 +111,13 @@ export const gateway = {
   contacts: (sessionId: number) =>
     call<{ contacts: ContactRecord[] }>(`/rpc/contacts/${sessionId}`, { method: "GET" }, DEADLINES.default),
 
+  downloadMedia: (sessionId: number, message: Record<string, unknown>) =>
+    post<{ media: { base64: string; mimetype: string; fileName: string } | null }>(
+      "/rpc/download-media",
+      { sessionId, message },
+      DEADLINES.send,
+    ),
+
   syncContacts: (sessionId: number) =>
     post<{ ok: true }>("/rpc/sync-contacts", { sessionId }, DEADLINES.connect),
 

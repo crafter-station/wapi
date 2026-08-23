@@ -142,6 +142,21 @@ app.post("/rpc/on-whatsapp", async (c) => {
 app.get("/rpc/contacts/:sessionId", (c) =>
   rpc(() => engine.contacts(Number(c.req.param("sessionId"))).then((contacts) => ({ contacts })))(c));
 
+/**
+ * Media comes back base64 over this JSON transport. Bounded by the 16 MB cap the API enforces
+ * before calling, so the ~33% encoding overhead is acceptable versus adding a binary channel.
+ */
+app.post("/rpc/download-media", async (c) => {
+  const { sessionId, message } = await c.req.json();
+  return rpc(async () => {
+    const r = await engine.downloadMedia(Number(sessionId), message);
+    if (!r) return { media: null };
+    return {
+      media: { base64: r.data.toString("base64"), mimetype: r.mimetype, fileName: r.fileName },
+    };
+  })(c);
+});
+
 app.post("/rpc/sync-contacts", async (c) => {
   const { sessionId } = await c.req.json();
   return rpc(() => engine.syncContacts(Number(sessionId)).then(() => ({ ok: true })))(c);

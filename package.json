@@ -15,5 +15,8 @@
   },
   "engines": {
     "bun": ">=1.2.0"
+  },
+  "dependencies": {
+    "@uploadx-sdk/core": "^0.3.1"
   }
 }

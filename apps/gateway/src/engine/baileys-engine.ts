@@ -13,6 +13,7 @@ import {
   Browsers,
   makeCacheableSignalKeyStore,
   jidNormalizedUser,
+  downloadContentFromMessage,
 } from "baileys";
 import type { ConnectionState, WASocket } from "baileys";
 import type { Boom } from "@hapi/boom";
@@ -251,6 +252,36 @@ export class BaileysEngine implements WhatsAppEngine {
     return entry;
   }
 
+  /**
+   * The media kinds their `decrypt-media` documentation names, mapped to the download type
+   * Baileys expects. Order matters only for determinism.
+   */
+  private static readonly MEDIA_KINDS = [
+    ["imageMessage", "image"],
+    ["videoMessage", "video"],
+    ["audioMessage", "audio"],
+    ["documentMessage", "document"],
+    ["stickerMessage", "sticker"],
+  ] as const;
+
+  async downloadMedia(sessionId: number, message: Record<string, unknown>) {
+    this.live(sessionId);
+    for (const [field, kind] of BaileysEngine.MEDIA_KINDS) {
+      const node = message[field] as Record<string, unknown> | undefined;
+      if (!node) continue;
+
+      const stream = await downloadContentFromMessage(node as never, kind as never);
+      const chunks: Buffer[] = [];
+      for await (const chunk of stream) chunks.push(chunk as Buffer);
+
+      const mimetype = String(node["mimetype"] ?? "application/octet-stream");
+      const fileName =
+        (node["fileName"] as string) ?? `${field.replace("Message", "")}.${extFor(mimetype)}`;
+      return { data: Buffer.concat(chunks), mimetype, fileName };
+    }
+    return null;
+  }
+
   async readMessages(sessionId: number, keys: Record<string, unknown>[]) {
     await this.live(sessionId).sock.readMessages(keys as never);
   }
@@ -424,4 +455,10 @@ function toGroup(g: Record<string, unknown>): GroupRecord {
     desc: (g["desc"] as string) ?? null,
     participants: parts.map((p) => ({ id: String(p.id ?? ""), admin: p.admin ?? null })),
   };
+}
+
+/** Best-effort extension from a mimetype, for the fallback filename. */
+function extFor(mimetype: string): string {
+  const sub = mimetype.split("/")[1] ?? "bin";
+  return sub.split(";")[0]!.replace("jpeg", "jpg").replace("mpeg", "mp3");
 }

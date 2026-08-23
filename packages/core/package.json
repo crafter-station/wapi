@@ -3,7 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
-  "scripts": { "typecheck": "tsc --noEmit" },
-  "dependencies": { "@wapi/db": "workspace:*", "@wapi/contracts": "workspace:*", "drizzle-orm": "^0.38.0" }
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@wapi/db": "workspace:*",
+    "@wapi/contracts": "workspace:*",
+    "drizzle-orm": "^0.38.0",
+    "@uploadx-sdk/core": "^0.3.1"
+  }
 }

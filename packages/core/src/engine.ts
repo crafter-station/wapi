@@ -70,6 +70,18 @@ export interface WhatsAppEngine {
   sendText(sessionId: number, to: string, text: string, opts?: { quoted?: Record<string, unknown> }): Promise<SendResult>;
   readMessages(sessionId: number, keys: Record<string, unknown>[]): Promise<void>;
 
+  /**
+   * Decrypt a media node into bytes.
+   *
+   * Baileys hands you the *encrypted* CDN blob plus a mediaKey; without this step every
+   * inbound image is a dead link, which is why PLAN.md §1 calls decrypt-media
+   * non-negotiable rather than a nice-to-have.
+   */
+  downloadMedia(
+    sessionId: number,
+    message: Record<string, unknown>,
+  ): Promise<{ data: Buffer; mimetype: string; fileName: string } | null>;
+
   /** Contacts. `onWhatsApp` no longer returns LIDs in v7 — see PLAN.md §1. */
   onWhatsApp(sessionId: number, identifier: string): Promise<{ exists: boolean; jid: string | null }>;
   contacts(sessionId: number): Promise<ContactRecord[]>;
