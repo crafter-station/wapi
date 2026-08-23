@@ -72,8 +72,20 @@ the testable definition, and it means copying the warts:
    **One global monotonic Postgres sequence seeded at 100000.** `replyTo` takes the integer.
 3. **Casing stays inconsistent.** Sessions `snake_case`, messages `camelCase`, status lowercase in list
    responses and SCREAMING in connect responses. Their SDKs are written against this.
-4. **Envelope.** `{"success": true, "data": …}` / `{"success": false, "message": …}` with Laravel-shaped
-   `errors: {field: [msg]}`. Paginated lists reproduce the Laravel paginator envelope verbatim.
+4. **Envelopes — three failure shapes, not one.** Verified against all 68 response examples;
+   this corrects an earlier reading of the docs.
+   - Success: `{"success": true, "data": …}`.
+   - **Controller failures: `{"success": false, "error": "…"}`.** All 20 per-endpoint failures use
+     `error`; **none** use `message`. This is the common case — session not connected, message not
+     resendable, upload too large.
+   - **Framework failures: `{"success": false, "message": "…", "errors"?: {field: [msg]}}`** — auth,
+     validation, subscription gating. Laravel's exception handler, so middleware concerns only.
+   - **Throttle: `{"message": "…", "retry_after": n}` with *no* `success` key**, because Laravel's
+     ThrottleRequests short-circuits before the envelope is applied. Reproduce the omission.
+
+   Paginated lists use Laravel's length-aware paginator **minus the `links` array** it normally
+   includes — twelve keys, verified against both paginated examples. Implemented in
+   `packages/contracts/src/envelope.ts`, locked by tests.
 5. **Headers.** `X-RateLimit-Limit/Remaining/Reset` on every response; 429 carries `retry_after`.
 
 ### Rate limiting — real shape, nominal numbers
