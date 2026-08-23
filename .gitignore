@@ -1,0 +1,26 @@
+# deps / build
+node_modules/
+dist/
+.next/
+.turbo/
+*.tsbuildinfo
+
+# secrets
+.env
+.env.*
+!.env.example
+
+# agent tooling (installed skills, symlinks)
+.agents/
+.claude/
+skills-lock.json
+
+# Mirrored WasenderAPI documentation — their copyrighted prose.
+# Kept locally for reference and contract generation; never published.
+# See PLAN.md §0 "Copyright".
+docs/wasenderapi/raw/
+docs/wasenderapi/llms.txt
+docs/wasenderapi/reference/
+docs/wasenderapi/structured/
+docs/wasenderapi/INDEX.md
+docs/wasenderapi/manifest.json
