@@ -11,5 +11,8 @@
   },
   "dependencies": {
     "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@wapi/core": "workspace:*"
   }
 }

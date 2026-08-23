@@ -10,6 +10,8 @@ import { createDb } from "@wapi/db";
 import { rateLimitHeaders } from "./middleware/rate-limit.ts";
 import { authenticate, requirePat } from "./middleware/auth.ts";
 import { sessionRoutes } from "./routes/sessions.ts";
+import { connectionRoutes } from "./routes/connection.ts";
+import { messageRoutes } from "./routes/messages.ts";
 import { notImplemented } from "./not-implemented.ts";
 
 const DATABASE_URL = process.env["DATABASE_URL"];
@@ -46,11 +48,35 @@ const IMPLEMENTED = new Set([
   "PUT /api/whatsapp-sessions/{whatsappSession}",
   "DELETE /api/whatsapp-sessions/{whatsappSession}",
   "POST /api/whatsapp-sessions/{whatsappSession}/regenerate-key",
+  "POST /api/whatsapp-sessions/{whatsappSession}/connect",
+  "POST /api/whatsapp-sessions/{whatsappSession}/disconnect",
+  "POST /api/whatsapp-sessions/{whatsappSession}/restart",
+  "GET /api/whatsapp-sessions/{whatsappSession}/qrcode",
+  "GET /api/status",
+  "GET /api/user",
+  "POST /api/send-message",
 ]);
 
+/**
+ * Middleware first, routes second.
+ *
+ * Hono applies `app.use` only to routes registered *after* it, so mounting a router before
+ * its middleware silently leaves handlers unauthenticated — `c.get("auth")` is undefined and
+ * the request 500s. Registration order here is load-bearing, not stylistic.
+ */
+
+// Account-level: Personal Access Token only.
 app.use("/api/whatsapp-sessions", authenticate(db), requirePat);
 app.use("/api/whatsapp-sessions/*", authenticate(db), requirePat);
+
+// Session-key scoped: the key IS the selector, so these carry no session id in the path.
+app.use("/api/status", authenticate(db));
+app.use("/api/user", authenticate(db));
+app.use("/api/send-message", authenticate(db));
+
 app.route("/api", sessionRoutes(db));
+app.route("/api", connectionRoutes(db));
+app.route("/api", messageRoutes(db));
 
 /**
  * The remaining Tier-1 routes, registered from the generated contract so the surface is

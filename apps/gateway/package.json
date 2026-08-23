@@ -8,7 +8,9 @@
     "typecheck": "tsc --noEmit",
     "skeleton": "tsx src/skeleton.ts",
     "auth:import": "tsx src/auth-import.ts",
-    "skeleton:pg": "tsx src/skeleton-pg.ts"
+    "skeleton:pg": "tsx src/skeleton-pg.ts",
+    "start": "tsx src/server.ts",
+    "dev": "tsx --watch src/server.ts"
   },
   "dependencies": {
     "baileys": "7.0.0-rc14",
@@ -16,7 +18,11 @@
     "qrcode-terminal": "^0.12.0",
     "@wapi/db": "workspace:*",
     "@wapi/baileys-auth": "workspace:*",
-    "drizzle-orm": "^0.38.0"
+    "drizzle-orm": "^0.38.0",
+    "@wapi/core": "workspace:*",
+    "hono": "^4.6.0",
+    "@hono/node-server": "^1.13.0",
+    "redis": "^4.7.0"
   },
   "devDependencies": {
     "@hapi/boom": "^10.0.1",

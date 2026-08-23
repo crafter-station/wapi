@@ -125,3 +125,44 @@ describe("Laravel paginator", () => {
     expect(empty.last_page).toBe(1);
   });
 });
+
+// --- recipient normalisation (packages/core/src/jid.ts) -----------------------------------
+import { resolveRecipient } from "@wapi/core";
+
+describe("recipient resolution", () => {
+  test("E.164 and bare numbers become user JIDs", () => {
+    expect(resolveRecipient("+51922471582")).toEqual({
+      ok: true, jid: "51922471582@s.whatsapp.net", kind: "user",
+    });
+    expect(resolveRecipient("51922471582")).toEqual({
+      ok: true, jid: "51922471582@s.whatsapp.net", kind: "user",
+    });
+  });
+
+  test("group and channel JIDs keep their domain", () => {
+    expect(resolveRecipient("123-456@g.us").kind).toBe("group");
+    expect(resolveRecipient("123456789@newsletter").kind).toBe("channel");
+  });
+
+  test("device suffixes are stripped — they are not stable across reconnects", () => {
+    expect(resolveRecipient("51922471582:6@s.whatsapp.net")).toEqual({
+      ok: true, jid: "51922471582@s.whatsapp.net", kind: "user",
+    });
+  });
+
+  test("LID addresses survive, since inbound messages arrive LID-addressed", () => {
+    expect(resolveRecipient("46274715893950:6@lid")).toEqual({
+      ok: true, jid: "46274715893950@lid", kind: "user",
+    });
+  });
+
+  test("username handles are refused rather than mangled into a phone JID", () => {
+    const r = resolveRecipient("@jane_doe");
+    expect(r.ok).toBe(false);
+  });
+
+  test("junk is rejected", () => {
+    expect(resolveRecipient("").ok).toBe(false);
+    expect(resolveRecipient("123").ok).toBe(false);
+  });
+});
