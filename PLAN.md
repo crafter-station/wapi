@@ -437,7 +437,7 @@ reports in the research turned out to be hijacked open instances used as spam re
 |---|---|
 | project | `Qv06ZQHtN8SFNl4F4ZI-O` (`wapi`) |
 | environment | `-3bQ8kULOe03LWxojT8gn` (production) |
-| compose | `zHI9vuip7TU9vSuCH71QU`, service `api` |
+| compose | `zHI9vuip7TU9vSuCH71QU`, services `api` (Bun) + `gateway` (Node 22, 1 replica, internal only) |
 | GitHub provider | `mQ9jA2X9wMQI62PpeoWaL` — **use this one**, not `PUhK5iuG22LeojyZEW87B` |
 | test host | `wapi-api-95-111-248-246.traefik.me` (HTTP, no cert) — works today |
 | api domain | `api.wapi.crafter.run` → `api:3001`, HTTPS/Let's Encrypt, domain `-aWuTvbIy8zByfSmBLk8l` — **pending DNS** |
@@ -519,7 +519,7 @@ Two things the run confirmed beyond the gate itself:
 | 1a | **QR pairing test with a real number** | Whether the rest of this plan is possible |
 | 1b | Walking skeleton: pair → send one text → receive one `messages.upsert`, on Dokploy, throwaway auth | The deploy topology and the socket, end to end |
 | 2 | ~~`packages/baileys-auth` on Postgres~~ **DONE 2026-08-23** | Connected with zero filesystem state in 2807ms |
-| 3 | `apps/api`: both token types, session CRUD, `send-message` text-only, exact envelopes | Auth + the polymorphic route |
+| 3 | ~~`apps/api` + gateway service~~ **DONE 2026-08-23** | 13/29 routes live; `msgId` 100000; sent from the VPS |
 | 4 | `apps/web`: Clerk, dashboard, QR over SSE, PAT management | A human can pair without curl |
 | 5 | Full send-message union, `upload`, `decrypt-media`, UploadX | Media path |
 | 6 | `webhook-worker`: 22 events, retries, signature | Receive path |
