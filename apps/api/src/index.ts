@@ -5,7 +5,7 @@
  * under load, and to accept raw binary uploads. See PLAN.md §2.
  */
 import { Hono } from "hono";
-import { ROUTES, fail, failFramework } from "@wapi/contracts";
+import { ROUTES, fail, failFramework, buildOpenApiDocument } from "@wapi/contracts";
 import { createDb } from "@wapi/db";
 import { rateLimitHeaders } from "./middleware/rate-limit.ts";
 import { authenticate, requirePat } from "./middleware/auth.ts";
@@ -75,6 +75,38 @@ const IMPLEMENTED = new Set([
   "POST /api/upload",
   "POST /api/decrypt-media",
 ]);
+
+/**
+ * Machine-readable spec and the reference UI.
+ *
+ * Both are generated from the same `ROUTES` the handlers validate against, so the docs cannot
+ * drift from the implementation — which is precisely the failure mode of the hand-edited docs
+ * CMS the original uses (PLAN.md §1). Public and unauthenticated: a spec you need a key to
+ * read is not documentation.
+ */
+const PUBLIC_URL = process.env["PUBLIC_URL"] ?? "https://api.wapi.crafter.run";
+
+app.get("/openapi.json", (c) => c.json(buildOpenApiDocument(PUBLIC_URL)));
+
+app.get("/docs", (c) =>
+  c.html(`<!doctype html>
+<html><head>
+  <title>wapi — API reference</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head><body>
+  <div id="app"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+  <script>
+    Scalar.createApiReference('#app', {
+      url: '/openapi.json',
+      theme: 'default',
+      darkMode: true,
+      hideDownloadButton: false,
+    })
+  </script>
+</body></html>`),
+);
 
 /**
  * Middleware first, routes second.
