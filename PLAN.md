@@ -452,10 +452,23 @@ Helper Chrome extension — was **created 2026-07-09, nine days after that chang
 corroboration from two directions. But their `connect` still defaults to QR and falls back
 passkey→QR, so QR works for *some* numbers.
 
-So: **try to pair your real number by QR. One hour.**
-- **It pairs** → passkey stays deferred, the spike is money never spent, continue below.
-- **It doesn't** → the three-day passkey spike starts that afternoon and becomes the critical path,
-  with a headed-browser onboarding fallback as the likely shape. Everything else waits.
+### RESOLVED 2026-08-23 — QR pairing works
+
+Ran `bun run pair` against a real number on `baileys@7.0.0-rc14`, WA web `2.3000.1043857760`:
+one QR, scanned, `515 restartRequired`, reconnect, `connection: open`. **No WebAuthn assertion
+was demanded, no `reachoutTimeLock` reported.**
+
+**Passkey stays deferred to Tier 2. The three-day spike is not needed.** Known unknown #1 is closed
+and phase 1b proceeds.
+
+Two things the run confirmed beyond the gate itself:
+
+- **The socket reports a LID alongside the JID on connect** (`…@lid`), which is live corroboration
+  for §4 keying internal identity on LID rather than phone number. Not theoretical — v7 hands it over.
+- **`515 restartRequired` is a successful pair, not a failure.** WhatsApp accepts the scan, errors
+  the stream, and requires a reconnect with the credentials it just issued. Any engine implementation
+  must handle it as success; reading it as a refusal is the single easiest way to conclude that
+  pairing is broken when it isn't.
 
 | Phase | Ships | Proves |
 |---|---|---|
@@ -504,7 +517,8 @@ the product slightly worse, deliberately.
 
 Not settled, and not to be read as settled:
 
-1. **Whether your number pairs by QR.** Gates phase 1 and possibly three days of passkey work.
+1. ~~**Whether your number pairs by QR.**~~ **RESOLVED 2026-08-23 — it does.** See §8. No WebAuthn
+   demanded, passkey stays Tier 2.
 2. **`msgId` sequencing, the paginator envelope, `pn-from-lid` miss behaviour** — inferred, pending §9.1.
 3. **UploadX's SDK on Bun is untested** and `apps/api` is Bun. If `minio`/`Readable.toWeb()` misbehave,
    storage calls move to the Node gateway or drop to raw HTTP.

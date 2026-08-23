@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "pair": "tsx src/pair.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "skeleton": "tsx src/skeleton.ts"
   },
   "dependencies": {
     "baileys": "7.0.0-rc14",
