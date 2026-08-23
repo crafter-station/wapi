@@ -259,6 +259,19 @@ are new `@hosted`/`@hosted.lid` domains.
 **Rule for `packages/core`: never string-compare JIDs. Always `areJidsSameUser()`.** That's the bug
 class this decision exists to prevent, and it fails silently.
 
+**Observed live in phase 1b, and it validates the whole decision.** An inbound message arrived as:
+
+```
+remoteJid     46274715893950@lid
+remoteJidAlt  51922471582@s.whatsapp.net
+```
+
+`remoteJid` was the **LID**, with the phone JID demoted to `remoteJidAlt`. Any code assuming
+`remoteJid` ends in `@s.whatsapp.net` is already wrong on today's traffic — this is not a future
+migration to prepare for. Note also the socket reported its own LID with a **different device
+suffix** between two sessions (`:5` then `:6`), so the device part is not stable across
+reconnects and must be normalised away (`jidNormalizedUser`) before use as a key.
+
 ```
 accounts               clerk_user_id, clerk_org_id (nullable), created_at
 personal_access_tokens account_id, token_hash, name, last_used_at, revoked_at
@@ -330,6 +343,11 @@ Non-negotiable, no decision attached:
   quasi-experimental support. Six of our Tier-1 routes are group routes; pace them.
 - Don't expect upstream anti-ban help: their Code of Conduct rejects contributions that bypass
   anti-spam or rate-limiting.
+- **Silence `libsignal-node`'s console output before creating any socket.** It calls `console.log`
+  directly — it never sees the logger Baileys is handed — and on an ordinary `sendMessage` it prints
+  a whole `SessionEntry`, including the ratchet's ephemeral `privKey` as a raw Buffer. Observed in
+  phase 1b. In a terminal that's noise; in a container it is key material in shipped logs.
+  `apps/gateway/src/quiet-signal.ts` diverts `console` into pino at debug level.
 
 ---
 

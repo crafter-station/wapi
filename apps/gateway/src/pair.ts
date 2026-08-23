@@ -31,6 +31,7 @@ import qrcode from "qrcode-terminal";
 import pino from "pino";
 import { resolve } from "node:path";
 import { existsSync, rmSync } from "node:fs";
+import { quietSignal, write } from "./quiet-signal.js";
 
 const AUTH_DIR = resolve(import.meta.dirname, "../.auth-scratch");
 
@@ -44,8 +45,10 @@ const RESUME = process.argv.includes("--resume");
 const LOGOUT_AFTER = process.argv.includes("--logout");
 
 const logger = pino({ level: process.env["BAILEYS_LOG"] ?? "silent" });
-const line = (s = "") => console.log(s);
-const step = (s: string) => console.log(`\n── ${s}`);
+// Must run before any socket exists: libsignal prints key material via console.
+quietSignal(logger);
+const line = write;
+const step = (s: string) => write(`\n── ${s}`);
 
 const observed = {
   qrCount: 0,
