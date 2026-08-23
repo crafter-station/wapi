@@ -11,6 +11,7 @@ COPY packages/db/package.json packages/db/
 COPY packages/baileys-auth/package.json packages/baileys-auth/
 COPY apps/api/package.json apps/api/
 COPY apps/gateway/package.json apps/gateway/
+COPY apps/webhook-worker/package.json apps/webhook-worker/
 RUN bun install --frozen-lockfile
 
 FROM oven/bun:1.2-alpine AS runtime

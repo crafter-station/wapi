@@ -42,6 +42,23 @@ services:
     networks:
       - dokploy-network
 
+  # Stateless: redeploys freely, unlike the gateway. Consumes the gateway's Redis channel
+  # and delivers webhooks with retry/backoff via BullMQ.
+  webhook-worker:
+    build:
+      context: .
+      dockerfile: apps/webhook-worker/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+    depends_on:
+      - gateway
+    networks:
+      - dokploy-network
+
 networks:
   dokploy-network:
     external: true
