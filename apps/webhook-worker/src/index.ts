@@ -15,8 +15,8 @@ import { Redis } from "ioredis";
 import { createClient } from "redis";
 import pino from "pino";
 import { createHmac } from "node:crypto";
-import { eq } from "drizzle-orm";
-import { createDb, whatsappSessions, type WhatsappSession } from "@wapi/db";
+import { eq, sql } from "drizzle-orm";
+import { createDb, whatsappSessions, contacts, type WhatsappSession } from "@wapi/db";
 import { toPublicEvents, passesSessionFilters, type PublicEvent } from "./events.js";
 
 const DATABASE_URL = process.env["DATABASE_URL"];
@@ -107,6 +107,45 @@ await sub.subscribe("wapi:events", async (raw) => {
         .set({ lid, updatedAt: new Date() })
         .where(eq(whatsappSessions.id, sessionId))
         .catch(() => {});
+    }
+  }
+
+  /**
+   * Persist the contact cache.
+   *
+   * v7 removed Baileys' in-memory store, so this event stream is the ONLY source for
+   * GET /api/contacts. Like the status write above, it runs before the webhook_enabled
+   * check: the cache must stay correct whether or not anyone subscribed.
+   */
+  if (engineEvent.type === "wa" && (engineEvent.event === "contacts.upsert" || engineEvent.event === "contacts.update")) {
+    const list = (engineEvent.payload as Record<string, unknown>[] | undefined) ?? [];
+    const rows = list
+      .filter((x) => typeof x["id"] === "string")
+      .map((x) => ({
+        sessionId,
+        jid: String(x["id"]),
+        name: (x["name"] as string) ?? null,
+        notify: (x["notify"] as string) ?? null,
+        phoneNumber: (x["phoneNumber"] as string) ?? null,
+        lid: (x["lid"] as string) ?? null,
+        updatedAt: new Date(),
+      }));
+    if (rows.length) {
+      await db
+        .insert(contacts)
+        .values(rows)
+        .onConflictDoUpdate({
+          target: [contacts.sessionId, contacts.jid],
+          set: {
+            name: sql`coalesce(excluded.name, contacts.name)`,
+            notify: sql`coalesce(excluded.notify, contacts.notify)`,
+            phone_number: sql`coalesce(excluded.phone_number, contacts.phone_number)`,
+            lid: sql`coalesce(excluded.lid, contacts.lid)`,
+            updatedAt: new Date(),
+          } as never,
+        })
+        .catch((err) => logger.error({ err }, "contact upsert failed"));
+      logger.debug({ sessionId, n: rows.length }, "contacts cached");
     }
   }
 

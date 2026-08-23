@@ -18,7 +18,8 @@ import type { ConnectionState, WASocket } from "baileys";
 import type { Boom } from "@hapi/boom";
 import type { Logger } from "pino";
 import { usePostgresAuthState } from "@wapi/baileys-auth";
-import type { Db } from "@wapi/db";
+import { contacts, type Db } from "@wapi/db";
+import { and, eq } from "drizzle-orm";
 import type {
   WhatsAppEngine,
   EngineEvent,
@@ -264,16 +265,40 @@ export class BaileysEngine implements WhatsAppEngine {
     return { exists: Boolean(hit?.exists), jid: hit?.jid ?? null };
   }
 
+  /**
+   * Contacts come from the database, not the socket.
+   *
+   * Baileys v7 removed the in-memory store, so there is no `sock.store` to ask. The only
+   * source is the `contacts.upsert` / `contacts.update` event stream, which the webhook
+   * worker persists into the `contacts` table. Returning an empty array from a socket that
+   * simply cannot answer would be a silent lie.
+   */
   async contacts(sessionId: number): Promise<ContactRecord[]> {
-    const entry = this.live(sessionId);
-    const store = (entry.sock as unknown as { store?: { contacts?: Record<string, unknown> } }).store;
-    const raw = store?.contacts ?? {};
-    return Object.entries(raw).map(([jid, c]) => toContact(jid, c as Record<string, unknown>));
+    this.live(sessionId);
+    const rows = await this.db
+      .select()
+      .from(contacts)
+      .where(eq(contacts.sessionId, sessionId))
+      .orderBy(contacts.jid);
+    return rows.map((r) => ({
+      jid: r.jid,
+      name: r.name,
+      notify: r.notify,
+      phoneNumber: r.phoneNumber,
+      lid: r.lid,
+    }));
   }
 
   async contact(sessionId: number, jid: string): Promise<ContactRecord | null> {
-    const all = await this.contacts(sessionId);
-    return all.find((c) => c.jid === jid) ?? null;
+    this.live(sessionId);
+    const [r] = await this.db
+      .select()
+      .from(contacts)
+      .where(and(eq(contacts.sessionId, sessionId), eq(contacts.jid, jid)))
+      .limit(1);
+    return r
+      ? { jid: r.jid, name: r.name, notify: r.notify, phoneNumber: r.phoneNumber, lid: r.lid }
+      : null;
   }
 
   async lidFromPn(sessionId: number, pn: string): Promise<string | null> {
@@ -369,16 +394,6 @@ export class SessionNotConnectedError extends Error {
     super("Your Whatsapp Session is not connected please connect your session first.");
     this.name = "SessionNotConnectedError";
   }
-}
-
-function toContact(jid: string, c: Record<string, unknown>): ContactRecord {
-  return {
-    jid,
-    name: (c["name"] as string) ?? null,
-    notify: (c["notify"] as string) ?? null,
-    phoneNumber: (c["phoneNumber"] as string) ?? null,
-    lid: (c["lid"] as string) ?? null,
-  };
 }
 
 function toGroup(g: Record<string, unknown>): GroupRecord {

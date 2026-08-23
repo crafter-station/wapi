@@ -144,6 +144,19 @@ const statements: [label: string, ddl: string][] = [
      )`,
   ],
   [
+    "contacts",
+    `CREATE TABLE IF NOT EXISTS contacts (
+       session_id   integer NOT NULL REFERENCES whatsapp_sessions(id) ON DELETE CASCADE,
+       jid          text NOT NULL,
+       name         text,
+       notify       text,
+       phone_number text,
+       lid          text,
+       updated_at   timestamptz NOT NULL DEFAULT now(),
+       PRIMARY KEY (session_id, jid)
+     )`,
+  ],
+  [
     "messages_session_idx",
     `CREATE INDEX IF NOT EXISTS messages_session_idx ON messages (session_id, created_at)`,
   ],

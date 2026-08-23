@@ -9,6 +9,7 @@ import {
   index,
   uniqueIndex,
   serial,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -157,6 +158,33 @@ export const messages = pgTable(
   ],
 );
 
+/**
+ * Contact cache.
+ *
+ * Baileys v7 removed the in-memory store, so a live socket cannot be asked "what contacts do
+ * you know". The only source is the `contacts.upsert` / `contacts.update` event stream, which
+ * the webhook worker persists here. PLAN.md §4 always called for this table; v7 makes it
+ * mandatory rather than an optimisation.
+ *
+ * Keyed on LID where known, matching §4's decision to treat LID as canonical identity.
+ */
+export const contacts = pgTable(
+  "contacts",
+  {
+    sessionId: integer("session_id")
+      .notNull()
+      .references(() => whatsappSessions.id, { onDelete: "cascade" }),
+    jid: text("jid").notNull(),
+    name: text("name"),
+    notify: text("notify"),
+    phoneNumber: text("phone_number"),
+    lid: text("lid"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.sessionId, t.jid] })],
+);
+
+export type Contact = typeof contacts.$inferSelect;
 export type Account = typeof accounts.$inferSelect;
 export type PersonalAccessToken = typeof personalAccessTokens.$inferSelect;
 export type WhatsappSession = typeof whatsappSessions.$inferSelect;
