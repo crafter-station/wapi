@@ -6,12 +6,17 @@
   "scripts": {
     "pair": "tsx src/pair.ts",
     "typecheck": "tsc --noEmit",
-    "skeleton": "tsx src/skeleton.ts"
+    "skeleton": "tsx src/skeleton.ts",
+    "auth:import": "tsx src/auth-import.ts",
+    "skeleton:pg": "tsx src/skeleton-pg.ts"
   },
   "dependencies": {
     "baileys": "7.0.0-rc14",
     "pino": "^9.6.0",
-    "qrcode-terminal": "^0.12.0"
+    "qrcode-terminal": "^0.12.0",
+    "@wapi/db": "workspace:*",
+    "@wapi/baileys-auth": "workspace:*",
+    "drizzle-orm": "^0.38.0"
   },
   "devDependencies": {
     "@hapi/boom": "^10.0.1",

@@ -1,0 +1,9 @@
+{
+  "name": "@wapi/baileys-auth",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit" },
+  "dependencies": { "@wapi/db": "workspace:*", "baileys": "7.0.0-rc14", "drizzle-orm": "^0.38.0" }
+}

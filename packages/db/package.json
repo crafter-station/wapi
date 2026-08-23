@@ -1,0 +1,10 @@
+{
+  "name": "@wapi/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts", "./schema": "./src/schema.ts" },
+  "scripts": { "typecheck": "tsc --noEmit", "push": "drizzle-kit push" },
+  "dependencies": { "drizzle-orm": "^0.38.0", "postgres": "^3.4.5" },
+  "devDependencies": { "drizzle-kit": "^0.30.0" }
+}

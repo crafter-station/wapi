@@ -309,9 +309,28 @@ CREATE INDEX signal_keys_type_idx ON signal_keys(session_id, type);
 - **Session readiness is `creds.me?.id`, never `creds.registered`.** Confirmed on the phase 1a
   session: `registered` is `false` on a perfectly working QR-paired account, because that flag
   belongs to the *pairing-code* flow and is never set by QR. Gating on it rejects live credentials.
-- **Volume: one QR pair produced 813 signal-key files.** That is the churn `useMultiFileAuthState`
-  does as filesystem I/O per session, and the concrete reason it does not scale — the Redis-in-front
-  caching above is not premature.
+- **Volume: one QR pair produced 813 signal-key files**, and 1447 after a single send-and-listen
+  run. That is the churn `useMultiFileAuthState` does as filesystem I/O per session, and the
+  concrete reason it does not scale — the Redis-in-front caching above is not premature.
+
+### Measured key-type distribution (one real session, 1447 keys)
+
+| type | rows | |
+|---|---:|---|
+| `pre-key` | 812 | |
+| **`lid-mapping`** | **586** | **v7-only** |
+| **`tctoken`** | **36** | **v7-only** |
+| `app-state-sync-version` | 5 | |
+| `app-state-sync-key` | 3 | |
+| `session` | 3 | |
+| **`device-list`** | 1 | **v7-only** |
+| **`identity-key`** | 1 | **v7-only** |
+
+This settles a claim §4 previously made from research alone. **A v6-shaped store would silently
+drop 624 of 1447 keys** — every LID mapping and every TC token — on one ordinary session. Losing
+`tctoken` is what produces error-463 restrictions (§0), and it would have looked like a mysterious
+rate limit rather than a storage bug. `lid-mapping` at 586 rows also confirms why the unbounded
+`LIDMappingStore` LRU is the most dangerous known leak in the library.
 - **Serialize with `BufferJSON`.** Plain `JSON.stringify` corrupts Buffers.
 - Handle all four v7 key types: **`lid-mapping`, `device-list`, `tctoken`, `identity-key`.** A v6-shaped
   store silently drops LID mappings and TC tokens, and missing TC tokens directly cause error 463.
@@ -499,7 +518,7 @@ Two things the run confirmed beyond the gate itself:
 | 0 | `packages/contracts` from the mirrored spec, OpenAPI emit, CI | Interface pinned before code depends on it |
 | 1a | **QR pairing test with a real number** | Whether the rest of this plan is possible |
 | 1b | Walking skeleton: pair → send one text → receive one `messages.upsert`, on Dokploy, throwaway auth | The deploy topology and the socket, end to end |
-| 2 | `packages/baileys-auth` on Postgres; session survives a container recreate | **Lands before feature #3, never "later"** |
+| 2 | ~~`packages/baileys-auth` on Postgres~~ **DONE 2026-08-23** | Connected with zero filesystem state in 2807ms |
 | 3 | `apps/api`: both token types, session CRUD, `send-message` text-only, exact envelopes | Auth + the polymorphic route |
 | 4 | `apps/web`: Clerk, dashboard, QR over SSE, PAT management | A human can pair without curl |
 | 5 | Full send-message union, `upload`, `decrypt-media`, UploadX | Media path |
