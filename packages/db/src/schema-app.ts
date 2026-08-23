@@ -82,8 +82,16 @@ export const whatsappSessions = pgTable(
     lid: text("lid"),
     /** connecting | connected | disconnected | need_scan | need_passkey | logged_out | expired */
     status: text("status").notNull().default("disconnected"),
-    /** The per-session API key, hashed. Dies with the session. */
+    /**
+     * Two columns for one secret, on purpose.
+     *
+     * `api_key_hash` is the lookup column, so authentication never decrypts anything.
+     * `api_key_encrypted` exists only because GET /api/whatsapp-sessions/{id} returns the
+     * key in plaintext (PLAN.md §1) — fidelity forbids hash-only storage, but storing it
+     * in the clear is avoidable. Both die with the session.
+     */
     apiKeyHash: text("api_key_hash"),
+    apiKeyEncrypted: text("api_key_encrypted"),
 
     accountProtection: boolean("account_protection").notNull().default(false),
     logMessages: boolean("log_messages").notNull().default(true),

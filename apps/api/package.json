@@ -6,11 +6,15 @@
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "seed": "tsx src/seed-dev.ts"
   },
   "dependencies": {
     "@wapi/contracts": "workspace:*",
     "hono": "^4.6.0",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "@wapi/core": "workspace:*",
+    "@wapi/db": "workspace:*",
+    "drizzle-orm": "^0.38.0"
   }
 }

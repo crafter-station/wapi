@@ -1,2 +1,2 @@
-export * from "./envelope.ts";
-export * from "./generated/routes.ts";
+export * from "./envelope.js";
+export * from "./generated/routes.js";

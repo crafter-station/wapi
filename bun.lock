@@ -14,6 +14,9 @@
       "version": "0.0.0",
       "dependencies": {
         "@wapi/contracts": "workspace:*",
+        "@wapi/core": "workspace:*",
+        "@wapi/db": "workspace:*",
+        "drizzle-orm": "^0.38.0",
         "hono": "^4.6.0",
         "zod": "^4.4.3",
       },
@@ -50,6 +53,15 @@
       "version": "0.0.0",
       "dependencies": {
         "zod": "^4.4.3",
+      },
+    },
+    "packages/core": {
+      "name": "@wapi/core",
+      "version": "0.0.0",
+      "dependencies": {
+        "@wapi/contracts": "workspace:*",
+        "@wapi/db": "workspace:*",
+        "drizzle-orm": "^0.38.0",
       },
     },
     "packages/db": {
@@ -272,6 +284,8 @@
     "@wapi/baileys-auth": ["@wapi/baileys-auth@workspace:packages/baileys-auth"],
 
     "@wapi/contracts": ["@wapi/contracts@workspace:packages/contracts"],
+
+    "@wapi/core": ["@wapi/core@workspace:packages/core"],
 
     "@wapi/db": ["@wapi/db@workspace:packages/db"],
 

@@ -1,0 +1,61 @@
+import { randomBytes, createHash, createCipheriv, createDecipheriv, timingSafeEqual } from "node:crypto";
+
+/**
+ * Machine credentials: Personal Access Tokens and per-session API keys.
+ *
+ * Both are minted, stored and verified by us rather than Clerk — a Clerk API key's subject
+ * must be a user or org (a per-WhatsApp-session key has no such subject), verification is a
+ * billed network call, and it would put a Clerk round-trip on every send. See PLAN.md §3.
+ */
+
+/** 64 hex characters, matching the shape their documentation shows. */
+export const generateApiKey = () => randomBytes(32).toString("hex");
+export const generatePat = () => `wapi_pat_${randomBytes(32).toString("hex")}`;
+export const generateWebhookSecret = () => randomBytes(16).toString("hex");
+
+/**
+ * SHA-256 is correct here, deliberately — these are 256-bit random tokens, not passwords.
+ * A slow KDF would add latency to every request and defend against nothing, since there is
+ * no low-entropy secret to brute-force.
+ */
+export const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
+
+/** Constant-time compare for anything derived from user input. */
+export function safeEqual(a: string, b: string): boolean {
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ba.length !== bb.length) return false;
+  return timingSafeEqual(ba, bb);
+}
+
+/**
+ * Reversible encryption for the session API key.
+ *
+ * `GET /api/whatsapp-sessions/{id}` returns `api_key` in plaintext, so fidelity forbids
+ * storing it hash-only. Rather than keeping it in the clear we store it AES-256-GCM
+ * encrypted: identical behaviour on the wire, and a database dump alone does not yield
+ * working credentials. `hashToken` is still used for the *lookup* column so authentication
+ * never needs to decrypt.
+ */
+const keyFromEnv = (): Buffer => {
+  const raw = process.env["ENCRYPTION_KEY"];
+  if (!raw) throw new Error("ENCRYPTION_KEY is not set (32-byte hex)");
+  const buf = Buffer.from(raw, "hex");
+  if (buf.length !== 32) throw new Error("ENCRYPTION_KEY must be 32 bytes of hex");
+  return buf;
+};
+
+export function encryptSecret(plain: string): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", keyFromEnv(), iv);
+  const ct = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
+  return [iv.toString("base64"), cipher.getAuthTag().toString("base64"), ct.toString("base64")].join(".");
+}
+
+export function decryptSecret(stored: string): string {
+  const [ivB64, tagB64, ctB64] = stored.split(".");
+  if (!ivB64 || !tagB64 || !ctB64) throw new Error("malformed ciphertext");
+  const decipher = createDecipheriv("aes-256-gcm", keyFromEnv(), Buffer.from(ivB64, "base64"));
+  decipher.setAuthTag(Buffer.from(tagB64, "base64"));
+  return Buffer.concat([decipher.update(Buffer.from(ctB64, "base64")), decipher.final()]).toString("utf8");
+}

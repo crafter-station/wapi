@@ -1,0 +1,9 @@
+{
+  "name": "@wapi/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit" },
+  "dependencies": { "@wapi/db": "workspace:*", "@wapi/contracts": "workspace:*", "drizzle-orm": "^0.38.0" }
+}

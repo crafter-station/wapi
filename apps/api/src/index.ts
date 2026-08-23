@@ -6,17 +6,23 @@
  */
 import { Hono } from "hono";
 import { ROUTES, fail, failFramework } from "@wapi/contracts";
+import { createDb } from "@wapi/db";
 import { rateLimitHeaders } from "./middleware/rate-limit.ts";
+import { authenticate, requirePat } from "./middleware/auth.ts";
+import { sessionRoutes } from "./routes/sessions.ts";
 import { notImplemented } from "./not-implemented.ts";
 
-const app = new Hono();
+const DATABASE_URL = process.env["DATABASE_URL"];
+if (!DATABASE_URL) {
+  console.error("DATABASE_URL is not set.");
+  process.exit(1);
+}
+const { db } = createDb(DATABASE_URL);
 
+const app = new Hono();
 app.use("*", rateLimitHeaders);
 
-/**
- * Internal liveness probe. Not part of the WasenderAPI surface, so it lives outside /api
- * where it cannot collide with a real route.
- */
+/** Internal liveness probe — outside /api so it cannot collide with a real route. */
 app.get("/health", (c) =>
   c.json({
     status: "ok",
@@ -27,14 +33,32 @@ app.get("/health", (c) =>
 );
 
 /**
- * Register the 29 Tier-1 routes from the generated contract.
+ * Implemented routes, mounted before the 501 fallbacks so they win.
  *
- * Every route exists from day one so the surface is complete and testable; handlers are
- * filled in per PLAN.md §8 and each unimplemented one answers with a clearly-marked 501
- * rather than a plausible-looking lie.
+ * Session CRUD is account-level and therefore Personal-Access-Token only — their proxy guide
+ * is explicit that "updating a session's core configuration is an account-level action, you
+ * must authenticate this request using your Personal Access Token, not the Session API Key".
+ */
+const IMPLEMENTED = new Set([
+  "GET /api/whatsapp-sessions",
+  "POST /api/whatsapp-sessions",
+  "GET /api/whatsapp-sessions/{whatsappSession}",
+  "PUT /api/whatsapp-sessions/{whatsappSession}",
+  "DELETE /api/whatsapp-sessions/{whatsappSession}",
+  "POST /api/whatsapp-sessions/{whatsappSession}/regenerate-key",
+]);
+
+app.use("/api/whatsapp-sessions", authenticate(db), requirePat);
+app.use("/api/whatsapp-sessions/*", authenticate(db), requirePat);
+app.route("/api", sessionRoutes(db));
+
+/**
+ * The remaining Tier-1 routes, registered from the generated contract so the surface is
+ * complete and measurable. Each answers with a marked 501 until its handler lands
+ * (PLAN.md §8), which is honest in a way a stubbed 200 would not be.
  */
 for (const route of ROUTES) {
-  // Contract paths use `{param}`; Hono uses `:param`.
+  if (IMPLEMENTED.has(`${route.method} ${route.path}`)) continue;
   const path = route.path.replace(/\{(\w+)\}/g, ":$1");
   const method = route.method.toLowerCase() as "get" | "post" | "put" | "delete";
   app[method](path, notImplemented(route));
@@ -49,6 +73,8 @@ app.onError((err, c) => {
 });
 
 const port = Number(process.env["PORT"] ?? 3001);
-console.log(`wapi-api listening on :${port} — ${ROUTES.length} routes registered`);
+console.log(
+  `wapi-api listening on :${port} — ${ROUTES.length} routes (${IMPLEMENTED.size} live, ${ROUTES.length - IMPLEMENTED.size} pending)`,
+);
 
 export default { port, fetch: app.fetch };

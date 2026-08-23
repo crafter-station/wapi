@@ -95,6 +95,7 @@ const statements: [label: string, ddl: string][] = [
        lid                    text,
        status                 text NOT NULL DEFAULT 'disconnected',
        api_key_hash           text,
+       api_key_encrypted      text,
        account_protection     boolean NOT NULL DEFAULT false,
        log_messages           boolean NOT NULL DEFAULT true,
        read_incoming_messages boolean NOT NULL DEFAULT false,
@@ -113,6 +114,10 @@ const statements: [label: string, ddl: string][] = [
        created_at             timestamptz NOT NULL DEFAULT now(),
        updated_at             timestamptz NOT NULL DEFAULT now()
      )`,
+  ],
+  [
+    "whatsapp_sessions.api_key_encrypted",
+    `ALTER TABLE whatsapp_sessions ADD COLUMN IF NOT EXISTS api_key_encrypted text`,
   ],
   [
     "sessions_account_idx",
