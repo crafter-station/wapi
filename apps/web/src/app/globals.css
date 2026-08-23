@@ -1,0 +1,164 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens measured from https://normal.fast — see docs/design-reference.md.
+ *
+ * The palette is deliberately achromatic: `--destructive` is the only chromatic token in the
+ * whole system. That is a constraint, not an omission, and it shapes the session-status UI
+ * below — seven states separated by weight, fill and border style rather than by colour.
+ *
+ * The stray `--sidebar-primary: #1447e6` from the source is NOT copied: it is blue in dark
+ * mode and #171717 in light, i.e. an unoverridden shadcn default rather than an accent.
+ */
+
+:root {
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --card: #ffffff;
+  --card-foreground: #0a0a0a;
+  --muted: #f5f5f5;
+  --muted-foreground: #737373;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --primary: #171717;
+  --primary-foreground: #fafafa;
+  --ring: #737373;
+  --destructive: #e40014;
+
+  /* The editorial alias layer the source defines on top of the shadcn tokens. */
+  --landing-paper: var(--background);
+  --landing-ink: var(--foreground);
+  --landing-line: var(--border);
+  --landing-wash: var(--muted);
+
+  --radius: 0.625rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #fafafa;
+    --card: #171717;
+    --card-foreground: #fafafa;
+    --muted: #262626;
+    --muted-foreground: #a1a1a1;
+    --border: rgb(255 255 255 / 0.1);
+    --input: rgb(255 255 255 / 0.15);
+    --primary: #e5e5e5;
+    --primary-foreground: #171717;
+    --ring: #a1a1a1;
+    --destructive: #ff6568;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-destructive: var(--destructive);
+  --radius-card: var(--radius);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  /* Fast and decisive — expo-out, as measured. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  /* Emphasis comes from size and colour: the source defines 400/500/600 and no bold. */
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+/* Eyebrows and column labels. */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/*
+ * Session status.
+ *
+ * With no brand hue available, the seven states separate on fill, border style and weight.
+ * `destructive` is held back for genuine failure — logged_out and expired — so that a state
+ * needing action is the only coloured thing on the page.
+ */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+}
+.status::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid currentColor;
+}
+/* Live: solid fill, full-contrast ink. */
+.status-connected {
+  color: var(--foreground);
+  border-color: var(--foreground);
+}
+.status-connected::before {
+  background: currentColor;
+}
+/* In flight: dashed border, pulsing dot. */
+.status-connecting,
+.status-need_scan,
+.status-need_passkey {
+  color: var(--muted-foreground);
+  border-style: dashed;
+}
+.status-connecting::before,
+.status-need_scan::before,
+.status-need_passkey::before {
+  animation: pulse 1.6s var(--ease-out) infinite;
+}
+/* Idle: hollow and quiet. */
+.status-disconnected {
+  color: var(--muted-foreground);
+}
+/* Needs a human. The only colour on the page. */
+.status-logged_out,
+.status-expired {
+  color: var(--destructive);
+  border-color: var(--destructive);
+}
+.status-logged_out::before,
+.status-expired::before {
+  background: currentColor;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
