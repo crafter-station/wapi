@@ -520,12 +520,12 @@ Two things the run confirmed beyond the gate itself:
 | 1b | Walking skeleton: pair → send one text → receive one `messages.upsert`, on Dokploy, throwaway auth | The deploy topology and the socket, end to end |
 | 2 | ~~`packages/baileys-auth` on Postgres~~ **DONE 2026-08-23** | Connected with zero filesystem state in 2807ms |
 | 3 | ~~`apps/api` + gateway service~~ **DONE 2026-08-23** | 13/29 routes live; `msgId` 100000; sent from the VPS |
-| 4 | `apps/web`: Clerk, dashboard, QR over SSE, PAT management | A human can pair without curl |
-| 5 | Full send-message union, `upload`, `decrypt-media`, UploadX | Media path |
-| 6 | `webhook-worker`: 22 events, retries, signature | Receive path |
-| 7 | Groups + contacts + LID routes | Breadth to 29 |
+| 4 | `apps/web`: Clerk, dashboard, QR over SSE, PAT management | **NEXT — blocked on Clerk keys** |
+| 5 | ~~`upload`, `decrypt-media`, UploadX~~ **routes DONE, blocked on UPLOADX_TOKEN**. send-message union still text-only | Media path |
+| 6 | ~~`webhook-worker`: 22 events, retries, signature~~ **DONE** — HTTP delivery still unproven | Receive path |
+| 7 | ~~Groups + contacts + LID routes~~ **DONE** — 29 routes registered | Breadth to 29 |
 | 8 | Rate-limit headers, `account_protection` pacing, logs, staleness | Operability |
-| 9 | Scalar docs from OpenAPI, generated `/llms.txt` | Shippable |
+| 9 | ~~Scalar docs from OpenAPI~~ **DONE** at `/docs` + `/openapi.json`. `/llms.txt` outstanding | Shippable |
 
 Commit per coherent feature, conventional format with workspace scopes (`feat(api):`), straight to
 `main`. **Never pushed without asking.**
@@ -542,7 +542,13 @@ Commit per coherent feature, conventional format with workspace scopes (`feat(ap
 3. **Their real `wasenderapi` npm SDK** run against `api.wapi.crafter.run`. This is the actual
    definition of the promise: if it works unmodified, the claim is proven rather than asserted.
 
-`bun test`, one GitHub Actions workflow, three jobs: typecheck, fixtures, SDK smoke.
+`bun test`, one GitHub Actions workflow: typecheck across all seven packages, tests, and a
+staleness check on the generated contract. **Live and green.** 36 tests.
+
+The golden-fixture suite self-skips in CI, because the mirror it reads is gitignored as their
+copyrighted prose — so those assertions only run locally. Skipped is honest; a green tick on
+tests that never ran would not be. **Layer 3, running their real SDK against us, has still
+never been done** — the drop-in claim from Q2 remains asserted rather than proven.
 
 ### Observability
 
