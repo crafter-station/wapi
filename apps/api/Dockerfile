@@ -6,6 +6,7 @@ WORKDIR /app
 # and the install fails. Adding a new workspace means adding a COPY line here.
 COPY package.json bun.lock ./
 COPY packages/contracts/package.json packages/contracts/
+COPY packages/core/package.json packages/core/
 COPY packages/db/package.json packages/db/
 COPY packages/baileys-auth/package.json packages/baileys-auth/
 COPY apps/api/package.json apps/api/
@@ -20,6 +21,7 @@ COPY package.json tsconfig.base.json ./
 # Only what `api` actually imports at runtime. The gateway is a separate service and its
 # Baileys dependency has no business in this image.
 COPY packages/contracts ./packages/contracts
+COPY packages/core ./packages/core
 COPY packages/db ./packages/db
 COPY apps/api ./apps/api
 

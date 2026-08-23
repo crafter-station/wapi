@@ -7,8 +7,38 @@ services:
     environment:
       PORT: 3001
       NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      GATEWAY_URL: http://gateway:3002
+      GATEWAY_TOKEN: ${GATEWAY_TOKEN}
     expose:
       - "3001"
+    depends_on:
+      - gateway
+    networks:
+      - dokploy-network
+
+  # STATEFUL. One replica, always. A WhatsApp session is a WebSocket owned by exactly one
+  # process, and two live sockets on one session escalates to a WhatsApp restriction
+  # (PLAN.md §2). No published port and no domain: this RPC surface is protected only by
+  # GATEWAY_TOKEN and the internal network.
+  gateway:
+    build:
+      context: .
+      dockerfile: apps/gateway/Dockerfile
+    restart: unless-stopped
+    deploy:
+      replicas: 1
+    environment:
+      PORT: 3002
+      NODE_ENV: production
+      LOG_LEVEL: info
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      GATEWAY_TOKEN: ${GATEWAY_TOKEN}
+    expose:
+      - "3002"
     networks:
       - dokploy-network
 
