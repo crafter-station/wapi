@@ -25,3 +25,6 @@ docs/wasenderapi/structured/
 docs/wasenderapi/INDEX.md
 docs/wasenderapi/manifest.json
 
+
+# gateway scratch auth state (phase 1a only)
+apps/gateway/.auth-scratch/
