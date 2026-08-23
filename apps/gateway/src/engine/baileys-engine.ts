@@ -327,8 +327,16 @@ export class BaileysEngine implements WhatsAppEngine {
    * the log line is "Reconnection with existing sync data, skipping history sync wait". A
    * session paired before the contacts cache existed therefore never populates it.
    *
-   * Explicit rather than automatic on connect: this is extra protocol traffic, and PLAN.md §5
-   * records that unnecessary chatter is exactly what unofficial clients get penalised for.
+   * MEASURED LIMITATION: on a session paired before this cache existed, resyncAppState
+   * returns cleanly and emits nothing — verified with an event tap, with isInitialSync both
+   * false and true. Contacts reach Baileys through the history-sync notification on a *fresh
+   * pair*, and reconnects skip that entirely. There is no backfill path for an old session,
+   * which is why `contacts.upsert` is only half the story and the worker also derives
+   * contacts from observed traffic.
+   *
+   * Kept because it is correct for sessions that do have pending app-state patches, and
+   * explicit rather than automatic because unnecessary chatter is what unofficial clients
+   * get penalised for (PLAN.md §5).
    */
   async syncContacts(sessionId: number): Promise<void> {
     const entry = this.live(sessionId);

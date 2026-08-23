@@ -149,6 +149,37 @@ await sub.subscribe("wapi:events", async (raw) => {
     }
   }
 
+  /**
+   * Derive contacts from observed traffic.
+   *
+   * `contacts.upsert` only fires during a fresh pair's history sync, so a session paired
+   * earlier can never populate the cache from that event alone — measured with an event tap.
+   * Every inbound message, though, carries a JID and usually a pushName, which is how a
+   * contact list genuinely accumulates. Recorded with `notify` only, so a real
+   * `contacts.upsert` later can still fill `name` without being overwritten by a push name.
+   */
+  if (engineEvent.type === "wa" && engineEvent.event === "messages.upsert") {
+    const p = engineEvent.payload as { messages?: Record<string, unknown>[] } | undefined;
+    const seen = new Map<string, string | null>();
+    for (const m of p?.messages ?? []) {
+      const key = m["key"] as { remoteJid?: string; fromMe?: boolean; participant?: string } | undefined;
+      const jid = key?.participant ?? key?.remoteJid;
+      // Skip our own messages and group/broadcast containers — those are not contacts.
+      if (!jid || key?.fromMe || jid.endsWith("@g.us") || jid.endsWith("@broadcast")) continue;
+      seen.set(jid, (m["pushName"] as string) ?? null);
+    }
+    if (seen.size) {
+      await db
+        .insert(contacts)
+        .values([...seen].map(([jid, notify]) => ({ sessionId, jid, notify, updatedAt: new Date() })))
+        .onConflictDoUpdate({
+          target: [contacts.sessionId, contacts.jid],
+          set: { notify: sql`coalesce(excluded.notify, contacts.notify)`, updatedAt: new Date() } as never,
+        })
+        .catch((err) => logger.error({ err }, "contact derive failed"));
+    }
+  }
+
   if (!session.webhookEnabled || !session.webhookUrl) return;
 
   const publicEvents: PublicEvent[] = [];
