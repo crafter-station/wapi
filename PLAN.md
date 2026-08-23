@@ -398,7 +398,18 @@ reports in the research turned out to be hijacked open instances used as spam re
 | GitHub provider | `mQ9jA2X9wMQI62PpeoWaL` — **use this one**, not `PUhK5iuG22LeojyZEW87B` |
 | test host | `wapi-api-95-111-248-246.traefik.me` (HTTP, no cert) — works today |
 | api domain | `api.wapi.crafter.run` → `api:3001`, HTTPS/Let's Encrypt, domain `-aWuTvbIy8zByfSmBLk8l` — **pending DNS** |
-| web domain | not created — no `web` service in the compose yet |
+| web domain | DNS exists; no Dokploy domain yet — no `web` service in the compose |
+| postgres | `H1XF46drj9y19qSnAEBgz` (`wapi-db`), internal host `postgres-program-bluetooth-protocol-s5on6h:5432`, external `5685` |
+| redis | `cU8TvQAt278-F3Fmij8O8` (`wapi-redis`), internal host `redis-parse-bluetooth-hard-drive-vnjs36:6379`, external `5646` |
+
+`DATABASE_URL` and `REDIS_URL` are set on the compose stack, built against the **internal**
+`appName` hostnames and default ports — not the external ports Dokploy exposes. Secrets live only
+in Dokploy; nothing credential-bearing is in this repo.
+
+Two CLI quirks worth remembering: `project create`, `pg create` and `redis create` interleave
+progress output on stdout, so `--json` cannot be piped straight into a parser — read the ids back
+from `vps project info` instead. And domain ids beginning with `-` need `--` before them
+(`vps domain info --json -- -aWuTvbIy8zByfSmBLk8l`).
 
 The earlier "GitHub App has lost access" worry was wrong: provider `mQ9jA2X9wMQI62PpeoWaL` sees all
 257 org repos including this one. The existing apps' `hasGitProviderAccess: false` is them being bound
