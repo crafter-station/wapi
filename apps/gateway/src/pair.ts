@@ -29,8 +29,22 @@ import { Boom } from "@hapi/boom";
 import qrcode from "qrcode-terminal";
 import pino from "pino";
 import { resolve } from "node:path";
+import { existsSync, rmSync } from "node:fs";
 
 const AUTH_DIR = resolve(import.meta.dirname, "../.auth-scratch");
+
+/**
+ * Phase 1a asks whether a *fresh* link succeeds, so we start from nothing every run.
+ *
+ * This matters more than it looks: a half-finished previous run leaves unregistered creds
+ * behind, and Baileys will then try to RESTORE that dead session instead of pairing. The
+ * symptom is an immediate 401 with no QR ever shown, which reads exactly like a refusal
+ * but is not one.
+ *
+ * Pass --resume to keep existing state (useful later for testing that a session survives
+ * a restart, which is what phase 2 is actually about).
+ */
+const RESUME = process.argv.includes("--resume");
 
 /** Baileys is extremely chatty at debug level; we want our own narration to be readable. */
 const logger = pino({ level: process.env["BAILEYS_LOG"] ?? "silent" });
@@ -55,7 +69,16 @@ async function main() {
   line(`  WA web version ${version.join(".")}${isLatest ? " (latest)" : " (NOT latest)"}`);
   line(`  auth dir       ${AUTH_DIR}`);
 
+  const hadState = existsSync(AUTH_DIR);
+  if (hadState && !RESUME) {
+    rmSync(AUTH_DIR, { recursive: true, force: true });
+    line(`  cleared previous auth state (pass --resume to keep it)`);
+  } else if (hadState) {
+    line(`  --resume: reusing existing auth state`);
+  }
+
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+  line(`  registered     ${state.creds.registered ? "yes (restoring)" : "no (fresh pair)"}`);
 
   const sock = makeWASocket({
     version,
@@ -149,14 +172,31 @@ function verdict() {
   line(`  reachoutTimeLock: ${observed.reachoutTimeLock ? JSON.stringify(observed.reachoutTimeLock) : "none"}`);
   line(`  last disconnect : ${observed.lastDisconnect ? JSON.stringify(observed.lastDisconnect) : "none"}`);
   line("");
+  const code = observed.lastDisconnect?.code;
+
   if (observed.pairedAt) {
     line("  QR pairing WORKS. Passkey stays deferred to Tier 2.");
     line("  Next: phase 1b — walking skeleton (send one text, receive one webhook).");
+  } else if (observed.qrCount === 0) {
+    // No QR means nothing was ever offered to scan, so this says nothing about whether
+    // WhatsApp would accept a scan. Do not let it read as a verdict.
+    line("  INCONCLUSIVE — no QR code was ever displayed, so nothing was scanned.");
+    line("  This is NOT evidence about the WebAuthn gate.");
+    if (code === 401) {
+      line("  A 401 with zero QRs means stale saved credentials were being restored.");
+      line("  This run clears state by default, so a plain rerun should now show a QR.");
+    } else if (code === 428) {
+      line("  428 before any QR is the platform-enum gate (Baileys #2677) — try a");
+      line("  different `browser:` value.");
+    } else {
+      line("  Check network egress and whether WA web is reachable from this host.");
+    }
   } else {
-    line("  QR pairing did NOT complete.");
-    line("  If a QR appeared and was scanned but the link was refused, this is the");
-    line("  WebAuthn gate: the three-day passkey spike becomes the critical path,");
-    line("  with a headed-browser onboarding fallback the likely shape.");
+    line(`  A QR was shown (${observed.qrCount}) but the link did not complete.`);
+    line("  If you scanned it and WhatsApp refused, THAT is the WebAuthn gate: the");
+    line("  three-day passkey spike becomes the critical path, with a headed-browser");
+    line("  onboarding fallback the likely shape.");
+    line("  If you did not scan in time, the QR simply expired — just rerun.");
   }
   line("");
 }
