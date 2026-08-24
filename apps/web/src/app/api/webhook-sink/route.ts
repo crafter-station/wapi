@@ -1,5 +1,6 @@
-import { createDb, webhookDeliveries } from "@wapi/db";
+import { createDb, webhookDeliveries, whatsappSessions } from "@wapi/db";
 import { desc, eq } from "drizzle-orm";
+import { auth } from "@clerk/nextjs/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -32,6 +33,21 @@ export async function POST(req: Request) {
   const signature = req.headers.get("x-webhook-signature") ?? null;
   const raw = await req.text();
 
+  /**
+   * Public route, so it authenticates itself.
+   *
+   * The signature must match some session's stored webhook secret. Their scheme is a plain
+   * shared secret in this header rather than an HMAC (PLAN.md §1) — weak, but reproduced for
+   * compatibility, and it is still enough to stop an open write endpoint on the internet.
+   */
+  if (!signature) return Response.json({ error: "missing signature" }, { status: 401 });
+  const [match] = await db()
+    .select({ id: whatsappSessions.id })
+    .from(whatsappSessions)
+    .where(eq(whatsappSessions.webhookSecret, signature))
+    .limit(1);
+  if (!match) return Response.json({ error: "invalid signature" }, { status: 401 });
+
   let event = "unknown";
   let sessionId: number | null = null;
   try {
@@ -57,6 +73,10 @@ export async function POST(req: Request) {
 
 /** Read back what arrived. Used by the integration suite and by a human debugging. */
 export async function GET(req: Request) {
+  // Reading deliveries is a dashboard action and stays behind Clerk, unlike POST.
+  const { userId } = await auth();
+  if (!userId) return Response.json({ error: "unauthorized" }, { status: 401 });
+
   const url = new URL(req.url);
   const since = url.searchParams.get("since");
   const limit = Math.min(100, Number(url.searchParams.get("limit") ?? 20) || 20);

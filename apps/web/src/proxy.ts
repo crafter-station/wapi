@@ -14,7 +14,18 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
  * keys — are minted here but verified locally in `apps/api` against hashed Postgres rows,
  * never through Clerk (PLAN.md §3).
  */
-const isPublic = createRouteMatcher(["/", "/sign-in(.*)", "/sign-up(.*)"]);
+/**
+ * `/api/webhook-sink` is public because it is a *receiver*: the webhook worker POSTs to it
+ * with no browser session. It is not unauthenticated — the route verifies the delivery
+ * signature against a known session secret and rejects anything else. Leaving it behind Clerk
+ * produced a 307 redirect that the worker silently treated as a failed delivery.
+ */
+const isPublic = createRouteMatcher([
+  "/",
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/api/webhook-sink",
+]);
 
 export default clerkMiddleware(async (auth, req) => {
   if (!isPublic(req)) await auth.protect();
