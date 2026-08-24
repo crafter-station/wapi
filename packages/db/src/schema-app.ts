@@ -184,6 +184,30 @@ export const contacts = pgTable(
   (t) => [primaryKey({ columns: [t.sessionId, t.jid] })],
 );
 
+/**
+ * Backup outcomes.
+ *
+ * The backup container's logs are not reachable through the VPS CLI, so it writes here
+ * instead. That also turns PLAN.md §7's "test a restore before launch" from a one-off chore
+ * into a property checked on every run: each backup is restored into a scratch database and
+ * its row counts compared against the source.
+ */
+export const backupRuns = pgTable("backup_runs", {
+  id: serial("id").primaryKey(),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+  archive: text("archive"),
+  bytes: bigint("bytes", { mode: "number" }),
+  ok: boolean("ok").notNull().default(false),
+  /** Null when restore verification is disabled; false means the archive did not restore. */
+  restoreOk: boolean("restore_ok"),
+  credsRows: integer("creds_rows"),
+  keyRows: integer("key_rows"),
+  sessionRows: integer("session_rows"),
+  error: text("error"),
+});
+
+export type BackupRun = typeof backupRuns.$inferSelect;
 export type Contact = typeof contacts.$inferSelect;
 export type Account = typeof accounts.$inferSelect;
 export type PersonalAccessToken = typeof personalAccessTokens.$inferSelect;

@@ -144,6 +144,24 @@ const statements: [label: string, ddl: string][] = [
      )`,
   ],
   [
+    "backup_runs",
+    // The backup service has no log access from the CLI, so it records outcomes here. This is
+    // also what makes "test a restore" an ongoing property rather than a one-off task.
+    `CREATE TABLE IF NOT EXISTS backup_runs (
+       id            serial PRIMARY KEY,
+       started_at    timestamptz NOT NULL DEFAULT now(),
+       finished_at   timestamptz,
+       archive       text,
+       bytes         bigint,
+       ok            boolean NOT NULL DEFAULT false,
+       restore_ok    boolean,
+       creds_rows    integer,
+       key_rows      integer,
+       session_rows  integer,
+       error         text
+     )`,
+  ],
+  [
     "contacts",
     `CREATE TABLE IF NOT EXISTS contacts (
        session_id   integer NOT NULL REFERENCES whatsapp_sessions(id) ON DELETE CASCADE,
