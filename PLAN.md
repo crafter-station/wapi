@@ -441,7 +441,8 @@ reports in the research turned out to be hijacked open instances used as spam re
 | GitHub provider | `mQ9jA2X9wMQI62PpeoWaL` — **use this one**, not `PUhK5iuG22LeojyZEW87B` |
 | test host | `wapi-api-95-111-248-246.traefik.me` (HTTP, no cert) — works today |
 | api domain | `api.wapi.crafter.run` → `api:3001`, HTTPS/Let's Encrypt, domain `-aWuTvbIy8zByfSmBLk8l` — **pending DNS** |
-| web domain | DNS exists; no Dokploy domain yet — no `web` service in the compose |
+| web domain | `wapi.crafter.run` → `web:3000`, HTTPS/Let's Encrypt, domain `KJwIwh_lnifiwl5_xn4n3` |
+| clerk | app `app_3IKzQDExIn9q43a1tDDM4Vz99UX` (`wapi`), **development instance** — production needs `clerk deploy`, which is interactive |
 | postgres | `H1XF46drj9y19qSnAEBgz` (`wapi-db`), internal host `postgres-program-bluetooth-protocol-s5on6h:5432`, external `5685` |
 | redis | `cU8TvQAt278-F3Fmij8O8` (`wapi-redis`), internal host `redis-parse-bluetooth-hard-drive-vnjs36:6379`, external `5646` |
 
@@ -520,7 +521,7 @@ Two things the run confirmed beyond the gate itself:
 | 1b | Walking skeleton: pair → send one text → receive one `messages.upsert`, on Dokploy, throwaway auth | The deploy topology and the socket, end to end |
 | 2 | ~~`packages/baileys-auth` on Postgres~~ **DONE 2026-08-23** | Connected with zero filesystem state in 2807ms |
 | 3 | ~~`apps/api` + gateway service~~ **DONE 2026-08-23** | 13/29 routes live; `msgId` 100000; sent from the VPS |
-| 4 | `apps/web`: Clerk, dashboard, QR over SSE, PAT management | **NEXT — blocked on Clerk keys** |
+| 4 | ~~`apps/web`: Clerk, dashboard, QR over SSE, PAT management~~ **DONE 2026-08-24** — live at `wapi.crafter.run` |
 | 5 | ~~`upload`, `decrypt-media`, UploadX~~ **routes DONE, blocked on UPLOADX_TOKEN**. send-message union still text-only | Media path |
 | 6 | ~~`webhook-worker`: 22 events, retries, signature~~ **DONE** — HTTP delivery still unproven | Receive path |
 | 7 | ~~Groups + contacts + LID routes~~ **DONE** — 29 routes registered | Breadth to 29 |

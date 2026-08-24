@@ -21,8 +21,8 @@ services:
 
   # STATEFUL. One replica, always. A WhatsApp session is a WebSocket owned by exactly one
   # process, and two live sockets on one session escalates to a WhatsApp restriction
-  # (see PLAN.md section 2). No published port and no domain: this RPC surface is
-  # GATEWAY_TOKEN and the internal network.
+  # (see PLAN.md section 2). No published port and no domain: this RPC surface is protected
+  # only by GATEWAY_TOKEN and the internal network.
   gateway:
     build:
       context: .
