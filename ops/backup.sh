@@ -126,6 +126,14 @@ if [ "${BACKUP_ONCE:-}" = "1" ]; then
   exit $?
 fi
 
+# Heartbeat before anything else can fail.
+#
+# This container's logs are unreachable from the CLI, so a silent crash is indistinguishable
+# from a silent no-op. A startup row makes the difference observable: no row at all means the
+# script never ran (mount or entrypoint), a startup row with no completion means the dump path
+# failed.
+psql -qtAX "$DATABASE_URL" -c   "insert into backup_runs (archive, ok, error) values ('startup', false, 'service started')"   >/dev/null 2>&1 || echo "[backup] WARNING: cannot write backup_runs" >&2
+
 echo "[backup] loop started; every ${INTERVAL}s, keeping $KEEP, verify=$VERIFY"
 while true; do
   dump_once || echo "[backup] cycle failed; will retry next interval" >&2
