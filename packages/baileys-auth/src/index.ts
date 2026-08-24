@@ -18,7 +18,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { initAuthCreds, BufferJSON, type AuthenticationCreds, type AuthenticationState, type SignalDataTypeMap } from "baileys";
 import { baileysCreds, signalKeys, type Db } from "@wapi/db";
 
-const enc = (v: unknown) => JSON.stringify(v, BufferJSON.replacer);
+const enc = (v: unknown): string | undefined => JSON.stringify(v, BufferJSON.replacer);
 const dec = <T>(s: string): T => JSON.parse(s, BufferJSON.reviver) as T;
 
 export type PostgresAuthState = {
@@ -42,16 +42,50 @@ export async function usePostgresAuthState(db: Db, sessionId: string): Promise<P
     creds = initAuthCreds();
   }
 
+  /**
+   * Persist credentials.
+   *
+   * `undefined` values must be filtered, not serialised. `initAuthCreds()` leaves several
+   * fields undefined — `me`, `account`, `platform` among them — and
+   * `JSON.stringify(undefined, replacer)` returns `undefined` rather than a string, which
+   * reaches Postgres as NULL and violates the NOT NULL constraint on `value`.
+   *
+   * The failure mode was brutal precisely because it was silent: the whole insert aborted, so
+   * NOTHING was saved. A QR scan would succeed, WhatsApp would send the 515 restart, the
+   * reconnect would reload an empty credential set, and the phone would report "can't log in"
+   * — with no error anywhere near the pairing code.
+   *
+   * A key whose value became undefined is deleted rather than skipped, so a field that is
+   * genuinely cleared does not leave a stale row behind to be reloaded later.
+   */
   const writeCreds = async () => {
-    const entries = Object.entries(creds as unknown as Record<string, unknown>);
-    if (!entries.length) return;
-    await db
-      .insert(baileysCreds)
-      .values(entries.map(([key, value]) => ({ sessionId, key, value: enc(value) })))
-      .onConflictDoUpdate({
-        target: [baileysCreds.sessionId, baileysCreds.key],
-        set: { value: sqlExcluded("value"), updatedAt: new Date() },
-      });
+    const rows: { sessionId: string; key: string; value: string }[] = [];
+    const removed: string[] = [];
+
+    for (const [key, value] of Object.entries(creds as unknown as Record<string, unknown>)) {
+      const serialised = enc(value);
+      if (serialised === undefined) removed.push(key);
+      else rows.push({ sessionId, key, value: serialised });
+    }
+
+    if (!rows.length && !removed.length) return;
+
+    await db.transaction(async (tx) => {
+      if (rows.length) {
+        await tx
+          .insert(baileysCreds)
+          .values(rows)
+          .onConflictDoUpdate({
+            target: [baileysCreds.sessionId, baileysCreds.key],
+            set: { value: sqlExcluded("value"), updatedAt: new Date() },
+          });
+      }
+      if (removed.length) {
+        await tx
+          .delete(baileysCreds)
+          .where(and(eq(baileysCreds.sessionId, sessionId), inArray(baileysCreds.key, removed)));
+      }
+    });
   };
 
   const state: AuthenticationState = {
@@ -90,8 +124,11 @@ export async function usePostgresAuthState(db: Db, sessionId: string): Promise<P
 
         for (const [type, byId] of Object.entries(data)) {
           for (const [id, value] of Object.entries(byId ?? {})) {
-            if (value === null || value === undefined) deletes.push({ type, id });
-            else inserts.push({ sessionId, type, id, value: enc(value) });
+            const serialised = value === null || value === undefined ? undefined : enc(value);
+            // Same trap as creds: anything that serialises to undefined must be deleted, never
+            // inserted, or the NOT NULL constraint aborts the entire batch.
+            if (serialised === undefined) deletes.push({ type, id });
+            else inserts.push({ sessionId, type, id, value: serialised });
           }
         }
 

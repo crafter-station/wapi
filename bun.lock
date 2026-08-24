@@ -89,6 +89,9 @@
         "baileys": "7.0.0-rc14",
         "drizzle-orm": "^0.38.0",
       },
+      "devDependencies": {
+        "@types/bun": "^1.2.0",
+      },
     },
     "packages/contracts": {
       "name": "@wapi/contracts",

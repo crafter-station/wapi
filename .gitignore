@@ -28,3 +28,4 @@ docs/wasenderapi/manifest.json
 
 # gateway scratch auth state (phase 1a only)
 apps/gateway/.auth-scratch/
+.redis-external
