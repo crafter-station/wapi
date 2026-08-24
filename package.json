@@ -2,7 +2,11 @@
   "name": "wapi",
   "private": true,
   "type": "module",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "compat"
+  ],
   "scripts": {
     "typecheck": "tsc --build",
     "test": "bun test",

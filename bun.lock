@@ -81,6 +81,18 @@
         "redis": "^4.7.0",
       },
     },
+    "compat": {
+      "name": "@wapi/compat",
+      "dependencies": {
+        "@wapi/core": "workspace:*",
+        "@wapi/db": "workspace:*",
+        "drizzle-orm": "^0.38.0",
+        "wasenderapi": "^0.4.0",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.2.0",
+      },
+    },
     "packages/baileys-auth": {
       "name": "@wapi/baileys-auth",
       "version": "0.0.0",
@@ -444,6 +456,8 @@
 
     "@wapi/baileys-auth": ["@wapi/baileys-auth@workspace:packages/baileys-auth"],
 
+    "@wapi/compat": ["@wapi/compat@workspace:compat"],
+
     "@wapi/contracts": ["@wapi/contracts@workspace:packages/contracts"],
 
     "@wapi/core": ["@wapi/core@workspace:packages/core"],
@@ -521,6 +535,8 @@
     "detect-libc": ["detect-libc@2.1.2", "", {}, "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="],
 
     "dijkstrajs": ["dijkstrajs@1.0.3", "", {}, "sha512-qiSlmBq9+BCdCA/L46dw8Uy93mloxsPSbwnm5yrKn2vMPiy8KyAskTF6zuV/j5BMsmOGZDPs7KjU+mjb670kfA=="],
+
+    "dotenv": ["dotenv@16.6.1", "", {}, "sha512-uBq4egWHTcTt33a72vpSG0z3HnPuIl6NqYcTrKEg2azoEyl2hpW0zqlxysq2pK9HlDIHyHyakeYaYnSAwd8bow=="],
 
     "drizzle-kit": ["drizzle-kit@0.30.6", "", { "dependencies": { "@drizzle-team/brocli": "^0.10.2", "@esbuild-kit/esm-loader": "^2.5.5", "esbuild": "^0.19.7", "esbuild-register": "^3.5.0", "gel": "^2.0.0" }, "bin": { "drizzle-kit": "bin.cjs" } }, "sha512-U4wWit0fyZuGuP7iNmRleQyK2V8wCuv57vf5l3MnG4z4fzNTjY/U13M8owyQ5RavqvqxBifWORaR3wIUzlN64g=="],
 
@@ -795,6 +811,8 @@
     "use-sync-external-store": ["use-sync-external-store@1.6.0", "", { "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-Pp6GSwGP/NrPIrxVFAIkOQeyw8lFenOHijQWkUTrDvrF4ALqylP2C/KCkeS9dpUM3KvYRQhna5vt7IL95+ZQ9w=="],
 
     "util-deprecate": ["util-deprecate@1.0.2", "", {}, "sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw=="],
+
+    "wasenderapi": ["wasenderapi@0.4.0", "", { "dependencies": { "dotenv": "^16.4.5" } }, "sha512-JyZc6Tes7gLGRK/jXF5FTpZDutVFaD43YkUlfXXrp38BeIaW8edLOc2kq7T14ZN+wkqRCbhRR+njnt48pgY5ZA=="],
 
     "whatsapp-rust-bridge": ["whatsapp-rust-bridge@0.5.4", "", {}, "sha512-yYO1qSs0Fe7tGtnxOFHomocUD6IZtoAgmA4oDFyGIRZ67D3QZk3w7swA6XXFXNQngiyrg2k7tul6IrM3eUFh7A=="],
 
