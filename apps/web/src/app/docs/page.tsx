@@ -5,6 +5,8 @@ import { Code, CodeBlock } from "@/components/code";
 export const dynamic = "force-static";
 
 const API = "https://api.wapi.crafter.run";
+const REPO = "https://github.com/crafter-station/wapi";
+const SKILL = `${REPO}/tree/main/.claude/skills/wapi-nextjs`;
 
 /**
  * Getting started.
@@ -42,6 +44,7 @@ export default function DocsPage() {
               ["webhooks", "Webhooks"],
               ["errors", "Errors"],
               ["sdk", "Using their SDK"],
+              ["skill", "Agent skill"],
             ].map(([id, label]) => (
               <a
                 key={id}
@@ -513,6 +516,50 @@ const groups = await wa.getGroups();`,
               the same contract the server validates against:{" "}
               <a href={`${API}/docs`}>{API.replace("https://", "")}/docs</a>. The raw spec is at{" "}
               <a href={`${API}/openapi.json`}>/openapi.json</a>.
+            </p>
+          </S>
+
+          {/* --------------------------------------------------------- skill */}
+          <S id="skill" kicker="Agent skill" title={<>Let your agent <em>wire it up.</em></>}>
+            <p>
+              If you build with Claude Code, Cursor, Copilot or another agent, install the{" "}
+              <a href={SKILL}>
+                <code>wapi-nextjs</code> skill
+              </a>
+              . It carries a server-only client, a webhook route handler, and notes on the parts
+              of this API that are not guessable from the endpoint names — so your agent writes
+              the integration correctly the first time instead of inferring it.
+            </p>
+            <Code
+              tabs={[
+                {
+                  label: "Install", lang: "bash",
+                  code: `npx skills@latest add crafter-station/wapi --skill=wapi-nextjs
+
+# Installs to .agents/skills/ and symlinks .claude/skills/ for Claude Code.
+# Works with Cursor, Codex, Gemini CLI, Copilot and others from the same copy.`,
+                },
+                {
+                  label: "Then ask", lang: "bash",
+                  code: `# In your Next.js project, ask your agent:
+
+"Add wapi to this app so it can send a WhatsApp message
+ when an order ships, and receive replies via webhook."
+
+# The skill supplies the client, the route handler, and the
+# gotchas -- five success envelopes, two failure envelopes,
+# and why a failed send must not simply be retried.`,
+                },
+              ]}
+            />
+            <p className="mt-5">
+              It is four files in this repository under{" "}
+              <a href={SKILL}>
+                <code>.claude/skills/wapi-nextjs</code>
+              </a>
+              , so you can read the whole thing before installing it — worth doing with any skill,
+              since they run with your agent&rsquo;s permissions. Prefer to copy by hand? The
+              client and the webhook handler are directly usable on their own.
             </p>
           </S>
         </div>

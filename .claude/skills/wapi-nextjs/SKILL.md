@@ -5,9 +5,15 @@ description: Integrate wapi (self-hosted WhatsApp REST API) into a Next.js app �
 
 # Integrating wapi into a Next.js app
 
-wapi exposes WhatsApp over a plain REST API and is wire-compatible with WasenderAPI. Base URL
-`https://api.wapi.crafter.run`; the generated reference is at `/docs` and the raw spec at
-`/openapi.json`.
+wapi exposes WhatsApp over a plain REST API and is wire-compatible with WasenderAPI.
+
+- Base URL: `https://api.wapi.crafter.run`
+- Per-endpoint reference (generated from the server's own contract): `https://api.wapi.crafter.run/docs`
+- Raw OpenAPI spec: `https://api.wapi.crafter.run/openapi.json`
+- Narrative guide, with worked examples: `https://wapi.crafter.run/docs`
+
+Fetch the OpenAPI spec if you need a field this skill does not cover — it is generated from the
+contract the server validates against, so it cannot drift from the implementation.
 
 Work in this order. Steps 1–3 are always required; 4 and 5 are per-feature.
 
