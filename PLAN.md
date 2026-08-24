@@ -578,6 +578,11 @@ Not settled, and not to be read as settled:
 1. ~~**Whether your number pairs by QR.**~~ **RESOLVED 2026-08-23 — it does.** See §8. No WebAuthn
    demanded, passkey stays Tier 2.
 2. **`msgId` sequencing, the paginator envelope, `pn-from-lid` miss behaviour** — inferred, pending §9.1.
+3. **The `status` integer on `GET /api/messages/{msgId}/info`** — that route returns the WhatsApp
+   record, so `status` is WhatsApp's numeric ack rather than our lifecycle word and
+   `messageTimestamp` is a string (a protobuf int64). The number-to-word mapping is Baileys' own
+   enum — ERROR 0, PENDING 1, SERVER_ACK 2, DELIVERY_ACK 3, READ 4 — and their example showing
+   `2` for a sent message corroborates it, but the mapping itself is inferred.
 3. **UploadX's SDK on Bun is untested** and `apps/api` is Bun. If `minio`/`Readable.toWeb()` misbehave,
    storage calls move to the Node gateway or drop to raw HTTP.
 4. **Whether the MinIO `endPoint` UploadX returns is reachable from inside a Dokploy container.**

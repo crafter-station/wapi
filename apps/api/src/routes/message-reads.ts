@@ -1,4 +1,17 @@
 import { Hono } from "hono";
+
+/**
+ * Our lifecycle status to WhatsApp's ack enum, as Baileys defines it: ERROR 0, PENDING 1,
+ * SERVER_ACK 2, DELIVERY_ACK 3, READ 4, PLAYED 5. Inferred rather than documented — recorded
+ * in PLAN.md §10 — but anchored by their own example, which shows 2 for a sent message.
+ */
+const WA_ACK: Record<string, number> = {
+  failed: 0,
+  in_progress: 1,
+  sent: 2,
+  delivered: 3,
+  read: 4,
+};
 import { eq, and, desc, count } from "drizzle-orm";
 import { messages, whatsappSessions, type Db } from "@wapi/db";
 import { ok, fail, paginate } from "@wapi/contracts";
@@ -105,8 +118,18 @@ export function messageReadRoutes(db: Db) {
         msgId: m.msgId,
         key,
         message: m.content ?? null,
-        messageTimestamp: Math.floor(m.createdAt.getTime() / 1000),
-        status: m.status,
+        /**
+         * Both of these are typed the way the WhatsApp record types them, not the way our own
+         * row does, because this endpoint returns that record.
+         *
+         * `messageTimestamp` is a string: it is a protobuf int64, which JSON-serialises as a
+         * string, and their documented example shows one. `status` is WhatsApp's numeric ack
+         * rather than our lifecycle word — their example shows `2` on a sent message, which is
+         * SERVER_ACK in Baileys' own enum and corroborates the mapping below. A client typed
+         * against the documented response broke on both.
+         */
+        messageTimestamp: String(Math.floor(m.createdAt.getTime() / 1000)),
+        status: WA_ACK[m.status] ?? 1,
       }),
     );
   });

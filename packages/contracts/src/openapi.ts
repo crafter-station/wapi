@@ -1,5 +1,11 @@
 import { z } from "zod";
 import { ROUTES } from "./generated/routes.js";
+import {
+  failureBody,
+  frameworkFailureBody,
+  SUCCESS_RESPONSES,
+  throttleBody,
+} from "./responses.js";
 
 /**
  * OpenAPI 3.1 document, generated from the same contract the handlers validate against.
@@ -74,6 +80,64 @@ const tagFor = (path: string): string => {
   return "Messages";
 };
 
+/** `{"$ref": "#/components/schemas/X"}`, so the failure envelopes are named once. */
+const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
+
+const jsonBody = (schema: unknown) => ({
+  content: { "application/json": { schema } },
+});
+
+/**
+ * The response block for one operation.
+ *
+ * Success comes from `SUCCESS_RESPONSES`, which is exhaustive over `ROUTES` and asserted so by
+ * `responses.test.ts` — a new route without a response schema fails that test rather than
+ * quietly publishing an empty one.
+ *
+ * The failure codes are the same four everywhere, but *which envelope* they carry is not
+ * uniform, and that is the interface rather than an oversight. 401 and 403 come from middleware
+ * and so use the framework shape (`message`); 422 is a validation failure and carries `errors`;
+ * 429 has no `success` key at all; 503 is decided by a handler and so uses the controller shape
+ * (`error`).
+ */
+const responsesFor = (operationId: string): Record<string, unknown> => {
+  const success = SUCCESS_RESPONSES[operationId];
+  const responses: Record<string, unknown> = {};
+
+  if (success === undefined) {
+    responses["200"] = { description: "Success" };
+  } else if (success.schema === undefined) {
+    responses[String(success.status)] = { description: "Deleted. No content." };
+  } else {
+    responses[String(success.status)] = {
+      description: "Success",
+      ...jsonBody(jsonSchema(success.schema)),
+    };
+  }
+
+  responses["401"] = {
+    description: "Missing or invalid credential",
+    ...jsonBody(ref("FrameworkFailure")),
+  };
+  responses["403"] = {
+    description: "Wrong credential type for this endpoint",
+    ...jsonBody(ref("FrameworkFailure")),
+  };
+  responses["422"] = {
+    description: "Validation failed",
+    ...jsonBody(ref("ValidationFailure")),
+  };
+  responses["429"] = {
+    description: "Rate limited. Note this body has no `success` key.",
+    ...jsonBody(ref("ThrottleFailure")),
+  };
+  responses["503"] = {
+    description: "The WhatsApp service is temporarily unavailable",
+    ...jsonBody(ref("Failure")),
+  };
+  return responses;
+};
+
 export function buildOpenApiDocument(serverUrl: string) {
   const paths: Record<string, Record<string, unknown>> = {};
 
@@ -132,23 +196,7 @@ export function buildOpenApiDocument(serverUrl: string) {
             },
           }
         : {}),
-      responses: {
-        "200": {
-          description: "Success",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: { success: { type: "boolean" }, data: {} },
-              },
-            },
-          },
-        },
-        "401": { description: "Missing or invalid credential" },
-        "403": { description: "Wrong credential type for this endpoint" },
-        "422": { description: "Validation failed" },
-        "503": { description: "The WhatsApp service is temporarily unavailable" },
-      },
+      responses: responsesFor(route.operationId),
       security: [{ bearerAuth: [] }],
     };
   }
@@ -177,6 +225,32 @@ export function buildOpenApiDocument(serverUrl: string) {
     components: {
       securitySchemes: {
         bearerAuth: { type: "http", scheme: "bearer", description: "PAT or Session API Key" },
+      },
+      /**
+       * The three failure envelopes, named once and referenced from every operation.
+       *
+       * They are three rather than one because the original leaks its framework's internals:
+       * a handler-decided failure, a middleware-decided failure, and a throttle that
+       * short-circuits before the envelope is applied at all.
+       */
+      schemas: {
+        Failure: {
+          ...jsonSchema(failureBody),
+          description: "Failure decided by a route handler.",
+        },
+        FrameworkFailure: {
+          ...jsonSchema(frameworkFailureBody),
+          description: "Failure decided by middleware: authentication, subscription gating.",
+        },
+        ValidationFailure: {
+          ...jsonSchema(frameworkFailureBody),
+          description:
+            "Validation failure. `errors` maps each rejected field to its messages.",
+        },
+        ThrottleFailure: {
+          ...jsonSchema(throttleBody),
+          description: "Rate limited. Deliberately carries no `success` key.",
+        },
       },
     },
     tags: [

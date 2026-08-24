@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { Db } from "@wapi/db";
 import { ok, fail, directoryPage } from "@wapi/contracts";
-import { resolveRecipient } from "@wapi/core";
+import { contactToWire, groupToWire, participantToWire, resolveRecipient } from "@wapi/core";
 import { gateway, GatewayUnavailableError, SessionNotConnectedError } from "../gateway-client.ts";
 
 /**
@@ -68,30 +68,11 @@ export function contactGroupRoutes(_db: Db) {
       }
 
       const paging = pageArgs(c);
-      if (!paging) return c.json(ok(contacts));
+      // The same wire shape as a paginated entry; only the envelope around it differs.
+      if (!paging) return c.json(ok(contacts.map(contactToWire)));
 
       const { page, limit } = paging;
-      const items = contacts.slice((page - 1) * limit, page * limit).map((x) => ({
-        // `jid` and `id` are both emitted with the same value: consumers accept either, and
-        // reject the entry outright if both are present and differ.
-        jid: x.jid,
-        id: x.jid,
-        name: x.name,
-        notify: x.notify,
-        verifiedName: null,
-        /**
-         * Documented keys we cannot fill, present and null rather than absent.
-         *
-         * A profile picture and an "about" string are per-contact fetches against WhatsApp;
-         * doing them for every row would turn one list call into N network round-trips. Their
-         * own groups example ships `imgUrl: null`, so null is the documented shape for
-         * "not known", and omitting the key entirely is what breaks a typed client.
-         */
-        imgUrl: null,
-        status: null,
-        phoneNumber: x.phoneNumber,
-        lid: x.lid,
-      }));
+      const items = contacts.slice((page - 1) * limit, page * limit).map(contactToWire);
       return c.json(ok(directoryPage({ items, page, limit, total: contacts.length })));
     }),
   );
@@ -102,7 +83,12 @@ export function contactGroupRoutes(_db: Db) {
       if (!r.ok) return c.json(fail(r.reason), 422);
       const { contact } = await gateway.contact(sessionId, r.jid);
       if (!contact) return c.json(fail("The specified contact was not found."), 404);
-      return c.json(ok(contact));
+      /**
+       * Their detail shape is keyed on `id`, not `jid`, and carries `verifiedName`, `imgUrl`
+       * and `status`. We returned the raw cache row, so a client reading the documented `id`
+       * got undefined. `jid` and the LID pair stay alongside as additions.
+       */
+      return c.json(ok(contactToWire(contact)));
     }),
   );
 
@@ -153,28 +139,22 @@ export function contactGroupRoutes(_db: Db) {
       const { groups } = await gateway.groups(sessionId);
 
       const paging = pageArgs(c);
-      if (!paging) return c.json(ok(groups));
+      // Their documented keys first (`jid`, `name`, `imgUrl`); ours are additive.
+      if (!paging) return c.json(ok(groups.map(groupToWire)));
 
       const { page, limit } = paging;
+      /**
+       * The same wire shape as the flat list, plus the two keys a directory consumer reads.
+       *
+       * `groupToWire` is what guarantees the title appears as `name` and not only `subject`:
+       * directory consumers read `name` for both contacts and groups, so a page carrying only
+       * `subject` parses successfully and yields every group unnamed, which is worse than
+       * failing outright.
+       */
       const items = groups.slice((page - 1) * limit, page * limit).map((g) => ({
-        jid: g.id,
-        id: g.id,
-        /**
-         * A group's title has to appear as `name`, not only `subject`.
-         *
-         * Directory consumers read `name` for both contacts and groups; a paginated group page
-         * carrying only `subject` parses successfully and yields every group unnamed, which is
-         * worse than failing. `subject` is kept alongside for our own callers.
-         */
-        name: g.subject,
-        subject: g.subject,
+        ...groupToWire(g),
         notify: null,
         verifiedName: null,
-        imgUrl: null,
-        owner: g.owner,
-        creation: g.creation,
-        desc: g.desc,
-        participants: g.participants,
       }));
       return c.json(ok(directoryPage({ items, page, limit, total: groups.length })));
     }),
@@ -184,7 +164,7 @@ export function contactGroupRoutes(_db: Db) {
     guard(c, async (sessionId) => {
       const { group } = await gateway.groupMetadata(sessionId, c.req.param("groupJid"));
       if (!group) return c.json(fail("The specified group was not found."), 404);
-      return c.json(ok(group));
+      return c.json(ok(groupToWire(group)));
     }),
   );
 
@@ -192,7 +172,7 @@ export function contactGroupRoutes(_db: Db) {
     guard(c, async (sessionId) => {
       const { group } = await gateway.groupMetadata(sessionId, c.req.param("groupJid"));
       if (!group) return c.json(fail("The specified group was not found."), 404);
-      return c.json(ok(group.participants));
+      return c.json(ok(group.participants.map(participantToWire)));
     }),
   );
 

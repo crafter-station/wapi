@@ -1,8 +1,9 @@
 import { expect, test, describe, beforeAll } from "bun:test";
-import { createDb, whatsappSessions, webhookDeliveries } from "@wapi/db";
+import { createDb, whatsappSessions, webhookDeliveries, messages } from "@wapi/db";
 import { decryptSecret, generatePat, hashToken } from "@wapi/core";
 import { accounts, personalAccessTokens } from "@wapi/db";
 import { eq, desc, gt } from "drizzle-orm";
+import { SUCCESS_RESPONSES } from "@wapi/contracts";
 
 /**
  * Integration tests against the live deployment.
@@ -551,5 +552,63 @@ d("paginated directory envelope", () => {
   test("without the flag the flat array is unchanged", async () => {
     const r = await json(await api("/api/contacts"));
     expect(Array.isArray(r.body["data"])).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------------------
+/**
+ * The published schema against the live response.
+ *
+ * `packages/contracts` asserts our response schemas accept the *documented* examples. That is
+ * half the claim: it says our reference matches theirs, not that our API matches our reference.
+ * These close the loop by parsing real responses with the same schema `/openapi.json` publishes,
+ * so a handler that drifts from its own documentation fails here rather than in a caller.
+ */
+d("published schemas describe the live responses", () => {
+  const check = async (operationId: string, path: string, key = sessionKey) => {
+    const entry = (SUCCESS_RESPONSES as Record<string, { schema?: { safeParse: (v: unknown) => { success: boolean; error?: unknown } } }>)[
+      operationId
+    ];
+    if (!entry?.schema) throw new Error(`no schema for ${operationId}`);
+    const r = await api(path, {}, key);
+    expect(r.status).toBe(200);
+    const parsed = entry.schema.safeParse(await r.json());
+    if (!parsed.success) {
+      throw new Error(
+        `${operationId} response does not match its published schema:
+${JSON.stringify(parsed.error, null, 2).slice(0, 900)}`,
+      );
+    }
+  };
+
+  test("GET /api/status", () => check("getApiStatus", "/api/status"));
+  test("GET /api/user", () => check("getApiUser", "/api/user"));
+  test("GET /api/contacts", () => check("getApiContacts", "/api/contacts"));
+  test("GET /api/contacts?paginated=true", () =>
+    check("getApiContacts", "/api/contacts?paginated=true&page=1&limit=20"));
+  test("GET /api/groups", () => check("getApiGroups", "/api/groups"));
+  test("GET /api/groups?paginated=true", () =>
+    check("getApiGroups", "/api/groups?paginated=true&page=1&limit=20"));
+  test("GET /api/whatsapp-sessions", () => check("getApiWhatsappSessions", "/api/whatsapp-sessions", pat));
+
+  test("group metadata and participants, which use two different shapes", async () => {
+    const list = await json(await api("/api/groups"));
+    const groups = list.body["data"] as { jid: string }[];
+    if (!groups.length) return;
+    await check("getApiGroupsGroupJidMetadata", `/api/groups/${groups[0]!.jid}/metadata`);
+    await check("getApiGroupsGroupJidParticipants", `/api/groups/${groups[0]!.jid}/participants`);
+  });
+
+  test("a sent message's info, whose types follow the WhatsApp record", async () => {
+    const { db, close } = createDb(process.env["DATABASE_URL"]!);
+    const [row] = await db
+      .select({ msgId: messages.msgId })
+      .from(messages)
+      .where(eq(messages.sessionId, SESSION_ID))
+      .orderBy(desc(messages.msgId))
+      .limit(1);
+    await close();
+    if (!row) return;
+    await check("getApiMessagesMsgIdInfo", `/api/messages/${row.msgId}/info`);
   });
 });
