@@ -1,4 +1,4 @@
-import { randomBytes, createHash, createCipheriv, createDecipheriv, timingSafeEqual } from "node:crypto";
+import { randomBytes, createHash, createHmac, createCipheriv, createDecipheriv, timingSafeEqual } from "node:crypto";
 
 /**
  * Machine credentials: Personal Access Tokens and per-session API keys.
@@ -59,3 +59,30 @@ export function decryptSecret(stored: string): string {
   decipher.setAuthTag(Buffer.from(tagB64, "base64"));
   return Buffer.concat([decipher.update(Buffer.from(ctB64, "base64")), decipher.final()]).toString("utf8");
 }
+
+/**
+ * Signed media links.
+ *
+ * `decrypt-media` promises a URL valid for exactly one hour. That URL used to be the object
+ * store's own presigned link, which expires correctly but lives on a *different hostname* than
+ * the API. Strict clients pin the media host to the provider host and re-validate it on every
+ * redirect hop, so a cross-host link — or a redirect to one — is rejected outright before a
+ * byte is read. The original serves media from its own domain, so we do too, and the expiry
+ * moves here.
+ *
+ * HMAC over `key|expires` with the same `ENCRYPTION_KEY`. The signature covers the key, so it
+ * cannot be moved to another object, and the expiry, so it cannot be extended.
+ */
+export function signMediaLink(key: string, ttlSeconds: number): { expires: number; sig: string } {
+  const expires = Math.floor(Date.now() / 1000) + ttlSeconds;
+  return { expires, sig: mediaSignature(key, expires) };
+}
+
+export function verifyMediaLink(key: string, expires: string, sig: string): boolean {
+  const at = Number(expires);
+  if (!Number.isSafeInteger(at) || at <= Math.floor(Date.now() / 1000)) return false;
+  return safeEqual(sig, mediaSignature(key, at));
+}
+
+const mediaSignature = (key: string, expires: number): string =>
+  createHmac("sha256", keyFromEnv()).update(`${key}|${expires}`).digest("hex");

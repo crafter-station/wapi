@@ -348,6 +348,59 @@ d("media", () => {
     expect(r.status).toBe(422);
     expect(String(r.body["error"])).toContain("No supported media object");
   });
+
+  /**
+   * Media must be reachable on the API's own hostname.
+   *
+   * A strict client pins the media host to the provider host it was configured with and
+   * re-validates it on every redirect hop. Handing back the object store's presigned URL — or
+   * 302-ing to it — fails such a client before a byte is read, so these assert the origin and
+   * that the bytes come back on the response rather than via a cross-host redirect.
+   */
+  test("an uploaded object is served from our origin, byte-for-byte, with no redirect", async () => {
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    const up = await json(
+      await api("/api/upload", {
+        method: "POST",
+        body: JSON.stringify({ base64: png.toString("base64"), mimetype: "image/png" }),
+      }),
+    );
+    expect(up.status).toBe(200);
+    // publicUrl is at the TOP level, not under data.
+    const url = String(up.body["publicUrl"]);
+    expect(new URL(url).origin).toBe(new URL(BASE).origin);
+
+    const fetched = await fetch(url, { redirect: "manual" });
+    expect(fetched.status).toBe(200);
+    const bytes = Buffer.from(await fetched.arrayBuffer());
+    expect(bytes.equals(png)).toBe(true);
+  });
+
+  test("a media link carrying a tampered or absent signature is refused", async () => {
+    const up = await json(
+      await api("/api/upload", {
+        method: "POST",
+        body: JSON.stringify({ base64: "aGVsbG8=", mimetype: "text/plain" }),
+      }),
+    );
+    const url = new URL(String(up.body["publicUrl"]));
+
+    // The permanent link has no signature and must keep working.
+    expect((await fetch(url.href, { redirect: "manual" })).status).toBe(200);
+
+    // Presenting a signature at all means it has to verify.
+    url.searchParams.set("expires", String(Math.floor(Date.now() / 1000) + 3600));
+    url.searchParams.set("sig", "0".repeat(64));
+    expect((await fetch(url.href, { redirect: "manual" })).status).toBe(404);
+
+    // A half-supplied signature is not a way to skip the check.
+    const partial = new URL(String(up.body["publicUrl"]));
+    partial.searchParams.set("expires", "99999999999");
+    expect((await fetch(partial.href, { redirect: "manual" })).status).toBe(404);
+  });
 });
 
 // ---------------------------------------------------------------------------------------

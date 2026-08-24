@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { Db } from "@wapi/db";
 import { fail } from "@wapi/contracts";
-import { storage, MAX_UPLOAD_BYTES } from "@wapi/core";
+import { storage, MAX_UPLOAD_BYTES, signMediaLink, verifyMediaLink } from "@wapi/core";
 import { gateway, GatewayUnavailableError, SessionNotConnectedError } from "../gateway-client.ts";
 
 /**
@@ -127,8 +127,17 @@ export function mediaRoutes(_db: Db) {
         data: Buffer.from(media.base64, "base64"),
         contentType: media.mimetype,
       });
-      // One hour, as documented.
-      const publicUrl = await store.signedUrl(key, 3600);
+      /**
+       * One hour, as documented — but on OUR origin, not the object store's.
+       *
+       * This used to hand back the store's presigned URL. It expires correctly, but its
+       * hostname is `uploadx.crafter.run` rather than ours, and a strict client pins the media
+       * host to the provider host it was configured with. Such a client rejects the link before
+       * reading a byte, so a faithful media surface has to be served from the API's own domain.
+       * The expiry therefore moves into a signature we mint and `/media/*` enforces.
+       */
+      const { expires, sig } = signMediaLink(key, 3600);
+      const publicUrl = `${publicBase(c)}/media/${key}?expires=${expires}&sig=${sig}`;
       return c.json({ success: true, publicUrl });
     } catch (err) {
       if (err instanceof SessionNotConnectedError) return c.json(fail(err.message), 409);
@@ -147,8 +156,8 @@ export function mediaRoutes(_db: Db) {
  * Root-level media serving, mounted at `/` rather than `/api`.
  *
  * Their public media links are `wasenderapi.com/media/<uuid>.jpg` — no `/api` prefix — so this
- * is a separate router to match. Unauthenticated by design: it is the link `upload` hands out,
- * and it only ever redirects to a short-lived signed URL.
+ * is a separate router to match. Unauthenticated by design: it is the link `upload` hands out.
+ * `decrypt-media`'s link is the same path carrying an expiring signature, verified below.
  */
 export function mediaServeRoutes() {
   const app = new Hono();
@@ -165,10 +174,45 @@ export function mediaServeRoutes() {
   app.get("/media/*", async (c) => {
     const key = c.req.path.replace(/^\/media\//, "");
     if (!key) return c.json(fail("Not found."), 404);
+
+    /**
+     * Two kinds of link arrive here.
+     *
+     * `upload` hands out a permanent one with no query — that is what makes it usable as a
+     * later `send-message` input. `decrypt-media` hands out a signed one that expires after an
+     * hour. Presence of the signature is what distinguishes them, and a signature that is
+     * present must verify: an expired or forged one is a 404, not a redirect.
+     */
+    const expires = c.req.query("expires");
+    const sig = c.req.query("sig");
+    if (expires !== undefined || sig !== undefined) {
+      if (!expires || !sig || !verifyMediaLink(key, expires, sig)) {
+        return c.json(fail("Not found."), 404);
+      }
+    }
+
     try {
       const store = await storage();
-      const url = await store.signedUrl(decodeURIComponent(key), 300);
-      return c.redirect(url, 302);
+      const signed = await store.signedUrl(decodeURIComponent(key), 300);
+      /**
+       * Stream the bytes rather than 302-ing to the store.
+       *
+       * A redirect is cheaper and was the original implementation here, but it moves the
+       * download to another hostname, and clients that pin the media host re-validate it on
+       * every hop — so the redirect is refused and the media is unreachable. Proxying keeps
+       * the whole exchange on one origin. Objects are capped at 16 MB, so the cost is bounded,
+       * and the body is piped rather than buffered.
+       */
+      const upstream = await fetch(signed);
+      if (!upstream.ok || !upstream.body) return c.json(fail("Not found."), 404);
+      const headers = new Headers();
+      for (const h of ["content-type", "content-length", "etag", "last-modified"]) {
+        const v = upstream.headers.get(h);
+        if (v) headers.set(h, v);
+      }
+      // A permanent link is immutable; a signed one must not outlive its signature in a cache.
+      headers.set("cache-control", sig ? "private, max-age=60" : "public, max-age=31536000, immutable");
+      return new Response(upstream.body, { status: 200, headers });
     } catch {
       return c.json(fail("Not found."), 404);
     }

@@ -6,8 +6,10 @@
  * an external hop is a liability, whereas media is occasional, large and read-heavy. Pushing
  * it out keeps `api` genuinely stateless and takes egress off the box.
  *
- * The interface exists because the SDK is not the contract — `decrypt-media` promises a URL
- * valid for exactly one hour, and that promise must hold whatever sits behind it.
+ * The interface exists because the SDK is not the contract. Note the one-hour promise of
+ * `decrypt-media` is NOT kept here: that URL must live on the API's own hostname, so its expiry
+ * is a signature we mint (`signMediaLink`) and the media route enforces. `signedUrl` is now only
+ * an internal, short-lived handle used to read bytes back out of the store.
  */
 
 export type StoredObject = { key: string; url: string };
@@ -15,7 +17,7 @@ export type StoredObject = { key: string; url: string };
 export interface Storage {
   /** Store bytes and return a stable key plus a directly usable URL. */
   put(args: { name: string; data: Buffer; contentType: string }): Promise<StoredObject>;
-  /** A URL that expires. `decrypt-media` uses 3600s, matching their documented behaviour. */
+  /** A short-lived internal handle for reading an object back. Never handed to a caller. */
   signedUrl(key: string, ttlSeconds: number): Promise<string>;
   delete(keys: string[]): Promise<void>;
 }
