@@ -207,6 +207,28 @@ export const backupRuns = pgTable("backup_runs", {
   error: text("error"),
 });
 
+/**
+ * What our own webhook sink received.
+ *
+ * Webhook HTTP delivery was the last unproven path in the system. Proving it needs a
+ * receiver, and pointing one at a third-party inspector would ship real message content to
+ * someone else's server — so the sink is ours and the record lands here.
+ */
+export const webhookDeliveries = pgTable(
+  "webhook_deliveries",
+  {
+    id: serial("id").primaryKey(),
+    sessionId: integer("session_id"),
+    event: text("event").notNull(),
+    /** Their scheme is a plain shared secret in this header, not an HMAC (PLAN.md §1). */
+    signature: text("signature"),
+    payload: text("payload"),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("webhook_deliveries_event_idx").on(t.event, t.receivedAt)],
+);
+
+export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;
 export type BackupRun = typeof backupRuns.$inferSelect;
 export type Contact = typeof contacts.$inferSelect;
 export type Account = typeof accounts.$inferSelect;

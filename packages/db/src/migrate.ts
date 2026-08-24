@@ -162,6 +162,21 @@ const statements: [label: string, ddl: string][] = [
      )`,
   ],
   [
+    "webhook_deliveries",
+    `CREATE TABLE IF NOT EXISTS webhook_deliveries (
+       id          serial PRIMARY KEY,
+       session_id  integer,
+       event       text NOT NULL,
+       signature   text,
+       payload     text,
+       received_at timestamptz NOT NULL DEFAULT now()
+     )`,
+  ],
+  [
+    "webhook_deliveries_event_idx",
+    `CREATE INDEX IF NOT EXISTS webhook_deliveries_event_idx ON webhook_deliveries (event, received_at)`,
+  ],
+  [
     "contacts",
     `CREATE TABLE IF NOT EXISTS contacts (
        session_id   integer NOT NULL REFERENCES whatsapp_sessions(id) ON DELETE CASCADE,
