@@ -101,6 +101,20 @@ app.get("/rpc/state/:sessionId", (c) => {
   });
 });
 
+/** One RPC for the whole documented union — their API has one route, so this has one method. */
+app.post("/rpc/send", async (c) => {
+  const { sessionId, to, content, opts } = await c.req.json();
+  try {
+    const r = await engine.send(Number(sessionId), String(to), content, opts ?? {});
+    return c.json(r);
+  } catch (err) {
+    if (err instanceof SessionNotConnectedError) {
+      return c.json({ error: "not_connected", message: err.message }, 409);
+    }
+    throw err;
+  }
+});
+
 app.post("/rpc/send-text", async (c) => {
   const { sessionId, to, text, quoted } = await c.req.json();
   try {

@@ -87,6 +87,31 @@ services:
     networks:
       - dokploy-network
 
+  # Nightly pg_dump. Postgres is the whole product: lose baileys_creds and every session
+  # re-pairs, which tonight proved is not theoretical. pg_dump must match the server major
+  # version, so this pins postgres:18 to match the managed instance.
+  #
+  # Honest limitation: the volume lives on this host. That covers a bad migration, an
+  # accidental DROP, or Dokploy recreating the database container -- but not losing the box.
+  # Set BACKUP_S3_BUCKET to also ship off-host.
+  backup:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      BACKUP_DIR: /backups
+      BACKUP_KEEP: "7"
+      BACKUP_INTERVAL_SECONDS: "86400"
+    volumes:
+      - wapi-backups:/backups
+      - ./ops:/ops:ro
+    entrypoint: ["/bin/sh", "/ops/backup.sh"]
+    networks:
+      - dokploy-network
+
+volumes:
+  wapi-backups:
+
 networks:
   dokploy-network:
     external: true

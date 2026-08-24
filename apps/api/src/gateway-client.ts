@@ -5,7 +5,14 @@
  * *the failure mode of a remote WhatsApp call is silence, not an error* — its ingestor hung to
  * puppeteer's 180-second protocol timeout repeatedly. An API request must never inherit that.
  */
-import type { SessionStatus, EngineIdentity, ContactRecord, GroupRecord } from "@wapi/core";
+import type {
+  SessionStatus,
+  EngineIdentity,
+  ContactRecord,
+  GroupRecord,
+  SendContent,
+  SendOptions,
+} from "@wapi/core";
 
 const BASE = process.env["GATEWAY_URL"] ?? "http://gateway:3002";
 const TOKEN = process.env["GATEWAY_TOKEN"] ?? "";
@@ -99,6 +106,13 @@ export const gateway = {
     post<{ waKeyId: string; remoteJid: string; key: Record<string, unknown> }>(
       "/rpc/send-text",
       { sessionId, to, text, quoted },
+      DEADLINES.send,
+    ),
+
+  send: (sessionId: number, to: string, content: SendContent, opts: SendOptions) =>
+    post<{ waKeyId: string; remoteJid: string; key: Record<string, unknown> }>(
+      "/rpc/send",
+      { sessionId, to, content, opts },
       DEADLINES.send,
     ),
 

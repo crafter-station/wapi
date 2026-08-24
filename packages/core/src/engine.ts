@@ -34,6 +34,26 @@ export type SendResult = {
   key: Record<string, unknown>;
 };
 
+export type SendOptions = {
+  quoted?: Record<string, unknown>;
+  /** JIDs to @-mention. Rendered by the client only if the text also contains the @handle. */
+  mentions?: string[];
+  /** Media that self-destructs after one view. */
+  viewOnce?: boolean;
+};
+
+/** Exactly one of these carries the payload; the API validates that before calling. */
+export type SendContent =
+  | { kind: "text"; text: string }
+  | { kind: "image"; url: string; caption?: string }
+  | { kind: "video"; url: string; caption?: string }
+  | { kind: "audio"; url: string }
+  | { kind: "document"; url: string; fileName?: string; caption?: string }
+  | { kind: "sticker"; url: string }
+  | { kind: "location"; latitude: number; longitude: number; name?: string; address?: string }
+  | { kind: "contact"; displayName: string; vcard: string }
+  | { kind: "poll"; question: string; options: string[]; multiSelect?: boolean };
+
 export type EngineIdentity = { id: string; name: string | null; lid: string | null };
 
 export type ContactRecord = {
@@ -67,7 +87,13 @@ export interface WhatsAppEngine {
   /** Latest QR string, if the session is waiting to be scanned. */
   currentQr(sessionId: number): string | null;
   identity(sessionId: number): EngineIdentity | null;
-  sendText(sessionId: number, to: string, text: string, opts?: { quoted?: Record<string, unknown> }): Promise<SendResult>;
+  sendText(sessionId: number, to: string, text: string, opts?: SendOptions): Promise<SendResult>;
+  /**
+   * The polymorphic send. One endpoint, one method — their API documents fourteen variants of
+   * `POST /api/send-message` but it is a single route, so the engine mirrors that rather than
+   * growing a method per media type.
+   */
+  send(sessionId: number, to: string, content: SendContent, opts?: SendOptions): Promise<SendResult>;
   readMessages(sessionId: number, keys: Record<string, unknown>[]): Promise<void>;
 
   /**

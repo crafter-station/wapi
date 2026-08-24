@@ -29,6 +29,8 @@ import type {
   EngineIdentity,
   ContactRecord,
   GroupRecord,
+  SendContent,
+  SendOptions,
 } from "@wapi/core";
 
 /** Baileys events forwarded verbatim; their names are already our public webhook names. */
@@ -429,21 +431,30 @@ export class BaileysEngine implements WhatsAppEngine {
     return (res ?? []).map((r) => ({ jid: String(r.jid ?? ""), status: String(r.status ?? "") }));
   }
 
-  async sendText(
+  /** Text is the common case; it delegates to the same path as everything else. */
+  async sendText(sessionId: number, to: string, text: string, opts: SendOptions = {}) {
+    return this.send(sessionId, to, { kind: "text", text }, opts);
+  }
+
+  /**
+   * The polymorphic send.
+   *
+   * Their API documents fourteen variants of one route, so this is one method rather than
+   * fourteen. `mentions` and `viewOnce` are modifiers that ride along with any content kind,
+   * which is exactly how the documented field union behaves.
+   */
+  async send(
     sessionId: number,
     to: string,
-    text: string,
-    opts: { quoted?: Record<string, unknown> } = {},
+    content: SendContent,
+    opts: SendOptions = {},
   ): Promise<SendResult> {
-    const entry = this.sessions.get(sessionId);
-    if (!entry || entry.status !== "connected") {
-      throw new SessionNotConnectedError();
-    }
+    const entry = this.live(sessionId);
 
     /**
      * `account_protection` pacing — the one rate limit implemented for real (PLAN.md §1).
      *
-     * It is not protecting the server from users; it is protecting the phone number from
+     * It is not protecting the server from users; it protects the phone number from
      * WhatsApp's ban heuristics, and a banned number is the one resource here that cannot
      * just be redeployed.
      */
@@ -453,12 +464,12 @@ export class BaileysEngine implements WhatsAppEngine {
     }
     entry.lastSendAt = Date.now();
 
+    const body = toBaileysContent(content, opts);
     const sent = await entry.sock.sendMessage(
       to,
-      { text },
-      // Baileys needs a whole WAMessage here, not just a key: it dereferences
-      // message[type] and fails with "Cannot read properties of undefined" otherwise.
-      opts.quoted ? { quoted: opts.quoted as never } : undefined,
+      body as never,
+      // Baileys wants a whole WAMessage to quote, not just a key.
+      opts.quoted ? ({ quoted: opts.quoted } as never) : undefined,
     );
     if (!sent?.key.id) throw new Error("send produced no message key");
 
@@ -467,6 +478,61 @@ export class BaileysEngine implements WhatsAppEngine {
       remoteJid: String(sent.key.remoteJid ?? to),
       key: sent.key as unknown as Record<string, unknown>,
     };
+  }
+}
+
+/**
+ * Map our content union onto Baileys' message shapes.
+ *
+ * Media is passed by URL: Baileys fetches and encrypts it itself, which avoids buffering the
+ * whole file through this process.
+ */
+function toBaileysContent(c: SendContent, opts: SendOptions): Record<string, unknown> {
+  // Modifiers that apply regardless of kind.
+  const extra: Record<string, unknown> = {};
+  if (opts.mentions?.length) extra["mentions"] = opts.mentions;
+  if (opts.viewOnce) extra["viewOnce"] = true;
+
+  switch (c.kind) {
+    case "text":
+      return { text: c.text, ...extra };
+    case "image":
+      return { image: { url: c.url }, caption: c.caption, ...extra };
+    case "video":
+      return { video: { url: c.url }, caption: c.caption, ...extra };
+    case "audio":
+      // ptt renders it as a voice note, which is what their docs describe for audioUrl.
+      return { audio: { url: c.url }, ptt: true, mimetype: "audio/ogg; codecs=opus", ...extra };
+    case "document":
+      return {
+        document: { url: c.url },
+        fileName: c.fileName ?? "document",
+        caption: c.caption,
+        ...extra,
+      };
+    case "sticker":
+      return { sticker: { url: c.url }, ...extra };
+    case "location":
+      return {
+        location: {
+          degreesLatitude: c.latitude,
+          degreesLongitude: c.longitude,
+          name: c.name,
+          address: c.address,
+        },
+        ...extra,
+      };
+    case "contact":
+      return { contacts: { displayName: c.displayName, contacts: [{ vcard: c.vcard }] }, ...extra };
+    case "poll":
+      return {
+        poll: {
+          name: c.question,
+          values: c.options,
+          selectableCount: c.multiSelect ? c.options.length : 1,
+        },
+        ...extra,
+      };
   }
 }
 
