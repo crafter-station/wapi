@@ -25,6 +25,8 @@ const isPublic = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/api/webhook-sink",
+  // Documentation is public; requiring sign-in to read a getting-started guide is absurd.
+  "/docs",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

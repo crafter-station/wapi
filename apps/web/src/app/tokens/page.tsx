@@ -2,6 +2,7 @@ import Link from "next/link";
 import { listTokens } from "@/lib/data";
 import { revokeTokenAction } from "@/lib/actions";
 import { TokenForm } from "@/components/token-form";
+import { AppNav } from "@/components/app-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -9,14 +10,13 @@ export default async function TokensPage() {
   const tokens = await listTokens();
 
   return (
-    <div className="space-y-8">
+    <>
+      <AppNav active="tokens" />
+      <main className="shell space-y-8 py-12">
       <div>
-        <Link href="/sessions" className="text-sm text-[var(--muted-foreground)] hover:underline">
-          ← Sessions
-        </Link>
-        <p className="eyebrow mt-2">Personal access tokens</p>
-        <h1 className="mt-1 text-2xl">Account-level credentials</h1>
-        <p className="mt-2 max-w-xl text-sm text-[var(--muted-foreground)]">
+        <p className="kicker">Personal access tokens</p>
+        <h1 className="title mt-3">Account-level <em>credentials.</em></h1>
+        <p className="mt-4 max-w-[620px] text-[0.9rem] leading-[1.7] text-[var(--muted-foreground)]">
           Required for creating, updating and deleting sessions, and for setting a proxy. Only
           the hash is stored, so the value is shown once when created and never again.
         </p>
@@ -43,6 +43,7 @@ export default async function TokensPage() {
       )}
 
       <TokenForm />
-    </div>
+      </main>
+    </>
   );
 }

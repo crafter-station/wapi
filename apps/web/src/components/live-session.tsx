@@ -41,9 +41,9 @@ export function LiveSession({ id, initialStatus }: { id: number; initialStatus: 
   }, [qr]);
 
   return (
-    <div className="space-y-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-5">
+    <div className="card space-y-4 p-5">
       <div className="flex items-center justify-between">
-        <p className="eyebrow">Connection</p>
+        <p className="kicker">Connection</p>
         <span className="flex items-center gap-2">
           <StatusBadge status={status} />
           <span

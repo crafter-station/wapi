@@ -3,16 +3,20 @@ import { notFound } from "next/navigation";
 import { getSession } from "@/lib/data";
 import { connectAction, deleteSessionAction } from "@/lib/actions";
 import { LiveSession } from "@/components/live-session";
+import { AppNav } from "@/components/app-nav";
+import { RevealKey } from "@/components/reveal-key";
 import { decryptSecret } from "@wapi/core";
 
 export const dynamic = "force-dynamic";
+
+const API = "https://api.wapi.crafter.run";
 
 export default async function SessionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await getSession(Number(id));
   if (!session) notFound();
 
-  // The one place the session key is decrypted. Stored AES-256-GCM rather than in the clear,
+  // The one place a session key is decrypted. Stored AES-256-GCM rather than in the clear,
   // because their API returns it on every GET so hash-only storage is not an option.
   let apiKey: string | null = null;
   try {
@@ -21,56 +25,122 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
     apiKey = null;
   }
 
+  const examples = [
+    {
+      label: "Send a message",
+      code: `curl -X POST ${API}/api/send-message \\
+  -H "Authorization: Bearer $KEY" \\
+  -H 'Content-Type: application/json' \\
+  -d '{"to":"${session.phoneNumber}","text":"hello"}'`,
+    },
+    {
+      label: "List groups",
+      code: `curl ${API}/api/groups \\
+  -H "Authorization: Bearer $KEY"`,
+    },
+    {
+      label: "Send to a group",
+      code: `curl -X POST ${API}/api/send-message \\
+  -H "Authorization: Bearer $KEY" \\
+  -H 'Content-Type: application/json' \\
+  -d '{"to":"1203633...@g.us","text":"hello team"}'`,
+    },
+  ];
+
   return (
-    <div className="space-y-8">
-      <div>
-        <Link href="/sessions" className="text-sm text-[var(--muted-foreground)] hover:underline">
+    <>
+      <AppNav active="sessions" />
+      <main className="shell py-12">
+        <Link
+          href="/sessions"
+          className="text-[0.85rem] text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+        >
           ← Sessions
         </Link>
-        <h1 className="mt-2 text-2xl">{session.name}</h1>
-        <p className="font-mono text-xs text-[var(--muted-foreground)]">
-          {session.phoneNumber} · id {session.id}
-          {session.lid ? ` · ${session.lid}` : ""}
-        </p>
-      </div>
 
-      <LiveSession id={session.id} initialStatus={session.status} />
+        <header className="mt-4 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="title">{session.name}</h1>
+            <p className="code mt-2 text-[var(--muted-foreground)]">
+              {session.phoneNumber} · session #{session.id}
+              {session.lid ? ` · ${session.lid}` : ""}
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <form action={connectAction}>
+              <input type="hidden" name="id" value={session.id} />
+              <button className="btn btn-primary">Connect</button>
+            </form>
+            <form action={deleteSessionAction}>
+              <input type="hidden" name="id" value={session.id} />
+              <button className="btn btn-ghost text-[var(--destructive)]">Delete</button>
+            </form>
+          </div>
+        </header>
 
-      <div className="flex gap-3">
-        <form action={connectAction}>
-          <input type="hidden" name="id" value={session.id} />
-          <button className="rounded-[var(--radius)] bg-[var(--primary)] px-4 py-2 text-sm font-medium text-[var(--primary-foreground)]">
-            Connect
-          </button>
-        </form>
-        <form action={deleteSessionAction}>
-          <input type="hidden" name="id" value={session.id} />
-          <button className="rounded-[var(--radius)] border border-[var(--destructive)] px-4 py-2 text-sm text-[var(--destructive)]">
-            Delete
-          </button>
-        </form>
-      </div>
+        <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="space-y-8">
+            <section>
+              <p className="kicker">Session API key</p>
+              <p className="mt-2 max-w-[560px] text-[0.875rem] leading-[1.7] text-[var(--muted-foreground)]">
+                Use this for messaging, contacts and groups. It identifies the session, which is
+                why those endpoints carry no session id. Account-level actions — creating or
+                deleting sessions, setting a proxy — need a Personal Access Token instead.
+              </p>
+              <div className="mt-4">
+                <RevealKey value={apiKey} />
+              </div>
+            </section>
 
-      <section className="space-y-3">
-        <p className="eyebrow">Session API key</p>
-        <p className="text-sm text-[var(--muted-foreground)]">
-          Use this for messaging, contacts and groups. It identifies the session, which is why
-          those endpoints carry no session id. Account-level actions need a Personal Access
-          Token instead.
-        </p>
-        <code className="block overflow-x-auto rounded-[var(--radius)] bg-[var(--muted)] p-3 font-mono text-xs">
-          {apiKey ?? "unavailable"}
-        </code>
-        <details className="text-sm">
-          <summary className="cursor-pointer text-[var(--muted-foreground)]">Send a message</summary>
-          <pre className="mt-2 overflow-x-auto rounded-[var(--radius)] bg-[var(--muted)] p-3 font-mono text-xs">
-{`curl -X POST https://api.wapi.crafter.run/api/send-message \
-  -H "Authorization: Bearer ${apiKey ?? "<key>"}" \
-  -H 'Content-Type: application/json' \
-  -d '{"to":"${session.phoneNumber}","text":"hello"}'`}
-          </pre>
-        </details>
-      </section>
-    </div>
+            <section>
+              <p className="kicker">Try it</p>
+              <div className="mt-4 space-y-4">
+                {examples.map((e) => (
+                  <div key={e.label} className="terminal">
+                    <div className="terminal-bar">{e.label}</div>
+                    <div className="terminal-body">
+                      <pre className="code whitespace-pre-wrap">{e.code}</pre>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-4 text-[0.85rem] text-[var(--muted-foreground)]">
+                Set <code className="code">KEY</code> to the value above.{" "}
+                <Link href="/docs" className="underline underline-offset-2">
+                  Full guide →
+                </Link>
+              </p>
+            </section>
+          </div>
+
+          <aside className="space-y-8">
+            <LiveSession id={session.id} initialStatus={session.status} />
+
+            <section className="card p-5">
+              <p className="kicker">Configuration</p>
+              <dl className="mt-4 space-y-3 text-[0.85rem]">
+                {[
+                  ["Account protection", session.accountProtection ? "on — 1 send / 5s" : "off"],
+                  ["Message logging", session.logMessages ? "on" : "off"],
+                  ["Webhook", session.webhookEnabled ? (session.webhookUrl ?? "on") : "off"],
+                  ["Proxy", session.proxyUrl ?? "none"],
+                  [
+                    "Last event",
+                    session.lastEventAt
+                      ? session.lastEventAt.toISOString().slice(0, 16).replace("T", " ")
+                      : "never",
+                  ],
+                ].map(([k, v]) => (
+                  <div key={k} className="flex items-baseline justify-between gap-4">
+                    <dt className="text-[var(--muted-foreground)]">{k}</dt>
+                    <dd className="code truncate text-right">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          </aside>
+        </div>
+      </main>
+    </>
   );
 }

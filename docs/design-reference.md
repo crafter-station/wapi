@@ -50,7 +50,18 @@ and separable from component tokens.
 ## Typography
 
 - **Geist Sans** (`--font-geist-sans`) and **Geist Mono** (`--font-geist-mono`), with `Fallback` faces.
-- Weights defined: **400, 500, 600 only**. No 700 — emphasis comes from size and colour, not bold.
+- **Correction.** An earlier reading of the compiled Tailwind theme reported "400/500/600 only".
+  That was the token layer, not the design. The landing source uses fine-grained variable
+  weights — **580, 610, 620, 650, 680, 700, 720** — so headings sit just below bold rather than
+  at it.
+- **The signature move: `<em>` inside headings is set in Georgia serif**, weight 400,
+  `letter-spacing: -0.055em`, against the tight Geist sans. One serif phrase per heading is
+  what gives the page its voice.
+- Display headings: `clamp(3.4rem, 6.2vw, 5.9rem)`, weight 610, `letter-spacing: -0.072em`,
+  `line-height: 0.94`, `text-wrap: balance`. Section h2: `clamp(2.65rem, 5vw, 4.8rem)`,
+  weight 580.
+- Shell width: `min(1180px, calc(100% - 40px))`. Sections separated by a single
+  `1px solid var(--landing-line)` rule, with a soft radial `--muted` wash behind the hero.
 - Scale: `xs .75 · sm .875 · base 1 · lg 1.125 · xl 1.25 · 2xl 1.5 · 3xl 1.875 · 4xl 2.25` (rem),
   each with a paired line-height.
 - Leading: `tight 1.25 · snug 1.375 · normal 1.5`.

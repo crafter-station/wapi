@@ -1,21 +1,20 @@
 @import "tailwindcss";
 
 /*
- * Design tokens measured from https://normal.fast — see docs/design-reference.md.
+ * Design system — measured from https://normal.fast (source: cuevaio/normal).
+ * Full notes in docs/design-reference.md.
  *
- * The palette is deliberately achromatic: `--destructive` is the only chromatic token in the
- * whole system. That is a constraint, not an omission, and it shapes the session-status UI
- * below — seven states separated by weight, fill and border style rather than by colour.
- *
- * The stray `--sidebar-primary: #1447e6` from the source is NOT copied: it is blue in dark
- * mode and #171717 in light, i.e. an unoverridden shadcn default rather than an accent.
+ * Two things carry the voice:
+ *   1. The palette is achromatic. `--destructive` is the only chromatic token, so status has
+ *      to be communicated with weight, fill and border style. That is a constraint we keep.
+ *   2. Headings are tight, large, and just under bold, with ONE phrase per heading set in
+ *      Georgia serif. That serif fragment against the sans is the whole signature.
  */
 
 :root {
   --background: #ffffff;
   --foreground: #0a0a0a;
   --card: #ffffff;
-  --card-foreground: #0a0a0a;
   --muted: #f5f5f5;
   --muted-foreground: #737373;
   --border: #e5e5e5;
@@ -25,13 +24,14 @@
   --ring: #737373;
   --destructive: #e40014;
 
-  /* The editorial alias layer the source defines on top of the shadcn tokens. */
+  /* Editorial alias layer, as the source defines it. */
   --landing-paper: var(--background);
   --landing-ink: var(--foreground);
   --landing-line: var(--border);
   --landing-wash: var(--muted);
 
   --radius: 0.625rem;
+  --shell: min(1180px, calc(100% - 40px));
 }
 
 @media (prefers-color-scheme: dark) {
@@ -39,7 +39,6 @@
     --background: #0a0a0a;
     --foreground: #fafafa;
     --card: #171717;
-    --card-foreground: #fafafa;
     --muted: #262626;
     --muted-foreground: #a1a1a1;
     --border: rgb(255 255 255 / 0.1);
@@ -61,64 +60,206 @@
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-destructive: var(--destructive);
-  --radius-card: var(--radius);
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
-  /* Fast and decisive — expo-out, as measured. */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+* {
+  border-color: var(--border);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
-  /* Emphasis comes from size and colour: the source defines 400/500/600 and no bold. */
-  font-weight: 400;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-h1,
-h2,
-h3 {
-  font-weight: 600;
-  letter-spacing: -0.025em;
+.shell {
+  width: var(--shell);
+  margin-inline: auto;
 }
 
-/* Eyebrows and column labels. */
-.eyebrow {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
+/* ---------------------------------------------------------------- typography */
+
+.display {
+  font-size: clamp(2.9rem, 6vw, 5.4rem);
+  font-weight: 610;
+  letter-spacing: -0.072em;
+  line-height: 0.94;
+  text-wrap: balance;
+}
+
+.title {
+  font-size: clamp(2.1rem, 4.4vw, 3.6rem);
+  font-weight: 580;
+  letter-spacing: -0.062em;
+  line-height: 1.03;
+  text-wrap: balance;
 }
 
 /*
- * Session status.
+ * The signature. One serif phrase per heading, against the tight sans.
+ * Deliberately Georgia rather than a loaded webfont: it needs no network request and the
+ * contrast comes from the letterforms, not from the specific face.
+ */
+.display em,
+.title em {
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.045em;
+}
+
+.kicker {
+  color: var(--muted-foreground);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.lede {
+  color: var(--muted-foreground);
+  font-size: clamp(1.02rem, 1.6vw, 1.2rem);
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+
+.wordmark {
+  font-size: 1.2rem;
+  font-weight: 720;
+  letter-spacing: -0.055em;
+}
+.wordmark span {
+  color: var(--muted-foreground);
+}
+
+/* ---------------------------------------------------------------- surfaces */
+
+.rule {
+  border-bottom: 1px solid var(--landing-line);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* Soft wash behind the hero — the only "decoration" in the whole system. */
+.hero-wash {
+  position: relative;
+  isolation: isolate;
+}
+.hero-wash::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(
+    circle at 76% 28%,
+    color-mix(in oklch, var(--muted) 78%, transparent) 0,
+    transparent 56%
+  );
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: var(--radius);
+  padding: 0.7rem 1.1rem;
+  font-size: 0.925rem;
+  font-weight: 560;
+  transition: opacity 0.15s var(--ease-out), background 0.15s var(--ease-out);
+}
+.btn-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.btn-primary:hover {
+  opacity: 0.88;
+}
+.btn-ghost {
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover {
+  background: var(--muted);
+}
+
+/* ---------------------------------------------------------------- code */
+
+.code {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.7;
+  overflow-x: auto;
+}
+
+.code-block {
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.15rem;
+}
+
+/*
+ * Terminal chrome. Purely typographic — no images, no gradients — so it renders identically
+ * in both themes and costs nothing to load.
+ */
+.terminal {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.terminal-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+}
+.terminal-body {
+  padding: 1rem 1.15rem;
+}
+
+/* ---------------------------------------------------------------- status */
+
+/*
+ * Seven session states with no brand hue available.
  *
- * With no brand hue available, the seven states separate on fill, border style and weight.
- * `destructive` is held back for genuine failure — logged_out and expired — so that a state
- * needing action is the only coloured thing on the page.
+ * They separate on fill, border style and weight instead of colour, and `destructive` is held
+ * back for the two states that actually need a human — so the only colour on the page always
+ * means "act".
  */
 .status {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.45rem;
   font-family: var(--font-mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
-  padding: 0.25rem 0.625rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  padding: 0.22rem 0.6rem;
   border-radius: 9999px;
   border: 1px solid var(--border);
+  white-space: nowrap;
 }
 .status::before {
   content: "";
-  width: 0.5rem;
-  height: 0.5rem;
+  width: 0.45rem;
+  height: 0.45rem;
   border-radius: 9999px;
   border: 1px solid currentColor;
 }
-/* Live: solid fill, full-contrast ink. */
 .status-connected {
   color: var(--foreground);
   border-color: var(--foreground);
@@ -126,7 +267,6 @@ h3 {
 .status-connected::before {
   background: currentColor;
 }
-/* In flight: dashed border, pulsing dot. */
 .status-connecting,
 .status-need_scan,
 .status-need_passkey {
@@ -138,11 +278,9 @@ h3 {
 .status-need_passkey::before {
   animation: pulse 1.6s var(--ease-out) infinite;
 }
-/* Idle: hollow and quiet. */
 .status-disconnected {
   color: var(--muted-foreground);
 }
-/* Needs a human. The only colour on the page. */
 .status-logged_out,
 .status-expired {
   color: var(--destructive);
@@ -159,6 +297,48 @@ h3 {
     opacity: 1;
   }
   50% {
-    opacity: 0.35;
+    opacity: 0.3;
   }
+}
+
+/* ---------------------------------------------------------------- prose */
+
+.prose h2 {
+  font-size: 1.45rem;
+  font-weight: 620;
+  letter-spacing: -0.03em;
+  margin-top: 2.75rem;
+  margin-bottom: 0.75rem;
+}
+.prose h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-top: 1.75rem;
+  margin-bottom: 0.5rem;
+}
+.prose p,
+.prose li {
+  color: var(--muted-foreground);
+  line-height: 1.75;
+}
+.prose p {
+  margin-bottom: 0.9rem;
+}
+.prose strong {
+  color: var(--foreground);
+  font-weight: 580;
+}
+.prose code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--muted);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  color: var(--foreground);
+}
+.prose a {
+  color: var(--foreground);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
