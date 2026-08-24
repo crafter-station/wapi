@@ -199,6 +199,40 @@ body {
   overflow-x: auto;
 }
 
+/*
+ * Shiki output.
+ *
+ * The highlighter emits its own <pre class="shiki">; we want its colours and none of its
+ * chrome, because the surrounding terminal already supplies the background and padding.
+ *
+ * Dark mode works by the dual-theme trick: every token carries its light colour inline and its
+ * dark colour as `--shiki-dark`, so the swap below is a single rule rather than a second pass
+ * over the markup. `!important` is needed precisely once, to beat those inline styles.
+ */
+.code .shiki,
+.code .shiki span {
+  background: transparent !important;
+}
+.code .shiki {
+  margin: 0;
+  overflow-x: auto;
+}
+.code .shiki code {
+  display: block;
+  width: fit-content;
+  min-width: 100%;
+}
+
+@media (prefers-color-scheme: dark) {
+  .code .shiki,
+  .code .shiki span {
+    color: var(--shiki-dark, inherit) !important;
+    font-style: var(--shiki-dark-font-style, inherit) !important;
+    font-weight: var(--shiki-dark-font-weight, inherit) !important;
+    text-decoration: var(--shiki-dark-text-decoration, inherit) !important;
+  }
+}
+
 .code-block {
   background: var(--muted);
   border: 1px solid var(--border);

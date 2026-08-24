@@ -8,8 +8,15 @@ import { useState } from "react";
  * Documentation examples are only useful if they are copyable, so every block has a copy
  * button. Tabs rather than stacked blocks because most readers want exactly one language and
  * scrolling past four they do not use is friction.
+ *
+ * `html` is pre-highlighted at build time by `Code`; `code` is the plain source, kept because
+ * that is what belongs on the clipboard.
  */
-export function CodeTabs({ tabs }: { tabs: { label: string; code: string }[] }) {
+export function CodeTabs({
+  tabs,
+}: {
+  tabs: { label: string; code: string; html: string }[];
+}) {
   const [active, setActive] = useState(0);
   const [copied, setCopied] = useState(false);
   const current = tabs[active]!;
@@ -43,7 +50,8 @@ export function CodeTabs({ tabs }: { tabs: { label: string; code: string }[] }) 
         </button>
       </div>
       <div className="terminal-body">
-        <pre className="code whitespace-pre-wrap">{current.code}</pre>
+        {/* Highlighted at build time from source we author; no user input reaches this. */}
+        <div className="code" dangerouslySetInnerHTML={{ __html: current.html }} />
       </div>
     </div>
   );

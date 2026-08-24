@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AppNav } from "@/components/app-nav";
-import { CodeTabs } from "@/components/code-tabs";
+import { Code } from "@/components/code";
 
 export const dynamic = "force-static";
 
@@ -84,17 +84,17 @@ export default function DocsPage() {
             </p>
 
             <h3>2. Send something</h3>
-            <CodeTabs
+            <Code
               tabs={[
                 {
-                  label: "curl",
+                  label: "curl", lang: "bash",
                   code: `curl -X POST ${API}/api/send-message \\
   -H "Authorization: Bearer $KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{"to":"+51999888777","text":"hello from wapi"}'`,
                 },
                 {
-                  label: "JavaScript",
+                  label: "JavaScript", lang: "javascript",
                   code: `const res = await fetch("${API}/api/send-message", {
   method: "POST",
   headers: {
@@ -108,7 +108,7 @@ const { data } = await res.json();
 console.log(data.msgId); // 100024`,
                 },
                 {
-                  label: "Python",
+                  label: "Python", lang: "python",
                   code: `import os, requests
 
 r = requests.post(
@@ -128,8 +128,41 @@ print(r.json()["data"]["msgId"])  # 100024`,
               <code>GET /api/messages/{"{msgId}"}/info</code>, which returns both identifiers
               side by side.
             </p>
-            <div className="code-block code">{`{ "success": true,
-  "data": { "msgId": 100024, "jid": "+51999888777", "status": "in_progress" } }`}</div>
+            <Code
+              tabs={[
+                {
+                  label: "Send response",
+                  lang: "json",
+                  code: `{ "success": true,
+  "data": { "msgId": 100024, "jid": "+51999888777", "status": "in_progress" } }`,
+                },
+                {
+                  label: "Message info",
+                  lang: "json",
+                  code: `{
+  "success": true,
+  "data": {
+    "remoteJid": "51999888777@s.whatsapp.net",
+    "id": "3EB0A9C1...",
+    "msgId": 100024,
+    "key": { "id": "3EB0A9C1...", "fromMe": true,
+             "remoteJid": "51999888777@s.whatsapp.net" },
+    "message": { "conversation": "hello from wapi" },
+    "messageTimestamp": "1787537909",
+    "status": 2
+  }
+}`,
+                },
+              ]}
+            />
+            <p className="mt-5">
+              Two field types on <code>/info</code> catch people out, and both follow WhatsApp&rsquo;s
+              own record rather than ours. <code>messageTimestamp</code> is a{" "}
+              <strong>string</strong> — it is a protobuf 64-bit integer, which JSON cannot hold as
+              a number — and <code>status</code> is WhatsApp&rsquo;s numeric acknowledgement
+              (<code>0</code> error, <code>1</code> pending, <code>2</code> sent, <code>3</code>{" "}
+              delivered, <code>4</code> read), not the word you get back from a send.
+            </p>
           </S>
 
           {/* ---------------------------------------------------------- auth */}
@@ -168,46 +201,46 @@ print(r.json()["data"]["msgId"])  # 100024`,
               what gets sent — there is no separate route for images or groups. Setting two
               content fields is an error rather than a silent preference.
             </p>
-            <CodeTabs
+            <Code
               tabs={[
-                { label: "Text", code: `{ "to": "+51999888777", "text": "hello" }` },
+                { label: "Text", lang: "json", code: `{ "to": "+51999888777", "text": "hello" }` },
                 {
-                  label: "Image",
+                  label: "Image", lang: "json",
                   code: `{ "to": "+51999888777",
   "imageUrl": "https://example.com/photo.jpg",
   "text": "optional caption" }`,
                 },
                 {
-                  label: "Document",
+                  label: "Document", lang: "json",
                   code: `{ "to": "+51999888777",
   "documentUrl": "https://example.com/invoice.pdf",
   "fileName": "invoice.pdf" }`,
                 },
                 {
-                  label: "Location",
+                  label: "Location", lang: "json",
                   code: `{ "to": "+51999888777",
   "location": { "latitude": -12.0464, "longitude": -77.0428, "name": "Lima" } }`,
                 },
                 {
-                  label: "Poll",
+                  label: "Poll", lang: "json",
                   code: `{ "to": "+51999888777",
   "poll": { "question": "Ship on Friday?",
             "options": ["Yes", "No", "Needs discussion"],
             "multiSelect": false } }`,
                 },
                 {
-                  label: "Contact",
+                  label: "Contact", lang: "json",
                   code: `{ "to": "+51999888777",
   "contact": { "name": "Ada Lovelace", "phone": "+51999111222" } }`,
                 },
                 {
-                  label: "Reply",
+                  label: "Reply", lang: "json",
                   code: `{ "to": "+51999888777",
   "text": "answering your question",
   "replyTo": 100024 }`,
                 },
                 {
-                  label: "Mentions",
+                  label: "Mentions", lang: "json",
                   code: `{ "to": "120363000000000000@g.us",
   "text": "@51999888777 can you confirm?",
   "mentions": ["+51999888777"] }`,
@@ -229,10 +262,10 @@ print(r.json()["data"]["msgId"])  # 100024`,
               you do not already host the file, upload it first and use the URL you get back —
               it is permanent, so it still resolves when the message is sent later.
             </p>
-            <CodeTabs
+            <Code
               tabs={[
                 {
-                  label: "Upload (binary)",
+                  label: "Upload (binary)", lang: "bash",
                   code: `curl -X POST ${API}/api/upload \\
   -H "Authorization: Bearer $KEY" \\
   -H 'Content-Type: image/png' \\
@@ -241,14 +274,14 @@ print(r.json()["data"]["msgId"])  # 100024`,
 # → { "success": true, "publicUrl": "${API}/media/<uuid>/photo.png" }`,
                 },
                 {
-                  label: "Upload (base64)",
+                  label: "Upload (base64)", lang: "bash",
                   code: `curl -X POST ${API}/api/upload \\
   -H "Authorization: Bearer $KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{"base64":"iVBORw0KGgo...","mimetype":"image/png","fileName":"photo.png"}'`,
                 },
                 {
-                  label: "Decrypt inbound",
+                  label: "Decrypt inbound", lang: "bash",
                   code: `# Inbound media arrives ENCRYPTED. Pass the message node from the
 # webhook straight through and get back a URL valid for one hour.
 curl -X POST ${API}/api/decrypt-media \\
@@ -271,31 +304,54 @@ curl -X POST ${API}/api/decrypt-media \\
 
           {/* -------------------------------------------------------- groups */}
           <S id="groups" kicker="Groups & contacts" title={<>Reading the <em>address book.</em></>}>
-            <CodeTabs
+            <Code
               tabs={[
                 {
-                  label: "List groups",
+                  label: "List groups", lang: "bash",
                   code: `curl ${API}/api/groups -H "Authorization: Bearer $KEY"
 
-# → [{ "id": "120363...@g.us", "subject": "Team", "participants": [...] }]`,
+# → { "success": true,
+#     "data": [ { "jid": "120363...@g.us", "id": "120363...@g.us",
+#                 "name": "Team", "subject": "Team", "imgUrl": null,
+#                 "owner": "...", "creation": 1678886400,
+#                 "desc": null, "participants": [ ... ] } ] }
+#
+# jid and name are the documented keys; id and subject carry the same
+# values and are kept so existing callers keep working.`,
                 },
                 {
-                  label: "Group detail",
+                  label: "Group detail", lang: "bash",
                   code: `curl ${API}/api/groups/120363...@g.us/metadata \\
   -H "Authorization: Bearer $KEY"
 
 curl ${API}/api/groups/120363...@g.us/participants \\
-  -H "Authorization: Bearer $KEY"`,
+  -H "Authorization: Bearer $KEY"
+
+# A participant carries both documented forms at once:
+# { "jid": "51999888777@s.whatsapp.net", "isAdmin": true,
+#   "isSuperAdmin": false, "id": "51999888777@s.whatsapp.net",
+#   "admin": "admin" }`,
                 },
                 {
-                  label: "Contacts",
+                  label: "Contacts", lang: "bash",
                   code: `curl ${API}/api/contacts -H "Authorization: Bearer $KEY"
+
+# → { "success": true,
+#     "data": [ { "jid": "51999888777@s.whatsapp.net",
+#                 "id": "51999888777@s.whatsapp.net",
+#                 "name": "Ada", "notify": "Ada L.",
+#                 "verifiedName": null, "imgUrl": null, "status": null,
+#                 "phoneNumber": "+51999888777", "lid": "4627...@lid" } ] }
+
+# One contact. imgUrl and status are always null in a list: a picture and an
+# "about" string are per-contact fetches, so a list call never makes N of them.
+curl ${API}/api/contacts/+51999888777 -H "Authorization: Bearer $KEY"
 
 # Is a number on WhatsApp?
 curl ${API}/api/on-whatsapp/+51999888777 -H "Authorization: Bearer $KEY"`,
                 },
                 {
-                  label: "Paginated",
+                  label: "Paginated", lang: "bash",
                   code: `# Both /api/contacts and /api/groups take ?paginated=true, which changes
 # the response shape: data becomes { items, pagination } instead of an array.
 curl "${API}/api/contacts?paginated=true&page=1&limit=20" \
@@ -310,7 +366,7 @@ curl "${API}/api/contacts?paginated=true&page=1&limit=20" \
 # and page echoes what you asked for.`,
                 },
                 {
-                  label: "LID lookup",
+                  label: "LID lookup", lang: "bash",
                   code: `# WhatsApp now addresses many identities by LID rather than phone number.
 curl ${API}/api/lid-from-pn/+51999888777 -H "Authorization: Bearer $KEY"
 curl ${API}/api/pn-from-lid/46274715893950@lid -H "Authorization: Bearer $KEY"`,
@@ -333,10 +389,10 @@ curl ${API}/api/pn-from-lid/46274715893950@lid -H "Authorization: Bearer $KEY"`,
               exponential backoff. Verify the <code>X-Webhook-Signature</code> header against your
               session&rsquo;s webhook secret.
             </p>
-            <CodeTabs
+            <Code
               tabs={[
                 {
-                  label: "Configure",
+                  label: "Configure", lang: "bash",
                   code: `curl -X PUT ${API}/api/whatsapp-sessions/1 \\
   -H "Authorization: Bearer $PAT" \\
   -H 'Content-Type: application/json' \\
@@ -347,7 +403,7 @@ curl ${API}/api/pn-from-lid/46274715893950@lid -H "Authorization: Bearer $KEY"`,
 # An empty webhook_events array means "send everything".`,
                 },
                 {
-                  label: "Receive",
+                  label: "Receive", lang: "javascript",
                   code: `app.post("/hook", express.json(), (req, res) => {
   if (req.headers["x-webhook-signature"] !== process.env.WAPI_WEBHOOK_SECRET) {
     return res.sendStatus(401);
@@ -363,7 +419,7 @@ curl ${API}/api/pn-from-lid/46274715893950@lid -H "Authorization: Bearer $KEY"`,
 });`,
                 },
                 {
-                  label: "Payload",
+                  label: "Payload", lang: "json",
                   code: `{
   "event": "messages.received",
   "sessionId": 1,
@@ -436,10 +492,10 @@ curl ${API}/api/pn-from-lid/46274715893950@lid -H "Authorization: Bearer $KEY"`,
               client works against it with no changes — this is covered by an automated test
               suite, not just an aspiration.
             </p>
-            <CodeTabs
+            <Code
               tabs={[
                 {
-                  label: "Node",
+                  label: "Node", lang: "javascript",
                   code: `import { createWasender } from "wasenderapi";
 
 // Third argument is the base URL. That is the whole migration.

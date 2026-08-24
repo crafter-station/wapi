@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 import { GithubLink } from "@/components/github-link";
+import { highlight } from "@/lib/highlight";
 
 /**
  * Landing page.
@@ -54,7 +55,27 @@ function Nav() {
   );
 }
 
-function HeroTerminal() {
+/**
+ * Hero panel.
+ *
+ * A terminal rather than a product screenshot, because this product's surface *is* a REST API:
+ * the honest equivalent of showing the app is showing a request and its response. Highlighted
+ * with the same build-time highlighter as the documentation, so the colours a reader sees here
+ * are the colours they see in the guide.
+ */
+async function HeroTerminal() {
+  const request = await highlight(
+    `curl -X POST ${API}/api/send-message \
+  -H "Authorization: Bearer $KEY" \
+  -d '{"to":"+51999888777","text":"hello"}'`,
+    "bash",
+  );
+  const response = await highlight(
+    `{ "success": true,
+  "data": { "msgId": 100024, "status": "in_progress" } }`,
+    "json",
+  );
+
   return (
     <div className="terminal w-full max-w-[560px]">
       <div className="terminal-bar">
@@ -62,22 +83,15 @@ function HeroTerminal() {
         <span className="ml-auto">POST /api/send-message</span>
       </div>
       <div className="terminal-body code">
-        <pre className="whitespace-pre-wrap text-[var(--muted-foreground)]">
-{`curl -X POST `}<span className="text-[var(--foreground)]">{API}/api/send-message</span>{` \\
-  -H "Authorization: Bearer $KEY" \\
-  -d '{"to":"+51999888777","text":"hello"}'`}
-        </pre>
+        <div dangerouslySetInnerHTML={{ __html: request }} />
         <div className="my-3 border-t border-[var(--border)]" />
-        <pre className="whitespace-pre-wrap text-[var(--foreground)]">
-{`{ "success": true,
-  "data": { "msgId": 100024, "status": "in_progress" } }`}
-        </pre>
+        <div dangerouslySetInnerHTML={{ __html: response }} />
       </div>
     </div>
   );
 }
 
-export default function Home() {
+export default async function Home() {
   return (
     <>
       <Nav />
