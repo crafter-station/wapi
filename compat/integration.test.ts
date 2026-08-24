@@ -415,3 +415,71 @@ d("webhook delivery", () => {
     60_000,
   );
 });
+
+// ---------------------------------------------------------------------------------------
+/**
+ * `?paginated=true` — the undocumented directory envelope.
+ *
+ * Found by reading a real consumer (`cuevaio/normal`'s `packages/wasender/src/directory.ts`)
+ * rather than the published docs, which only describe the flat array. That consumer rejects
+ * the whole page unless the arithmetic matches exactly, so these assertions replicate its
+ * validation instead of merely checking that fields exist.
+ */
+d("paginated directory envelope", () => {
+  const validate = (payload: Record<string, unknown>, expectedPage: number) => {
+    expect(payload["success"]).toBe(true);
+    const data = payload["data"] as Record<string, unknown>;
+    const items = data["items"] as unknown[];
+    const p = data["pagination"] as Record<string, number>;
+
+    expect(Array.isArray(items)).toBe(true);
+    expect(Number.isSafeInteger(p["page"])).toBe(true);
+    expect(p["page"]).toBe(expectedPage);
+    expect(p["limit"]!).toBeGreaterThanOrEqual(1);
+    expect(Number.isSafeInteger(p["total"])).toBe(true);
+    expect(p["total"]!).toBeGreaterThanOrEqual(items.length);
+    expect(items.length).toBeLessThanOrEqual(p["limit"]!);
+    // The exact check that rejects a mismatched page.
+    expect(p["totalPages"]).toBe(Math.max(1, Math.ceil(p["total"]! / p["limit"]!)));
+    expect(p["page"]!).toBeLessThanOrEqual(p["totalPages"]!);
+  };
+
+  test("contacts return items + pagination and satisfy the consumer's arithmetic", async () => {
+    const r = await json(await api("/api/contacts?paginated=true&page=1&limit=100"));
+    expect(r.status).toBe(200);
+    validate(r.body, 1);
+  });
+
+  test("groups do too", async () => {
+    const r = await json(await api("/api/groups?paginated=true&page=1&limit=100"));
+    expect(r.status).toBe(200);
+    validate(r.body, 1);
+  });
+
+  test("entries carry jid and id identically, and a name", async () => {
+    const r = await json(await api("/api/groups?paginated=true&page=1&limit=100"));
+    const items = ((r.body["data"] as Record<string, unknown>)["items"] as Record<string, unknown>[]);
+    if (!items.length) return;
+    for (const g of items) {
+      // Both keys are accepted, but a consumer rejects the entry if they differ.
+      expect(g["jid"]).toBe(g["id"]);
+      expect(String(g["jid"])).toMatch(/^[1-9]\d{1,31}(?:-[1-9]\d{1,31})?@g\.us$/);
+      // A group carrying only `subject` parses but comes back unnamed.
+      expect(typeof g["name"]).toBe("string");
+    }
+  });
+
+  test("a small limit produces a consistent multi-page shape", async () => {
+    const r = await json(await api("/api/contacts?paginated=true&page=1&limit=2"));
+    validate(r.body, 1);
+    const p = (r.body["data"] as Record<string, unknown>)["pagination"] as Record<string, number>;
+    const items = (r.body["data"] as Record<string, unknown>)["items"] as unknown[];
+    expect(items.length).toBeLessThanOrEqual(2);
+    if (p["total"]! > 2) expect(p["totalPages"]!).toBeGreaterThan(1);
+  });
+
+  test("without the flag the flat array is unchanged", async () => {
+    const r = await json(await api("/api/contacts"));
+    expect(Array.isArray(r.body["data"])).toBe(true);
+  });
+});

@@ -94,6 +94,43 @@ export const paginate = <T>(args: {
   };
 };
 
+/**
+ * The paginated directory envelope, used by `?paginated=true` on contacts and groups.
+ *
+ * This is a SECOND, different pagination shape from the Laravel paginator above — `items` plus
+ * a `pagination` object rather than the twelve-key length-aware paginator. It does not appear
+ * in the public documentation at all; it was found by reading a real consumer, which validates
+ * it strictly and rejects the response outright unless
+ * `totalPages === max(1, ceil(total / limit))`.
+ *
+ * Two pagination shapes in one API is not a design we would choose. It is the interface we are
+ * cloning, and a client that asks for `paginated=true` and receives the flat array fails on
+ * its first call.
+ */
+export type DirectoryPage<T> = {
+  items: T[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+};
+
+export const directoryPage = <T>(args: {
+  items: T[];
+  page: number;
+  limit: number;
+  total: number;
+}): DirectoryPage<T> => {
+  const { items, page, limit, total } = args;
+  return {
+    items,
+    pagination: {
+      page,
+      limit,
+      total,
+      // Must match the consumer's own arithmetic exactly or the response is rejected.
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+  };
+};
+
 /** The seven session statuses. Lowercase here; SCREAMING in connect responses — see PLAN.md §1.3. */
 export const SESSION_STATUSES = [
   "connecting",

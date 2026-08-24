@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Db } from "@wapi/db";
-import { ok, fail } from "@wapi/contracts";
+import { ok, fail, directoryPage } from "@wapi/contracts";
 import { resolveRecipient } from "@wapi/core";
 import { gateway, GatewayUnavailableError, SessionNotConnectedError } from "../gateway-client.ts";
 
@@ -34,6 +34,21 @@ export function contactGroupRoutes(_db: Db) {
     }
   };
 
+  /**
+   * `?paginated=true` selects a different envelope entirely.
+   *
+   * Undocumented publicly, but real consumers request it and validate it strictly — the page
+   * is rejected unless `totalPages === max(1, ceil(total / limit))`, `page` echoes the request,
+   * and `items.length <= limit`. Returning the flat array to a caller that asked for pagination
+   * fails on its first call, so this is a compatibility requirement rather than a nicety.
+   */
+  const pageArgs = (c: { req: { query: (k: string) => string | undefined } }) => {
+    if (c.req.query("paginated") !== "true") return null;
+    const page = Math.max(1, Number(c.req.query("page") ?? 1) || 1);
+    const limit = Math.min(500, Math.max(1, Number(c.req.query("limit") ?? 100) || 100));
+    return { page, limit };
+  };
+
   // ---- contacts ---------------------------------------------------------------------
 
   app.get("/contacts", (c) =>
@@ -48,7 +63,23 @@ export function contactGroupRoutes(_db: Db) {
         await gateway.syncContacts(sessionId).catch(() => {});
         ({ contacts } = await gateway.contacts(sessionId));
       }
-      return c.json(ok(contacts));
+
+      const paging = pageArgs(c);
+      if (!paging) return c.json(ok(contacts));
+
+      const { page, limit } = paging;
+      const items = contacts.slice((page - 1) * limit, page * limit).map((x) => ({
+        // `jid` and `id` are both emitted with the same value: consumers accept either, and
+        // reject the entry outright if both are present and differ.
+        jid: x.jid,
+        id: x.jid,
+        name: x.name,
+        notify: x.notify,
+        verifiedName: null,
+        phoneNumber: x.phoneNumber,
+        lid: x.lid,
+      }));
+      return c.json(ok(directoryPage({ items, page, limit, total: contacts.length })));
     }),
   );
 
@@ -107,7 +138,31 @@ export function contactGroupRoutes(_db: Db) {
   app.get("/groups", (c) =>
     guard(c, async (sessionId) => {
       const { groups } = await gateway.groups(sessionId);
-      return c.json(ok(groups));
+
+      const paging = pageArgs(c);
+      if (!paging) return c.json(ok(groups));
+
+      const { page, limit } = paging;
+      const items = groups.slice((page - 1) * limit, page * limit).map((g) => ({
+        jid: g.id,
+        id: g.id,
+        /**
+         * A group's title has to appear as `name`, not only `subject`.
+         *
+         * Directory consumers read `name` for both contacts and groups; a paginated group page
+         * carrying only `subject` parses successfully and yields every group unnamed, which is
+         * worse than failing. `subject` is kept alongside for our own callers.
+         */
+        name: g.subject,
+        subject: g.subject,
+        notify: null,
+        verifiedName: null,
+        owner: g.owner,
+        creation: g.creation,
+        desc: g.desc,
+        participants: g.participants,
+      }));
+      return c.json(ok(directoryPage({ items, page, limit, total: groups.length })));
     }),
   );
 
