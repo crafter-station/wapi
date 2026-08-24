@@ -1,6 +1,13 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 /**
+ * Next 16 renamed middleware to `proxy`. This file must be `src/proxy.ts`.
+ *
+ * With it named `middleware.ts` the build still reported "Proxy (Middleware)", so it looked
+ * wired — but Clerk could not detect it and every `auth()` call threw
+ * "auth() was called but Clerk can't detect usage of clerkMiddleware()". Clerk's own error
+ * text lists `proxy.(ts|js)` first, which is the tell.
+ *
  * Everything except the landing page requires a signed-in user.
  *
  * Clerk guards humans only. Machine credentials — Personal Access Tokens and session API

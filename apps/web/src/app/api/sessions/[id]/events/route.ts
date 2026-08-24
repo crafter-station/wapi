@@ -7,14 +7,14 @@ export const runtime = "nodejs";
 /**
  * Live session events over SSE.
  *
- * PLAN.md §2 chose Redis pub/sub for the outbound direction precisely because events fan out
- * to more than one consumer: `qrcode.updated` has to reach this stream *and* the webhook
- * queue at the same time. Polling the QR endpoint was named as the fallback, not the design.
+ * PLAN.md §2 chose Redis pub/sub for the outbound direction because events fan out to more
+ * than one consumer: `qrcode.updated` has to reach this stream *and* the webhook queue at the
+ * same time. Polling the QR endpoint was named as the fallback, not the design.
  *
- * The subscription is filtered to one session, and access is checked through `getSession`,
- * which is scoped to the signed-in Clerk account — so a user cannot stream someone else's QR.
+ * Access is checked through `getSession`, which is scoped to the signed-in Clerk account, so
+ * a user cannot stream someone else's QR.
  */
-export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
   const sessionId = Number(id);
   const session = await getSession(sessionId);
@@ -26,36 +26,72 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   const encoder = new TextEncoder();
   const sub = createClient({ url });
 
+  /**
+   * Teardown state lives here, in the closure, not on the controller.
+   *
+   * The previous version stashed a cleanup function on the controller object and nothing ever
+   * invoked it, so the keep-alive interval outlived the stream and kept calling `enqueue` on
+   * a closed controller. That threw `ERR_INVALID_STATE` as an *uncaught* exception on every
+   * tick, repeatedly, for every disconnected client. Closing a browser tab was enough to
+   * start it.
+   */
+  let ping: ReturnType<typeof setInterval> | null = null;
+  let closed = false;
+
+  const teardown = () => {
+    if (closed) return;
+    closed = true;
+    if (ping) clearInterval(ping);
+    void sub.quit().catch(() => {});
+  };
+
+  // A client that goes away mid-stream must tear the subscription down too.
+  req.signal.addEventListener("abort", teardown);
+
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (event: string, data: unknown) =>
-        controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
-
-      await sub.connect();
-      await sub.subscribe("wapi:events", (raw) => {
+      /** Every write is guarded: after close, writing is a no-op rather than a throw. */
+      const write = (chunk: string) => {
+        if (closed) return;
         try {
-          const e = JSON.parse(raw) as { type: string; sessionId: number; qr?: string; status?: string };
-          if (e.sessionId !== sessionId) return;
-          if (e.type === "qr" && e.qr) send("qr", { qr: e.qr });
-          if (e.type === "status" && e.status) send("status", { status: e.status });
+          controller.enqueue(encoder.encode(chunk));
         } catch {
-          /* a malformed message must not kill the stream */
+          teardown();
         }
-      });
+      };
+      const send = (event: string, data: unknown) =>
+        write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+
+      try {
+        await sub.connect();
+        await sub.subscribe("wapi:events", (raw) => {
+          try {
+            const e = JSON.parse(raw) as {
+              type: string;
+              sessionId: number;
+              qr?: string;
+              status?: string;
+            };
+            if (e.sessionId !== sessionId) return;
+            if (e.type === "qr" && e.qr) send("qr", { qr: e.qr });
+            if (e.type === "status" && e.status) send("status", { status: e.status });
+          } catch {
+            /* a malformed message must not kill the stream */
+          }
+        });
+      } catch {
+        teardown();
+        controller.close();
+        return;
+      }
 
       send("open", { sessionId, status: session.status });
 
       // Comment frames keep proxies from timing the connection out.
-      const ping = setInterval(() => controller.enqueue(encoder.encode(": ping\n\n")), 25_000);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (controller as any)._cleanup = () => {
-        clearInterval(ping);
-        void sub.quit().catch(() => {});
-      };
+      ping = setInterval(() => write(": ping\n\n"), 25_000);
     },
-    cancel(reason) {
-      void sub.quit().catch(() => {});
-      void reason;
+    cancel() {
+      teardown();
     },
   });
 

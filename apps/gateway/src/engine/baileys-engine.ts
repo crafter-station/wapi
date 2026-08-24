@@ -103,12 +103,24 @@ export class BaileysEngine implements WhatsAppEngine {
     return this.sessions.get(sessionId)?.identity ?? null;
   }
 
+  /**
+   * Idempotent by design.
+   *
+   * If ANY entry exists for this session — connected, connecting, or waiting on a scan — this
+   * returns its current state instead of opening another socket. Previously only `connected`
+   * short-circuited, so pressing Connect while a QR was on screen opened a *second* socket:
+   * both rotated their own QR codes, the browser displayed whichever arrived last, and
+   * scanning it produced "can't log in" on the phone because that code belonged to a socket
+   * the other one had superseded.
+   *
+   * That is also precisely the hazard PLAN.md §2 says escalates to a WhatsApp restriction, so
+   * this guard is a safety property, not a nicety. Use `restart` to force a fresh socket.
+   */
   async connect(sessionId: number, opts: { accountProtection?: boolean } = {}) {
     const existing = this.sessions.get(sessionId);
-    if (existing && existing.status === "connected") {
-      return { status: existing.status };
+    if (existing) {
+      return { status: existing.status, qr: existing.qr ?? undefined };
     }
-    // Two sockets on one session is a restriction risk, not just a bug.
     if (this.starting.has(sessionId)) {
       return { status: this.status(sessionId), qr: this.currentQr(sessionId) ?? undefined };
     }
@@ -125,6 +137,18 @@ export class BaileysEngine implements WhatsAppEngine {
   }
 
   private async open(sessionId: number, accountProtection: boolean) {
+    /**
+     * Defence in depth: never leave an old socket running for this session. Callers are
+     * guarded, but a stray socket here is a restriction risk rather than a leak, so the
+     * teardown is unconditional.
+     */
+    const stale = this.sessions.get(sessionId);
+    if (stale) {
+      stale.closing = true;
+      this.sessions.delete(sessionId);
+      await stale.sock.end(undefined).catch(() => {});
+    }
+
     const auth = await usePostgresAuthState(this.db, String(sessionId));
     const { version } = await fetchLatestBaileysVersion();
 
