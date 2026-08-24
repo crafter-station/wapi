@@ -22,8 +22,10 @@ VERIFY="${BACKUP_VERIFY_RESTORE:-1}"
 
 mkdir -p "$DIR"
 
-# Same server, `postgres` database — used to create and drop the scratch restore target.
-admin_url() { echo "$DATABASE_URL" | sed 's#/[^/?]*\(?\|$\)#/postgres\1#'; }
+# Same server, different database. Built with POSIX parameter expansion rather than sed:
+# busybox sed (alpine) lacks the GNU alternation the previous version used, so a sed-based
+# build works when tested locally and silently yields a broken URL inside the container.
+db_url_for() { echo "${DATABASE_URL%/*}/$1"; }
 
 count() { psql -tAX "$1" -c "select count(*) from $2" 2>/dev/null || echo -1; }
 
@@ -76,8 +78,8 @@ dump_once() {
 
   if [ "$VERIFY" = "1" ]; then
     scratch="wapi_verify_$(date -u +%s)"
-    admin=$(admin_url)
-    target=$(echo "$DATABASE_URL" | sed "s#/[^/?]*\(?\|\$\)#/$scratch\1#")
+    admin=$(db_url_for postgres)
+    target=$(db_url_for "$scratch")
 
     if psql -qX "$admin" -c "CREATE DATABASE \"$scratch\"" >/dev/null 2>&1; then
       if gzip -dc "$out" | psql -qX --set ON_ERROR_STOP=on "$target" >/dev/null 2>&1; then
