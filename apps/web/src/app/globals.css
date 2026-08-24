@@ -32,6 +32,10 @@
 
   --radius: 0.625rem;
   --shell: min(1180px, calc(100% - 40px));
+
+  /* Scrollbars, themed like everything else rather than left to the platform. */
+  --scrollbar-thumb: #d4d4d4;
+  --scrollbar-thumb-hover: #a3a3a3;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -47,6 +51,9 @@
     --primary-foreground: #171717;
     --ring: #a1a1a1;
     --destructive: #ff6568;
+
+    --scrollbar-thumb: rgb(255 255 255 / 0.18);
+    --scrollbar-thumb-hover: rgb(255 255 255 / 0.3);
   }
 }
 
@@ -231,6 +238,59 @@ body {
     font-weight: var(--shiki-dark-font-weight, inherit) !important;
     text-decoration: var(--shiki-dark-text-decoration, inherit) !important;
   }
+}
+
+/*
+ * Scrollbars.
+ *
+ * The platform default is a wide, high-contrast bar that reads as chrome from another
+ * application — especially over a code block, where it lands directly beneath the snippet.
+ *
+ * Two declarations because no single one is supported everywhere: `scrollbar-width` and
+ * `scrollbar-color` are the standard and cover Firefox and current Chrome, while the
+ * `::-webkit-scrollbar` pseudo-elements cover Safari and older WebKit. Both describe the same
+ * thing, so a browser honouring either looks right and one honouring neither still scrolls.
+ *
+ * The track is deliberately transparent: these sit inside cards and terminals whose background
+ * already varies, and a painted track would show as a seam against them.
+ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+  /* A transparent border, clipped to the padding box, insets the thumb without a wrapper. */
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+/* Chrome draws a filled square where the two bars meet; it has no place over a card. */
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/*
+ * Narrower still for the tab strip, which is a single row of controls rather than a document.
+ * A full-width bar under four tabs looks like a mistake.
+ */
+.scroll-slim {
+  scrollbar-width: none;
+}
+.scroll-slim::-webkit-scrollbar {
+  height: 0;
 }
 
 .code-block {

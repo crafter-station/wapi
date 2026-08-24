@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AppNav } from "@/components/app-nav";
-import { Code } from "@/components/code";
+import { Code, CodeBlock } from "@/components/code";
 
 export const dynamic = "force-static";
 
@@ -456,21 +456,19 @@ curl ${API}/api/pn-from-lid/46274715893950@lid -H "Authorization: Bearer $KEY"`,
               happened. This mirrors the interface being cloned rather than being tidied up.
             </p>
             <div className="not-prose mt-5 space-y-3">
-              <div className="terminal">
-                <div className="terminal-bar">Route-level — uses `error`</div>
-                <div className="terminal-body">
-                  <pre className="code">{`{ "success": false,
-  "error": "Your Whatsapp Session is not connected please connect your session first." }`}</pre>
-                </div>
-              </div>
-              <div className="terminal">
-                <div className="terminal-bar">Validation & auth — uses `message`</div>
-                <div className="terminal-body">
-                  <pre className="code">{`{ "success": false,
+              <CodeBlock
+                label="Route-level — uses error"
+                lang="json"
+                code={`{ "success": false,
+  "error": "Your Whatsapp Session is not connected please connect your session first." }`}
+              />
+              <CodeBlock
+                label="Validation & auth — uses message"
+                lang="json"
+                code={`{ "success": false,
   "message": "Validation failed",
-  "errors": { "to": ["The to field is required."] } }`}</pre>
-                </div>
-              </div>
+  "errors": { "to": ["The to field is required."] } }`}
+              />
             </div>
             <p className="mt-5">
               Rate-limit headers — <code>X-RateLimit-Limit</code>,{" "}

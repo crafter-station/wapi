@@ -12,8 +12,15 @@ dist/
 
 # agent tooling (installed skills, symlinks)
 .agents/
-.claude/
+.claude/*
 skills-lock.json
+
+# ...but project skills we author are a shared artifact, not personal tooling, so they are
+# tracked. Every directory on the path has to be re-included: git will not descend into an
+# excluded directory to find a negation inside it.
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/wapi-nextjs/
 
 # Mirrored WasenderAPI documentation — their copyrighted prose.
 # Kept locally for reference and contract generation; never published.

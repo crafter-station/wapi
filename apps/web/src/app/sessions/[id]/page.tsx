@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CodeBlock } from "@/components/code";
 import { notFound } from "next/navigation";
 import { getSession } from "@/lib/data";
 import { connectAction, deleteSessionAction } from "@/lib/actions";
@@ -96,12 +97,7 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
               <p className="kicker">Try it</p>
               <div className="mt-4 space-y-4">
                 {examples.map((e) => (
-                  <div key={e.label} className="terminal">
-                    <div className="terminal-bar">{e.label}</div>
-                    <div className="terminal-body">
-                      <pre className="code whitespace-pre-wrap">{e.code}</pre>
-                    </div>
-                  </div>
+                  <CodeBlock key={e.label} label={e.label} lang="bash" code={e.code} />
                 ))}
               </div>
               <p className="mt-4 text-[0.85rem] text-[var(--muted-foreground)]">
