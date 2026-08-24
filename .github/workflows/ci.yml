@@ -37,6 +37,21 @@ jobs:
         # is honest; a green tick on tests that never ran would not be.
         run: bun test
 
+      - name: Every workspace manifest reaches the Docker deps stage
+        # `bun install --frozen-lockfile` validates against the WHOLE workspace, so a
+        # manifest missing from the deps stage reads as lockfile drift and the image fails to
+        # build. That broke the deploy three times before the Dockerfiles were unified, and
+        # it only ever surfaced at deploy time. Now it fails here instead.
+        run: |
+          missing=0
+          for pkg in packages/*/package.json apps/*/package.json; do
+            grep -qF "COPY $pkg" Dockerfile || {
+              echo "::error::$pkg is not copied into the Dockerfile deps stage"
+              missing=1
+            }
+          done
+          exit $missing
+
       - name: Contract is in sync
         # Only meaningful where the mirror exists. Guarded so CI does not fail on its absence.
         run: |

@@ -2,7 +2,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: apps/api/Dockerfile
+      target: api
     restart: unless-stopped
     environment:
       PORT: 3001
@@ -21,12 +21,12 @@ services:
 
   # STATEFUL. One replica, always. A WhatsApp session is a WebSocket owned by exactly one
   # process, and two live sockets on one session escalates to a WhatsApp restriction
-  # (PLAN.md §2). No published port and no domain: this RPC surface is protected only by
+  # (see PLAN.md section 2). No published port and no domain: this RPC surface is
   # GATEWAY_TOKEN and the internal network.
   gateway:
     build:
       context: .
-      dockerfile: apps/gateway/Dockerfile
+      target: gateway
     restart: unless-stopped
     deploy:
       replicas: 1
@@ -47,7 +47,7 @@ services:
   webhook-worker:
     build:
       context: .
-      dockerfile: apps/webhook-worker/Dockerfile
+      target: webhook-worker
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -65,7 +65,7 @@ services:
   web:
     build:
       context: .
-      dockerfile: apps/web/Dockerfile
+      target: web
       args:
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
     restart: unless-stopped
