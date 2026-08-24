@@ -81,12 +81,38 @@ export function buildOpenApiDocument(serverUrl: string) {
     const path = route.path;
     paths[path] ??= {};
 
-    const parameters = route.pathParams.map((name) => ({
+    const parameters: Record<string, unknown>[] = route.pathParams.map((name) => ({
       name,
       in: "path",
       required: true,
       schema: { type: "string" },
     }));
+
+    /**
+     * A GET carries its inputs in the query string, not a body.
+     *
+     * The generator derives one `body` schema per route from the mirrored docs and cannot tell
+     * the two apart, so `GET /api/contacts`, `GET /api/groups` and the message-log route were
+     * being published as GETs with a *required* JSON request body. That is not merely untidy:
+     * it is unsendable by most clients, and it hid `?paginated=true` from the reference and the
+     * try-it panel entirely.
+     */
+    const queryFromBody =
+      route.method === "GET" && route.body ? jsonSchema(route.body) : null;
+    if (queryFromBody && typeof queryFromBody === "object") {
+      const props = (queryFromBody as { properties?: Record<string, unknown> }).properties ?? {};
+      const required = new Set(
+        (queryFromBody as { required?: string[] }).required ?? [],
+      );
+      for (const [name, schema] of Object.entries(props)) {
+        parameters.push({
+          name,
+          in: "query",
+          required: required.has(name),
+          schema,
+        });
+      }
+    }
 
     const patOnly = PAT_ONLY.has(route.operationId);
 
@@ -98,7 +124,7 @@ export function buildOpenApiDocument(serverUrl: string) {
         : "Requires a **Session API Key**. The key identifies the session, so no session id is passed.",
       tags: [tagFor(path)],
       ...(parameters.length ? { parameters } : {}),
-      ...(route.body
+      ...(route.body && !queryFromBody
         ? {
             requestBody: {
               required: true,

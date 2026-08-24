@@ -256,7 +256,8 @@ curl -X POST ${API}/api/decrypt-media \\
   -H 'Content-Type: application/json' \\
   -d '{"data":{"messages":{"message":{"imageMessage":{ ...from webhook... }}}}}'
 
-# → { "success": true, "publicUrl": "https://.../image.jpg?X-Amz-Expires=3600" }`,
+# → { "success": true,
+#     "publicUrl": "${API}/media/<uuid>.jpg?expires=1750000000&sig=<hmac>" }`,
                 },
               ]}
             />
@@ -292,6 +293,21 @@ curl ${API}/api/groups/120363...@g.us/participants \\
 
 # Is a number on WhatsApp?
 curl ${API}/api/on-whatsapp/+51999888777 -H "Authorization: Bearer $KEY"`,
+                },
+                {
+                  label: "Paginated",
+                  code: `# Both /api/contacts and /api/groups take ?paginated=true, which changes
+# the response shape: data becomes { items, pagination } instead of an array.
+curl "${API}/api/contacts?paginated=true&page=1&limit=20" \
+  -H "Authorization: Bearer $KEY"
+
+# → { "success": true,
+#     "data": { "items": [ ... ],
+#               "pagination": { "page": 1, "limit": 20,
+#                               "total": 38, "totalPages": 2 } } }
+
+# limit defaults to 20 and caps at 500. totalPages is ceil(total / limit),
+# and page echoes what you asked for.`,
                 },
                 {
                   label: "LID lookup",

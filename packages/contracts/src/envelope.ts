@@ -98,14 +98,14 @@ export const paginate = <T>(args: {
  * The paginated directory envelope, used by `?paginated=true` on contacts and groups.
  *
  * This is a SECOND, different pagination shape from the Laravel paginator above — `items` plus
- * a `pagination` object rather than the twelve-key length-aware paginator. It does not appear
- * in the public documentation at all; it was found by reading a real consumer, which validates
- * it strictly and rejects the response outright unless
- * `totalPages === max(1, ceil(total / limit))`.
+ * a `pagination` object rather than the twelve-key length-aware paginator. Both are documented
+ * by the original; `message-logs` and `session-logs` use the Laravel paginator, while contacts
+ * and groups use this one behind `?paginated=true`.
  *
  * Two pagination shapes in one API is not a design we would choose. It is the interface we are
  * cloning, and a client that asks for `paginated=true` and receives the flat array fails on
- * its first call.
+ * its first call — consumers validate this strictly and reject the response outright unless
+ * `totalPages === max(1, ceil(total / limit))`.
  */
 export type DirectoryPage<T> = {
   items: T[];

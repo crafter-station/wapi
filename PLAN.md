@@ -83,9 +83,17 @@ the testable definition, and it means copying the warts:
    - **Throttle: `{"message": "…", "retry_after": n}` with *no* `success` key**, because Laravel's
      ThrottleRequests short-circuits before the envelope is applied. Reproduce the omission.
 
-   Paginated lists use Laravel's length-aware paginator **minus the `links` array** it normally
-   includes — twelve keys, verified against both paginated examples. Implemented in
-   `packages/contracts/src/envelope.ts`, locked by tests.
+   Pagination comes in **two unrelated shapes**, and both must be reproduced:
+
+   - `message-logs` and `session-logs` use Laravel's length-aware paginator **minus the `links`
+     array** it normally includes — twelve keys, verified against both paginated examples.
+   - `contacts` and `groups` use `?paginated=true`, which swaps the flat `data` array for
+     `data: {items, pagination:{page, limit, total, totalPages}}`. `limit` defaults to 20.
+     Consumers check `totalPages === ceil(total / limit)` and reject the whole page otherwise.
+
+   Both in `packages/contracts/src/envelope.ts`, locked by tests. The second was documented and
+   declared in our generated contract from the start, and the handler ignored it until a real
+   consumer asked for it — reading a route's query schema is not the same as implementing it.
 5. **Headers.** `X-RateLimit-Limit/Remaining/Reset` on every response; 429 carries `retry_after`.
 
 ### Rate limiting — real shape, nominal numbers

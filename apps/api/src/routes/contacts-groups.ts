@@ -37,15 +37,18 @@ export function contactGroupRoutes(_db: Db) {
   /**
    * `?paginated=true` selects a different envelope entirely.
    *
-   * Undocumented publicly, but real consumers request it and validate it strictly — the page
-   * is rejected unless `totalPages === max(1, ceil(total / limit))`, `page` echoes the request,
-   * and `items.length <= limit`. Returning the flat array to a caller that asked for pagination
+   * Documented by the original on both endpoints, and already declared in our own generated
+   * contract (`getApiContactsBody` / `getApiGroupsBody`) — this handler simply ignored it until
+   * a real consumer asked for it. Consumers validate the page strictly: it is rejected unless
+   * `totalPages === max(1, ceil(total / limit))`, `page` echoes the request, and
+   * `items.length <= limit`. Returning the flat array to a caller that asked for pagination
    * fails on its first call, so this is a compatibility requirement rather than a nicety.
    */
   const pageArgs = (c: { req: { query: (k: string) => string | undefined } }) => {
     if (c.req.query("paginated") !== "true") return null;
     const page = Math.max(1, Number(c.req.query("page") ?? 1) || 1);
-    const limit = Math.min(500, Math.max(1, Number(c.req.query("limit") ?? 100) || 100));
+    // 20 is their documented default, not a round number of our choosing.
+    const limit = Math.min(500, Math.max(1, Number(c.req.query("limit") ?? 20) || 20));
     return { page, limit };
   };
 
@@ -76,6 +79,16 @@ export function contactGroupRoutes(_db: Db) {
         name: x.name,
         notify: x.notify,
         verifiedName: null,
+        /**
+         * Documented keys we cannot fill, present and null rather than absent.
+         *
+         * A profile picture and an "about" string are per-contact fetches against WhatsApp;
+         * doing them for every row would turn one list call into N network round-trips. Their
+         * own groups example ships `imgUrl: null`, so null is the documented shape for
+         * "not known", and omitting the key entirely is what breaks a typed client.
+         */
+        imgUrl: null,
+        status: null,
         phoneNumber: x.phoneNumber,
         lid: x.lid,
       }));
@@ -157,6 +170,7 @@ export function contactGroupRoutes(_db: Db) {
         subject: g.subject,
         notify: null,
         verifiedName: null,
+        imgUrl: null,
         owner: g.owner,
         creation: g.creation,
         desc: g.desc,

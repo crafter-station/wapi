@@ -531,6 +531,23 @@ d("paginated directory envelope", () => {
     if (p["total"]! > 2) expect(p["totalPages"]!).toBeGreaterThan(1);
   });
 
+  test("limit defaults to their documented 20, not a number of our choosing", async () => {
+    const r = await json(await api("/api/contacts?paginated=true"));
+    const p = (r.body["data"] as Record<string, unknown>)["pagination"] as Record<string, number>;
+    expect(p["limit"]).toBe(20);
+    expect(p["page"]).toBe(1);
+  });
+
+  test("entries carry the documented keys, present even when we cannot fill them", async () => {
+    const r = await json(await api("/api/contacts?paginated=true&page=1&limit=5"));
+    const items = (r.body["data"] as Record<string, unknown>)["items"] as Record<string, unknown>[];
+    if (!items.length) return;
+    for (const key of ["jid", "name", "notify", "verifiedName", "imgUrl", "status"]) {
+      // Present-and-null is the documented shape for "not known"; an absent key breaks a typed client.
+      expect(key in items[0]!).toBe(true);
+    }
+  });
+
   test("without the flag the flat array is unchanged", async () => {
     const r = await json(await api("/api/contacts"));
     expect(Array.isArray(r.body["data"])).toBe(true);
