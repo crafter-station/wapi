@@ -26,7 +26,7 @@ jobs:
         # skip would defeat the point.
         run: |
           for p in packages/contracts packages/core packages/db packages/baileys-auth \
-                   apps/api apps/gateway apps/webhook-worker; do
+                   apps/api apps/gateway apps/webhook-worker compat; do
             echo "--- $p"
             ./node_modules/.bin/tsc --noEmit -p "$p/tsconfig.json"
           done
@@ -38,19 +38,8 @@ jobs:
         run: bun test
 
       - name: Every workspace manifest reaches the Docker deps stage
-        # `bun install --frozen-lockfile` validates against the WHOLE workspace, so a
-        # manifest missing from the deps stage reads as lockfile drift and the image fails to
-        # build. That broke the deploy three times before the Dockerfiles were unified, and
-        # it only ever surfaced at deploy time. Now it fails here instead.
-        run: |
-          missing=0
-          for pkg in packages/*/package.json apps/*/package.json; do
-            grep -qF "COPY $pkg" Dockerfile || {
-              echo "::error::$pkg is not copied into the Dockerfile deps stage"
-              missing=1
-            }
-          done
-          exit $missing
+        # This exact failure shipped four times and only ever surfaced at deploy time.
+        run: node ops/check-dockerfile-manifests.mjs
 
       - name: Contract is in sync
         # Only meaningful where the mirror exists. Guarded so CI does not fail on its absence.

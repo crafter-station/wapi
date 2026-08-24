@@ -25,6 +25,7 @@ COPY apps/api/package.json apps/api/
 COPY apps/gateway/package.json apps/gateway/
 COPY apps/webhook-worker/package.json apps/webhook-worker/
 COPY apps/web/package.json apps/web/
+COPY compat/package.json compat/
 RUN bun install --frozen-lockfile
 
 # ---------------------------------------------------------------------------------------

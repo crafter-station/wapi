@@ -98,7 +98,7 @@ d("their SDK against our server", () => {
      */
     let caught: unknown;
     try {
-      await sdk.getMessageInfo("999999999");
+      await sdk.getMessageInfo(999999999);
     } catch (e) {
       caught = e;
     }
