@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 #
-# One Dockerfile, one dependency stage, four targets.
+# One Dockerfile, one dependency stage, five targets.
 #
 # This replaces four per-app Dockerfiles that each maintained their own list of workspace
 # manifests. `bun install --frozen-lockfile` validates the lockfile against the WHOLE
@@ -107,3 +107,16 @@ COPY --from=web-builder /app/apps/web/.next/standalone ./
 COPY --from=web-builder /app/apps/web/.next/static ./apps/web/.next/static
 EXPOSE 3000
 CMD ["node", "apps/web/server.js"]
+
+# ---------------------------------------------------------------------------------------
+# backup — pg_dump on a schedule, pinned to the server's major version.
+#
+# The scripts are baked in rather than bind-mounted. A `./ops:/ops` mount silently failed to
+# resolve in Dokploy's build context: the entrypoint could not find the file, the container
+# restart-looped, and because compose logs are not reachable through the CLI it looked
+# identical to a script that ran and did nothing.
+FROM postgres:18-alpine AS backup
+WORKDIR /app
+COPY ops/ /ops/
+RUN chmod +x /ops/*.sh
+ENTRYPOINT ["/bin/sh", "/ops/backup.sh"]

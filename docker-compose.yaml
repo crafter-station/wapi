@@ -95,7 +95,9 @@ services:
   # accidental DROP, or Dokploy recreating the database container -- but not losing the box.
   # Set BACKUP_S3_BUCKET to also ship off-host.
   backup:
-    image: postgres:18-alpine
+    build:
+      context: .
+      target: backup
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL}
@@ -104,8 +106,6 @@ services:
       BACKUP_INTERVAL_SECONDS: "86400"
     volumes:
       - wapi-backups:/backups
-      - ./ops:/ops:ro
-    entrypoint: ["/bin/sh", "/ops/backup.sh"]
     networks:
       - dokploy-network
 
