@@ -12,6 +12,9 @@ services:
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       GATEWAY_URL: http://gateway:3002
       GATEWAY_TOKEN: ${GATEWAY_TOKEN}
+      UPLOADX_TOKEN: ${UPLOADX_TOKEN}
+      UPLOADX_URL: ${UPLOADX_URL}
+      PUBLIC_URL: https://api.wapi.crafter.run
     expose:
       - "3001"
     depends_on:

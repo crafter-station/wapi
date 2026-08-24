@@ -58,8 +58,16 @@ export function mediaRoutes(_db: Db) {
 
     try {
       const store = await storage();
-      const { url } = await store.put({ name, data, contentType: mimetype });
-      return c.json({ success: true, publicUrl: url });
+      const { key } = await store.put({ name, data, contentType: mimetype });
+      /**
+       * A PERMANENT url, not the presigned one the storage driver hands back.
+       *
+       * Their documented upload returns a stable link (`.../media/<uuid>.jpg`); only
+       * decrypt-media is time-limited. The difference is not cosmetic: callers upload media
+       * and pass the URL to send-message later, and Baileys fetches it server-side at send
+       * time — an hour-long presigned link would simply stop working.
+       */
+      return c.json({ success: true, publicUrl: `${publicBase(c)}/media/${key}` });
     } catch (err) {
       console.error({ err: String(err) }, "upload failed");
       return c.json(fail("The upload service is temporarily unavailable. Please retry."), 503);
@@ -133,6 +141,45 @@ export function mediaRoutes(_db: Db) {
   });
 
   return app;
+}
+
+/**
+ * Root-level media serving, mounted at `/` rather than `/api`.
+ *
+ * Their public media links are `wasenderapi.com/media/<uuid>.jpg` — no `/api` prefix — so this
+ * is a separate router to match. Unauthenticated by design: it is the link `upload` hands out,
+ * and it only ever redirects to a short-lived signed URL.
+ */
+export function mediaServeRoutes() {
+  const app = new Hono();
+  /**
+   * Serve stored media under a stable path.
+   *
+   * Redirects to a short-lived signed URL rather than proxying the bytes, so the object store
+   * does the transfer and this process stays stateless. The *outer* URL never expires, which
+   * is what makes it usable as a `send-message` input.
+   *
+   * Outside the 29-route surface by necessity — their API has an equivalent `/media/...` path,
+   * so this mirrors the original rather than inventing something.
+   */
+  app.get("/media/*", async (c) => {
+    const key = c.req.path.replace(/^\/media\//, "");
+    if (!key) return c.json(fail("Not found."), 404);
+    try {
+      const store = await storage();
+      const url = await store.signedUrl(decodeURIComponent(key), 300);
+      return c.redirect(url, 302);
+    } catch {
+      return c.json(fail("Not found."), 404);
+    }
+  });
+
+  return app;
+}
+
+/** Public origin for building absolute media URLs. */
+function publicBase(c: { req: { url: string } }): string {
+  return process.env["PUBLIC_URL"] ?? new URL(c.req.url).origin;
 }
 
 function extFor(mimetype: string): string {

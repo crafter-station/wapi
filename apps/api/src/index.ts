@@ -14,7 +14,7 @@ import { connectionRoutes } from "./routes/connection.ts";
 import { messageRoutes } from "./routes/messages.ts";
 import { messageReadRoutes } from "./routes/message-reads.ts";
 import { contactGroupRoutes } from "./routes/contacts-groups.ts";
-import { mediaRoutes } from "./routes/media.ts";
+import { mediaRoutes, mediaServeRoutes } from "./routes/media.ts";
 import { notImplemented } from "./not-implemented.ts";
 
 const DATABASE_URL = process.env["DATABASE_URL"];
@@ -134,6 +134,8 @@ app.use("/api/groups", authenticate(db));
 app.use("/api/groups/*", authenticate(db));
 app.use("/api/upload", authenticate(db));
 app.use("/api/decrypt-media", authenticate(db));
+// /media/* is deliberately unauthenticated: it is the public link `upload` hands out, and
+// it only ever redirects to a short-lived signed URL.
 
 app.route("/api", sessionRoutes(db));
 app.route("/api", connectionRoutes(db));
@@ -141,6 +143,8 @@ app.route("/api", messageRoutes(db));
 app.route("/api", messageReadRoutes(db));
 app.route("/api", contactGroupRoutes(db));
 app.route("/api", mediaRoutes(db));
+// Root-level, matching their `/media/<uuid>` public links.
+app.route("/", mediaServeRoutes());
 
 /**
  * The remaining Tier-1 routes, registered from the generated contract so the surface is
