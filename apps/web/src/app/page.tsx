@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
+import { GithubLink } from "@/components/github-link";
 
 /**
  * Landing page.
@@ -35,7 +36,8 @@ function Nav() {
             API reference
           </a>
         </div>
-        <div className="flex items-center justify-end gap-3">
+        <div className="flex items-center justify-end gap-2">
+          <GithubLink />
           <SignedIn>
             <Link href="/sessions" className="btn btn-primary">
               Dashboard
@@ -273,12 +275,7 @@ export default function Home() {
             <a href={`${API}/openapi.json`} className="hover:text-[var(--foreground)]">
               OpenAPI
             </a>
-            <a
-              href="https://github.com/crafter-station/wapi"
-              className="hover:text-[var(--foreground)]"
-            >
-              Source
-            </a>
+            <GithubLink className="!p-0" />
           </div>
         </div>
       </footer>

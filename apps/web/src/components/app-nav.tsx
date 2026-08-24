@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
+import { GithubLink } from "./github-link";
 
 const API = "https://api.wapi.crafter.run";
 
@@ -41,7 +42,8 @@ export function AppNav({ active }: { active?: "sessions" | "tokens" | "docs" }) 
             API reference
           </a>
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1">
+          <GithubLink />
           <UserButton />
         </div>
       </div>
