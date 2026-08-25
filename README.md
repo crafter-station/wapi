@@ -61,6 +61,10 @@ The gateway is the only stateful piece: a WhatsApp session is a live socket that
 process may own. Everything else scales sideways. Credentials live in Postgres rather than on
 disk, so a redeploy reconnects instead of asking you to scan a QR again.
 
+The dashboard is both halves of that picture: link a number and watch its QR, then browse its
+contacts, groups and message log, watch webhook deliveries land as they happen, and run a
+health check that sends one message to the number itself and tells you what actually works.
+
 ```mermaid
 sequenceDiagram
     autonumber

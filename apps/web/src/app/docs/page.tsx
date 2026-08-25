@@ -388,9 +388,17 @@ curl ${API}/api/pn-from-lid/46274715893950@lid -H "Authorization: Bearer $KEY"`,
           {/* ------------------------------------------------------ webhooks */}
           <S id="webhooks" kicker="Webhooks" title={<>Receiving <em>as it happens.</em></>}>
             <p>
-              Set a webhook URL on the session and we POST events to it, with retries and
-              exponential backoff. Verify the <code>X-Webhook-Signature</code> header against your
-              session&rsquo;s webhook secret.
+              Set a webhook URL on the session and we POST events to it, retrying up to five
+              times with exponential backoff. Configure it under{" "}
+              <Link href="/sessions">Settings</Link> on the session, or with the API call below.
+            </p>
+            <p className="mt-4">
+              <strong>Two signature schemes.</strong> By default{" "}
+              <code>X-Webhook-Signature</code> carries the webhook secret <em>itself</em>, and you
+              compare strings — that is WasenderAPI&rsquo;s scheme, reproduced so their clients
+              work unchanged. Turning on <strong>HMAC</strong> in Settings switches the header to
+              HMAC-SHA256 over the raw request body, which is what you should prefer: it proves
+              the payload was not altered, and it never puts the secret on the wire.
             </p>
             <Code
               tabs={[
@@ -403,16 +411,26 @@ curl ${API}/api/pn-from-lid/46274715893950@lid -H "Authorization: Bearer $KEY"`,
        "webhook_enabled":true,
        "webhook_events":["messages.received","session.status"]}'
 
-# An empty webhook_events array means "send everything".`,
+# An empty webhook_events array means "send everything".
+#
+# HMAC signing is a wapi addition rather than part of the cloned
+# interface, so it is not a field on this endpoint. Turn it on under
+# Settings for the session in the dashboard.`,
                 },
                 {
                   label: "Receive", lang: "javascript",
-                  code: `app.post("/hook", express.json(), (req, res) => {
-  if (req.headers["x-webhook-signature"] !== process.env.WAPI_WEBHOOK_SECRET) {
-    return res.sendStatus(401);
-  }
+                  code: `// Accepts either scheme, so enabling HMAC later needs no redeploy.
+// Read the RAW body: express.json() consumes the stream, leaving
+// nothing to compute a hash over.
+app.post("/hook", express.raw({ type: "*/*" }), (req, res) => {
+  const secret = process.env.WAPI_WEBHOOK_SECRET;
+  const sent = req.headers["x-webhook-signature"];
+  const hmac = crypto.createHmac("sha256", secret)
+                     .update(req.body).digest("hex");
 
-  const { event, data } = req.body;
+  if (sent !== secret && sent !== hmac) return res.sendStatus(401);
+
+  const { event, data } = JSON.parse(req.body);
   if (event === "messages.received") {
     console.log(data.key.remoteJid, data.message?.conversation);
   }

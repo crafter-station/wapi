@@ -51,10 +51,77 @@ bun test compat/integration.test.ts
 | `packages/db` | — | Drizzle schema + migrations |
 | `packages/baileys-auth` | — | Postgres-backed `AuthenticationState` |
 | `compat/` | — | SDK-compat + live integration suites |
-| `ops/` | — | backup, restore, CI guards |
+| `ops/` | — | backup, restore, retention, CI guards |
 
 The gateway is Node, not Bun, because Baileys' WASM Signal bridge needs it. Everything else is
 Bun. Do not "unify" this.
+
+---
+
+## The dashboard
+
+Two halves, deliberately: an **operator console** (is this session healthy, what is it
+configured to do) and a **developer workbench** (what contacts, groups, messages and webhook
+deliveries exist). Everything session-scoped lives under `/sessions/{id}/…` — a contact list
+without a session is meaningless, and a session picker on every page would re-express in UI
+what the URL already says.
+
+`apps/web/src/app/sessions/[id]/layout.tsx` resolves and authorises the session, so it is the
+ownership check for every page beneath it.
+
+**Where data comes from is a rule, not a habit:**
+
+| | Source | Why |
+| --- | --- | --- |
+| Sessions, tokens | Postgres | no API equivalent that isn't PAT-scoped |
+| Message log | Postgres | `message-logs` is PAT-authenticated upstream |
+| Contacts, groups | our own API, internal `http://api:3001` | dogfooding: if `/api/contacts` breaks, the dashboard breaks |
+| Doctor | our own API, public `https://api.wapi.crafter.run` | the edge is part of what it tests |
+
+The web app must never hold a Personal Access Token. That is the whole reason account-scoped
+reads go direct to the database rather than through HTTP.
+
+**The doctor** (`apps/web/src/lib/doctor.ts`) has three rules that are not negotiable:
+
+- Every call goes over the **public edge**, because "does this work end to end" includes TLS
+  and the proxy.
+- The only write is a message to the session's **own number**. Never a group, never a third
+  party — a health check must be safe to press repeatedly.
+- **`skipped` is not `fail`.** A session with no webhook is not broken. Reporting it as broken
+  is how a health check earns a reputation for crying wolf and stops being read.
+
+It verifies webhook delivery by reading what the worker recorded, never by repointing
+`webhook_url` at our sink — that races with live traffic and can strand a session pointing
+somewhere wrong if the run dies midway. The trade is that it proves *the worker got a 2xx*, not
+that we saw the payload.
+
+It does **not** run on a schedule, and should not: that is unattended WhatsApp traffic from a
+bannable number, for a signal nobody is watching.
+
+---
+
+## Webhook records
+
+Two tables that are easy to confuse:
+
+- **`webhook_deliveries`** — what our own test *sink* received. Only ever populated for a
+  session deliberately pointed at `/api/webhook-sink`.
+- **`webhook_dispatches`** — what the worker *sent*, for any session including production ones
+  delivering to a customer's app. One row per event keyed on the BullMQ job id, **updated in
+  place**: retries go up to five, so per-attempt rows would multiply by five exactly on the
+  sessions that are failing.
+
+Recording must never throw. A failed insert after a successful POST would fail the job, BullMQ
+would retry it, and a bookkeeping error would become a duplicate webhook.
+
+`dispatchStatus` in `apps/webhook-worker/src/events.ts` is a pure function *because* it cannot
+be exercised live — the only paired session answers 200, so every production row is a
+first-attempt success. BullMQ's `attemptsMade` counts attempts *before* the current one; that
+off-by-one is version-sensitive and pinned by tests.
+
+**Retention** runs in the backup container after the dump: payloads nulled at 7 days, rows
+deleted at 30. Health stays useful for weeks; a payload is a debugging aid measured in hours
+and carries real message content.
 
 ---
 
@@ -167,6 +234,15 @@ Every one of these has already broken something here.
   from event traffic into `packages/db`.
 - **libsignal can print key material to stdout.** `quiet-signal.ts` diverts console to pino
   before any socket exists. Keep it first.
+
+**Dashboard**
+
+- **`server-only` throws outside a server component.** To run a module that imports it under
+  bun — a script that exercises `doctor.ts`, say — pass `--conditions react-server`, which
+  resolves the package to its no-op entry.
+- **`webhook_hmac` is settable only from the dashboard.** The column exists and the worker
+  honours it, but the API's `PUT` never accepts it: HMAC is a wapi addition rather than part of
+  the cloned interface. Anything that documents it as an API field is wrong.
 
 **Other**
 
