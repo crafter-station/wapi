@@ -16,7 +16,13 @@ import { createClient } from "redis";
 import pino from "pino";
 import { createHmac } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
-import { createDb, whatsappSessions, contacts, type WhatsappSession } from "@wapi/db";
+import {
+  createDb,
+  contacts,
+  webhookDispatches,
+  whatsappSessions,
+  type WhatsappSession,
+} from "@wapi/db";
 import { toPublicEvents, passesSessionFilters, type PublicEvent } from "./events.js";
 
 const DATABASE_URL = process.env["DATABASE_URL"];
@@ -31,6 +37,19 @@ const { db } = createDb(DATABASE_URL);
 
 const connection = new Redis(REDIS_URL, { maxRetriesPerRequest: null });
 const QUEUE = "webhooks";
+
+/**
+ * Dispatch outcomes are announced on their own channel, not on `wapi:events`.
+ *
+ * This process *subscribes* to `wapi:events`; publishing there would feed its own output back
+ * into its input. A separate channel also keeps the two meanings apart: `wapi:events` is what
+ * WhatsApp did, `wapi:dispatches` is what we did about it.
+ *
+ * A dedicated connection because BullMQ owns `connection` and puts clients into modes that
+ * make sharing them for pub/sub a subtle way to break the queue.
+ */
+const DISPATCH_CHANNEL = "wapi:dispatches";
+const publisher = new Redis(REDIS_URL, { maxRetriesPerRequest: null });
 
 type JobData = { sessionId: number; event: string; data: unknown };
 
@@ -215,10 +234,88 @@ await sub.subscribe("wapi:events", async (raw) => {
 logger.info("subscribed to wapi:events");
 
 /** Deliver one webhook. Throwing marks the job for retry with backoff. */
+/**
+ * Record what this attempt did.
+ *
+ * One row per event keyed on the BullMQ job id, updated in place — see the table comment in
+ * `packages/db`. `attemptsMade` counts attempts *before* the current one, so the human-facing
+ * number is one higher, and the cap comes from the job's own options rather than a second copy
+ * of the retry policy that could drift from the `queue.add` call.
+ *
+ * Never allowed to throw. A failed insert after a successful POST would fail the job, and
+ * BullMQ would retry it — turning a bookkeeping error into a duplicate webhook. Delivery is the
+ * real work; this is only the record of it.
+ */
+async function recordDispatch(
+  job: Job<JobData>,
+  url: string,
+  body: string,
+  outcome:
+    | { ok: true; statusCode: number; durationMs: number }
+    | { ok: false; statusCode: number | null; durationMs: number; error: string },
+): Promise<void> {
+  try {
+    const attempts = (job.attemptsMade ?? 0) + 1;
+    const maxAttempts = job.opts?.attempts ?? attempts;
+    const status = outcome.ok ? "delivered" : attempts >= maxAttempts ? "failed" : "retrying";
+    const now = new Date();
+
+    const row = {
+      attempts,
+      durationMs: outcome.durationMs,
+      event: job.data.event,
+      jobId: String(job.id),
+      lastAttemptAt: now,
+      lastError: outcome.ok ? null : outcome.error,
+      payload: body,
+      sessionId: job.data.sessionId,
+      status,
+      statusCode: outcome.statusCode,
+      url,
+    };
+
+    await db
+      .insert(webhookDispatches)
+      .values(row)
+      .onConflictDoUpdate({
+        target: webhookDispatches.jobId,
+        // `firstAttemptAt` is deliberately absent: it keeps the value from the first insert,
+        // so a retried event still shows when it was originally produced.
+        set: {
+          attempts: row.attempts,
+          durationMs: row.durationMs,
+          lastAttemptAt: row.lastAttemptAt,
+          lastError: row.lastError,
+          payload: row.payload,
+          status: row.status,
+          statusCode: row.statusCode,
+        },
+      });
+
+    // Announce it so an open dashboard updates without polling. Content-free on purpose: the
+    // payload stays in Postgres behind the account check rather than crossing a fan-out channel.
+    await publisher.publish(
+      DISPATCH_CHANNEL,
+      JSON.stringify({
+        attempts: row.attempts,
+        event: row.event,
+        jobId: row.jobId,
+        sessionId: row.sessionId,
+        status: row.status,
+        statusCode: row.statusCode,
+        type: "dispatch",
+      }),
+    );
+  } catch (err) {
+    logger.warn({ err: String(err), jobId: job.id }, "could not record webhook dispatch");
+  }
+}
+
 new Worker<JobData>(
   QUEUE,
   async (job: Job<JobData>) => {
     const session = await loadSession(job.data.sessionId);
+    // No webhook configured is not a failed delivery; there is nothing to record.
     if (!session?.webhookUrl) return;
 
     const body = JSON.stringify({
@@ -234,6 +331,7 @@ new Worker<JobData>(
 
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 10_000);
+    const startedAt = Date.now();
     try {
       const res = await fetch(session.webhookUrl, {
         method: "POST",
@@ -241,8 +339,34 @@ new Worker<JobData>(
         body,
         signal: ctrl.signal,
       });
-      if (!res.ok) throw new Error(`webhook responded ${res.status}`);
+      const durationMs = Date.now() - startedAt;
+      if (!res.ok) {
+        await recordDispatch(job, session.webhookUrl, body, {
+          durationMs,
+          error: `webhook responded ${res.status}`,
+          ok: false,
+          statusCode: res.status,
+        });
+        throw new Error(`webhook responded ${res.status}`);
+      }
+      await recordDispatch(job, session.webhookUrl, body, {
+        durationMs,
+        ok: true,
+        statusCode: res.status,
+      });
       logger.debug({ event: job.data.event, sessionId: job.data.sessionId }, "delivered");
+    } catch (err) {
+      // A transport failure — timeout, DNS, refused connection — never reached the status check
+      // above, so it has no row yet. `AbortError` here means our own 10s deadline fired.
+      if (!(err instanceof Error) || !err.message.startsWith("webhook responded ")) {
+        await recordDispatch(job, session.webhookUrl, body, {
+          durationMs: Date.now() - startedAt,
+          error: ctrl.signal.aborted ? "timed out after 10s" : String(err),
+          ok: false,
+          statusCode: null,
+        });
+      }
+      throw err;
     } finally {
       clearTimeout(timer);
     }

@@ -2,12 +2,13 @@ import { Hono } from "hono";
 import { eq, and, desc } from "drizzle-orm";
 import { whatsappSessions, type Db } from "@wapi/db";
 import {
+  encryptSecret,
   generateApiKey,
   generateWebhookSecret,
   hashToken,
-  encryptSecret,
-  sessionToWire,
   sessionDetailToWire,
+  sessionToWire,
+  validateProxy,
   validationFailure,
 } from "@wapi/core";
 import { ok, fail } from "@wapi/contracts";
@@ -174,28 +175,3 @@ async function findOwned(db: Db, accountId: number, idParam: string) {
   return row ?? null;
 }
 
-/**
- * Their documented constraint: "Allowed protocols: http, https, socks5. Use a public domain
- * only (IP addresses and local/private networks are blocked)." The private-range block is a
- * genuine SSRF guard, not decoration — this URL becomes an outbound proxy for our egress.
- */
-function validateProxy(url: string): string | null {
-  let u: URL;
-  try {
-    u = new URL(url);
-  } catch {
-    return "The proxy_url must be a valid URL.";
-  }
-  if (!["http:", "https:", "socks5:"].includes(u.protocol)) {
-    return "Allowed proxy protocols are http, https and socks5.";
-  }
-  const host = u.hostname;
-  const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(":");
-  const isPrivate =
-    /^(localhost|127\.|10\.|192\.168\.|169\.254\.|::1|0\.0\.0\.0)/.test(host) ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(host);
-  if (isIp || isPrivate) {
-    return "Use a public domain for proxy_url; IP addresses and private networks are blocked.";
-  }
-  return null;
-}

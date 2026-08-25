@@ -197,6 +197,36 @@ const statements: [label: string, ddl: string][] = [
     "messages_wa_key_idx",
     `CREATE INDEX IF NOT EXISTS messages_wa_key_idx ON messages (remote_jid)`,
   ],
+  [
+    "webhook_dispatches",
+    // What the worker sent, one row per event, updated in place as attempts resolve.
+    // Keyed on the BullMQ job id so the enqueue and the attempt that resolves it agree.
+    `CREATE TABLE IF NOT EXISTS webhook_dispatches (
+       id               serial PRIMARY KEY,
+       job_id           text NOT NULL UNIQUE,
+       session_id       integer NOT NULL REFERENCES whatsapp_sessions(id) ON DELETE CASCADE,
+       event            text NOT NULL,
+       url              text,
+       status           text NOT NULL DEFAULT 'retrying',
+       status_code      integer,
+       attempts         integer NOT NULL DEFAULT 0,
+       last_error       text,
+       payload          text,
+       duration_ms      integer,
+       first_attempt_at timestamptz NOT NULL DEFAULT now(),
+       last_attempt_at  timestamptz NOT NULL DEFAULT now()
+     )`,
+  ],
+  [
+    "webhook_dispatches_session_idx",
+    `CREATE INDEX IF NOT EXISTS webhook_dispatches_session_idx
+       ON webhook_dispatches (session_id, last_attempt_at)`,
+  ],
+  [
+    "webhook_dispatches_age_idx",
+    `CREATE INDEX IF NOT EXISTS webhook_dispatches_age_idx
+       ON webhook_dispatches (last_attempt_at)`,
+  ],
 ];
 
 for (const [label, ddl] of statements) {

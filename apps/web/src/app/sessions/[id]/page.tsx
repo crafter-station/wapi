@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { CodeBlock } from "@/components/code";
 import { notFound } from "next/navigation";
-import { getSession } from "@/lib/data";
-import { connectAction, deleteSessionAction } from "@/lib/actions";
-import { LiveSession } from "@/components/live-session";
-import { AppNav } from "@/components/app-nav";
-import { RevealKey } from "@/components/reveal-key";
 import { decryptSecret } from "@wapi/core";
+import { CodeBlock } from "@/components/code";
+import { LiveSession } from "@/components/live-session";
+import { RegenerateKey } from "@/components/regenerate-key";
+import { RevealKey } from "@/components/reveal-key";
+import { getSession } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -49,37 +48,7 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
   ];
 
   return (
-    <>
-      <AppNav active="sessions" />
-      <main className="shell py-12">
-        <Link
-          href="/sessions"
-          className="text-[0.85rem] text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-        >
-          ← Sessions
-        </Link>
-
-        <header className="mt-4 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="title">{session.name}</h1>
-            <p className="code mt-2 text-[var(--muted-foreground)]">
-              {session.phoneNumber} · session #{session.id}
-              {session.lid ? ` · ${session.lid}` : ""}
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <form action={connectAction}>
-              <input type="hidden" name="id" value={session.id} />
-              <button className="btn btn-primary">Connect</button>
-            </form>
-            <form action={deleteSessionAction}>
-              <input type="hidden" name="id" value={session.id} />
-              <button className="btn btn-ghost text-[var(--destructive)]">Delete</button>
-            </form>
-          </div>
-        </header>
-
-        <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="space-y-8">
             <section>
               <p className="kicker">Session API key</p>
@@ -90,6 +59,9 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
               </p>
               <div className="mt-4">
                 <RevealKey value={apiKey} />
+              </div>
+              <div className="mt-3">
+                <RegenerateKey id={session.id} />
               </div>
             </section>
 
@@ -134,9 +106,7 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
                 ))}
               </dl>
             </section>
-          </aside>
-        </div>
-      </main>
-    </>
+      </aside>
+    </div>
   );
 }

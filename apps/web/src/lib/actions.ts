@@ -2,7 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createSession, deleteSession, createToken, revokeToken, getSession } from "./data";
+import {
+  createSession,
+  createToken,
+  deleteSession,
+  getSession,
+  regenerateSessionKey,
+  revokeToken,
+  updateSessionSettings,
+  WEBHOOK_EVENTS,
+} from "./data";
+import { validateProxy } from "@wapi/core";
 
 /**
  * Server actions.
@@ -75,4 +85,128 @@ export async function createTokenAction(_prev: TokenState, formData: FormData): 
   } catch {
     return { error: "Could not create the token." };
   }
+}
+
+
+/**
+ * One helper for the three lifecycle verbs, which differ only in the RPC path.
+ *
+ * Like `connectAction`, these talk to the gateway directly rather than through the public API:
+ * it is the same application, and routing through HTTP would mean minting a credential for
+ * ourselves. The deadline is not optional — the failure mode of a remote WhatsApp call is
+ * silence, not an error.
+ */
+async function gatewayRpc(path: string, body: unknown): Promise<void> {
+  const base = process.env["GATEWAY_URL"] ?? "http://gateway:3002";
+  await fetch(`${base}${path}`, {
+    body: JSON.stringify(body),
+    headers: {
+      "Content-Type": "application/json",
+      "X-Gateway-Token": process.env["GATEWAY_TOKEN"] ?? "",
+    },
+    method: "POST",
+    signal: AbortSignal.timeout(20_000),
+  }).catch(() => null);
+}
+
+export async function disconnectAction(formData: FormData): Promise<void> {
+  const id = Number(formData.get("id"));
+  if (!(await getSession(id))) return;
+  await gatewayRpc("/rpc/disconnect", { sessionId: id });
+  revalidatePath(`/sessions/${id}`);
+}
+
+export async function restartAction(formData: FormData): Promise<void> {
+  const id = Number(formData.get("id"));
+  const session = await getSession(id);
+  if (!session) return;
+  await gatewayRpc("/rpc/restart", {
+    accountProtection: session.accountProtection,
+    sessionId: id,
+  });
+  revalidatePath(`/sessions/${id}`);
+}
+
+export type SettingsState = { error?: string; ok?: true } | null;
+
+/**
+ * Save session settings.
+ *
+ * Two things are validated rather than trusted. `proxy_url` goes through the same SSRF guard
+ * the public API applies — it becomes an outbound proxy for our egress, so a private address
+ * here would turn the dashboard into a request forwarder into our own network. And the event
+ * list is intersected with what the worker actually emits, so a hand-crafted form post cannot
+ * store subscriptions to events that will never fire.
+ */
+export async function updateSettingsAction(
+  _prev: SettingsState,
+  formData: FormData,
+): Promise<SettingsState> {
+  const id = Number(formData.get("id"));
+  if (!(await getSession(id))) return { error: "Session not found." };
+
+  const on = (k: string) => formData.get(k) === "on";
+  const text = (k: string) => {
+    const v = String(formData.get(k) ?? "").trim();
+    return v === "" ? null : v;
+  };
+
+  const proxyUrl = text("proxy_url");
+  if (proxyUrl) {
+    const problem = validateProxy(proxyUrl);
+    if (problem) return { error: problem };
+  }
+
+  const webhookUrl = text("webhook_url");
+  if (webhookUrl) {
+    try {
+      const u = new URL(webhookUrl);
+      if (u.protocol !== "https:" && u.protocol !== "http:") {
+        return { error: "The webhook URL must be http or https." };
+      }
+    } catch {
+      return { error: "The webhook URL must be a valid URL." };
+    }
+  }
+  if (on("webhook_enabled") && !webhookUrl) {
+    return { error: "Enable webhooks only with a URL to deliver to." };
+  }
+
+  const allowed = new Set<string>(WEBHOOK_EVENTS);
+  const webhookEvents = formData
+    .getAll("webhook_events")
+    .map(String)
+    .filter((e) => allowed.has(e));
+
+  await updateSessionSettings(id, {
+    accountProtection: on("account_protection"),
+    alwaysOnline: on("always_online"),
+    autoRejectCalls: on("auto_reject_calls"),
+    ignoreBroadcasts: on("ignore_broadcasts"),
+    ignoreChannels: on("ignore_channels"),
+    ignoreGroups: on("ignore_groups"),
+    logMessages: on("log_messages"),
+    proxyUrl,
+    readIncomingMessages: on("read_incoming_messages"),
+    webhookEnabled: on("webhook_enabled"),
+    webhookEvents,
+    webhookHmac: on("webhook_hmac"),
+    webhookUrl,
+  });
+  revalidatePath(`/sessions/${id}`);
+  return { ok: true };
+}
+
+export type RegenerateState = { error?: string; key?: string } | null;
+
+/** Returns the new key once so the page can show it; the old one is already dead. */
+export async function regenerateKeyAction(
+  _prev: RegenerateState,
+  formData: FormData,
+): Promise<RegenerateState> {
+  const id = Number(formData.get("id"));
+  const key = await regenerateSessionKey(id);
+  if (!key) return { error: "Session not found." };
+  revalidatePath(`/sessions/${id}`);
+  return { key };
 }

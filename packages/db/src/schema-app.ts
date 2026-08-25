@@ -228,6 +228,53 @@ export const webhookDeliveries = pgTable(
   (t) => [index("webhook_deliveries_event_idx").on(t.event, t.receivedAt)],
 );
 
+/**
+ * What the worker *sent*, as opposed to what our sink *received*.
+ *
+ * `webhook_deliveries` above is the test sink: it only ever sees traffic for a session
+ * deliberately pointed at us, so it says nothing about a production session delivering to a
+ * customer's app. The worker itself recorded nothing at all — it logged to pino and moved on —
+ * which meant there was no way to answer "are my webhooks landing?" for any real session.
+ *
+ * One row per event, updated in place rather than one row per attempt. BullMQ retries up to
+ * five times with exponential backoff, so per-attempt rows would multiply by five exactly on
+ * the sessions that are failing, which is where the volume already is. `attempts` and
+ * `lastError` answer the diagnostic question — did it land, and if not why — without that.
+ *
+ * Keyed on the BullMQ job id because that is the only identifier shared between the enqueue
+ * and the attempt that eventually resolves it.
+ */
+export const webhookDispatches = pgTable(
+  "webhook_dispatches",
+  {
+    id: serial("id").primaryKey(),
+    jobId: text("job_id").notNull().unique(),
+    sessionId: integer("session_id")
+      .notNull()
+      .references(() => whatsappSessions.id, { onDelete: "cascade" }),
+    event: text("event").notNull(),
+    /** Where it was sent. Recorded per row because the session's URL can change later. */
+    url: text("url"),
+    /** `retrying` while attempts remain, then `delivered` or `failed`. */
+    status: text("status").notNull().default("retrying"),
+    statusCode: integer("status_code"),
+    attempts: integer("attempts").notNull().default(0),
+    lastError: text("last_error"),
+    /** Nulled by retention well before the row is deleted — it carries real message content. */
+    payload: text("payload"),
+    durationMs: integer("duration_ms"),
+    firstAttemptAt: timestamp("first_attempt_at", { withTimezone: true }).notNull().defaultNow(),
+    lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // The inspector's only query: one session, newest first.
+    index("webhook_dispatches_session_idx").on(t.sessionId, t.lastAttemptAt),
+    // Retention sweeps by age across all sessions.
+    index("webhook_dispatches_age_idx").on(t.lastAttemptAt),
+  ],
+);
+
+export type WebhookDispatch = typeof webhookDispatches.$inferSelect;
 export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;
 export type BackupRun = typeof backupRuns.$inferSelect;
 export type Contact = typeof contacts.$inferSelect;

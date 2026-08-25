@@ -123,6 +123,35 @@ dump_once() {
   done
 }
 
+# ---------------------------------------------------------------------------------------
+# Retention sweep for webhook records.
+#
+# Runs here rather than as its own service or a pg_cron job: this container already holds a
+# psql connection on a daily timer, and a second scheduler for two statements would be more
+# moving parts than the work justifies.
+#
+# Two different horizons on purpose. Delivery *health* — status, attempts, last error — is the
+# operator question and stays useful for weeks. The *payload* is a debugging aid measured in
+# hours, and it carries real message content, so it is nulled long before the row is deleted.
+# Keeping message bodies for a month to answer "are my webhooks landing?" would be the wrong
+# trade.
+#
+# The sink table gets the same treatment: it holds full payloads too and had no retention at
+# all, which meant real message content accumulating forever in a table built for testing.
+sweep_retention() {
+  psql -qtAX "$DATABASE_URL" >/dev/null 2>&1 <<'SQL' || echo "[backup] WARNING: retention sweep failed" >&2
+UPDATE webhook_dispatches SET payload = NULL
+ WHERE payload IS NOT NULL AND last_attempt_at < now() - interval '7 days';
+DELETE FROM webhook_dispatches
+ WHERE last_attempt_at < now() - interval '30 days';
+UPDATE webhook_deliveries SET payload = NULL
+ WHERE payload IS NOT NULL AND received_at < now() - interval '7 days';
+DELETE FROM webhook_deliveries
+ WHERE received_at < now() - interval '30 days';
+SQL
+  echo "[backup] retention sweep done"
+}
+
 if [ "${BACKUP_ONCE:-}" = "1" ]; then
   dump_once
   exit $?
@@ -139,5 +168,7 @@ psql -qtAX "$DATABASE_URL" -c   "insert into backup_runs (archive, ok, error) va
 echo "[backup] loop started; every ${INTERVAL}s, keeping $KEEP, verify=$VERIFY"
 while true; do
   dump_once || echo "[backup] cycle failed; will retry next interval" >&2
+  # After the dump, so a retention bug can never destroy rows that today's backup missed.
+  sweep_retention
   sleep "$INTERVAL"
 done

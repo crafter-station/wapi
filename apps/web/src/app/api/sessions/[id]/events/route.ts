@@ -64,6 +64,15 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
       try {
         await sub.connect();
+
+        /**
+         * Two channels, one stream.
+         *
+         * `wapi:events` carries what WhatsApp did — QR rotations, status changes, and the raw
+         * engine events behind `type: "wa"`. `wapi:dispatches` carries what the webhook worker
+         * did about them. Both are fanned out to every subscriber, so the sessionId filter
+         * here is what keeps one account's traffic out of another's stream.
+         */
         await sub.subscribe("wapi:events", (raw) => {
           try {
             const e = JSON.parse(raw) as {
@@ -71,12 +80,26 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
               sessionId: number;
               qr?: string;
               status?: string;
+              event?: string;
+              payload?: unknown;
             };
             if (e.sessionId !== sessionId) return;
             if (e.type === "qr" && e.qr) send("qr", { qr: e.qr });
             if (e.type === "status" && e.status) send("status", { status: e.status });
+            // Raw engine events, so a message list can update as traffic arrives.
+            if (e.type === "wa" && e.event) send("wa", { event: e.event, payload: e.payload });
           } catch {
             /* a malformed message must not kill the stream */
+          }
+        });
+
+        await sub.subscribe("wapi:dispatches", (raw) => {
+          try {
+            const e = JSON.parse(raw) as { sessionId: number; type: string };
+            if (e.sessionId !== sessionId) return;
+            if (e.type === "dispatch") send("dispatch", e);
+          } catch {
+            /* as above */
           }
         });
       } catch {

@@ -138,3 +138,84 @@ export async function revokeToken(id: number): Promise<void> {
     .set({ revokedAt: new Date() })
     .where(and(eq(personalAccessTokens.id, id), eq(personalAccessTokens.accountId, accountId)));
 }
+
+/**
+ * The webhook events a session can subscribe to.
+ *
+ * Derived from what the worker actually emits (`apps/webhook-worker/src/events.ts`) rather
+ * than from the upstream documentation, because a checkbox for an event we never publish is a
+ * setting that silently does nothing.
+ *
+ * An empty selection means *everything*, which is their semantic and is surfaced in the UI —
+ * it reads as "no events" otherwise, which is the opposite of what it does.
+ */
+export const WEBHOOK_EVENTS = [
+  "messages.upsert",
+  "messages.received",
+  "messages-personal.received",
+  "messages.update",
+  "messages.delete",
+  "messages.reaction",
+  "message-receipt.update",
+  "message.sent",
+  "session.status",
+  "chats.upsert",
+  "chats.update",
+  "chats.delete",
+  "contacts.upsert",
+  "contacts.update",
+  "groups.upsert",
+  "groups.update",
+  "group-participants.update",
+  "call",
+] as const;
+
+export type SessionSettings = {
+  webhookUrl: string | null;
+  webhookEnabled: boolean;
+  webhookHmac: boolean;
+  webhookEvents: string[];
+  proxyUrl: string | null;
+  accountProtection: boolean;
+  logMessages: boolean;
+  readIncomingMessages: boolean;
+  autoRejectCalls: boolean;
+  alwaysOnline: boolean;
+  ignoreGroups: boolean;
+  ignoreChannels: boolean;
+  ignoreBroadcasts: boolean;
+};
+
+/** Scoped by account like every other write here; an id from a form is never trusted. */
+export async function updateSessionSettings(
+  id: number,
+  settings: SessionSettings,
+): Promise<void> {
+  const accountId = await currentAccountId();
+  await db()
+    .update(whatsappSessions)
+    .set({ ...settings, updatedAt: new Date() })
+    .where(and(eq(whatsappSessions.id, id), eq(whatsappSessions.accountId, accountId)));
+}
+
+/**
+ * Issue a new API key, invalidating the old one immediately.
+ *
+ * Both columns move together: `apiKeyHash` is what authentication looks up, `apiKeyEncrypted`
+ * is what the detail view can decrypt and show. Writing one without the other would leave the
+ * session either unauthenticatable or displaying a key that no longer works.
+ */
+export async function regenerateSessionKey(id: number): Promise<string | null> {
+  const accountId = await currentAccountId();
+  const apiKey = generateApiKey();
+  const [row] = await db()
+    .update(whatsappSessions)
+    .set({
+      apiKeyEncrypted: encryptSecret(apiKey),
+      apiKeyHash: hashToken(apiKey),
+      updatedAt: new Date(),
+    })
+    .where(and(eq(whatsappSessions.id, id), eq(whatsappSessions.accountId, accountId)))
+    .returning({ id: whatsappSessions.id });
+  return row ? apiKey : null;
+}
