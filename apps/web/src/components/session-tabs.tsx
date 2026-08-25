@@ -14,6 +14,11 @@ import { usePathname } from "next/navigation";
  */
 const TABS = [
   { href: "", label: "Overview" },
+  { href: "/messages", label: "Messages" },
+  { href: "/contacts", label: "Contacts" },
+  { href: "/groups", label: "Groups" },
+  { href: "/webhooks", label: "Webhooks" },
+  { href: "/doctor", label: "Doctor" },
   { href: "/settings", label: "Settings" },
 ] as const;
 

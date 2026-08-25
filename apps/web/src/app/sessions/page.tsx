@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listSessions } from "@/lib/data";
+import { latestDoctorRuns, listSessions } from "@/lib/data";
 import { createSessionAction } from "@/lib/actions";
 import { StatusBadge } from "@/components/status-badge";
 import { AppNav } from "@/components/app-nav";
@@ -7,7 +7,20 @@ import { AppNav } from "@/components/app-nav";
 export const dynamic = "force-dynamic";
 
 export default async function SessionsPage() {
-  const sessions = await listSessions();
+  const [sessions, health] = await Promise.all([listSessions(), latestDoctorRuns()]);
+
+  /**
+   * Health is the last doctor verdict, not a live probe.
+   *
+   * Probing on render would send a WhatsApp message every time someone opened this page, which
+   * is exactly the unattended traffic the doctor is designed not to produce. Showing a stored
+   * verdict with its age is honest: it says what was true when someone last checked.
+   */
+  const verdictLabel: Record<string, string> = {
+    degraded: "checks skipped",
+    failed: "unhealthy",
+    ok: "healthy",
+  };
 
   return (
     <>
@@ -56,7 +69,12 @@ export default async function SessionsPage() {
                     {[
                       ["Session", `#${s.id}`],
                       ["Webhook", s.webhookEnabled ? "on" : "off"],
-                      ["Protection", s.accountProtection ? "on" : "off"],
+                      [
+                        "Health",
+                        health.has(s.id)
+                          ? (verdictLabel[health.get(s.id)!.verdict] ?? health.get(s.id)!.verdict)
+                          : "not checked",
+                      ],
                     ].map(([k, v]) => (
                       <div key={k}>
                         <dt className="text-[var(--muted-foreground)]">{k}</dt>

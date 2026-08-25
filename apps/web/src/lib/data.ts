@@ -1,14 +1,27 @@
 import "server-only";
 import { auth } from "@clerk/nextjs/server";
-import { eq, and, desc, isNull } from "drizzle-orm";
+import { and, count, desc, eq, isNull } from "drizzle-orm";
 import {
-  createDb,
   accounts,
-  whatsappSessions,
+  createDb,
+  doctorRuns,
+  messages,
   personalAccessTokens,
+  webhookDispatches,
+  whatsappSessions,
+  type DoctorRun,
+  type Message,
+  type WebhookDispatch,
   type WhatsappSession,
 } from "@wapi/db";
-import { generateApiKey, generatePat, generateWebhookSecret, hashToken, encryptSecret } from "@wapi/core";
+import {
+  decryptSecret,
+  encryptSecret,
+  generateApiKey,
+  generatePat,
+  generateWebhookSecret,
+  hashToken,
+} from "@wapi/core";
 
 /**
  * Dashboard data access.
@@ -218,4 +231,80 @@ export async function regenerateSessionKey(id: number): Promise<string | null> {
     .where(and(eq(whatsappSessions.id, id), eq(whatsappSessions.accountId, accountId)))
     .returning({ id: whatsappSessions.id });
   return row ? apiKey : null;
+}
+
+/** The decrypted session key, account-scoped. The only reason the dashboard can call our API. */
+export async function sessionApiKey(id: number): Promise<string | null> {
+  const session = await getSession(id);
+  if (!session?.apiKeyEncrypted) return null;
+  try {
+    return decryptSecret(session.apiKeyEncrypted);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The message log.
+ *
+ * Read straight from Postgres rather than through `GET /api/whatsapp-sessions/{id}/message-logs`,
+ * which is PAT-authenticated by the upstream design. Using it here would mean the web app held
+ * an account-level credential purely to read its own rows.
+ */
+export async function listMessages(
+  sessionId: number,
+  page: number,
+  perPage = 50,
+): Promise<{ rows: Message[]; total: number }> {
+  if (!(await getSession(sessionId))) return { rows: [], total: 0 };
+  const [tally] = await db()
+    .select({ n: count() })
+    .from(messages)
+    .where(eq(messages.sessionId, sessionId));
+  const rows = await db()
+    .select()
+    .from(messages)
+    .where(eq(messages.sessionId, sessionId))
+    .orderBy(desc(messages.msgId))
+    .limit(perPage)
+    .offset((page - 1) * perPage);
+  return { rows, total: tally?.n ?? 0 };
+}
+
+/** Outbound webhook attempts, newest first. Health lives here; payloads live on the row. */
+export async function listDispatches(
+  sessionId: number,
+  page: number,
+  perPage = 50,
+): Promise<{ rows: WebhookDispatch[]; total: number }> {
+  if (!(await getSession(sessionId))) return { rows: [], total: 0 };
+  const [tally] = await db()
+    .select({ n: count() })
+    .from(webhookDispatches)
+    .where(eq(webhookDispatches.sessionId, sessionId));
+  const rows = await db()
+    .select()
+    .from(webhookDispatches)
+    .where(eq(webhookDispatches.sessionId, sessionId))
+    .orderBy(desc(webhookDispatches.lastAttemptAt))
+    .limit(perPage)
+    .offset((page - 1) * perPage);
+  return { rows, total: tally?.n ?? 0 };
+}
+
+/** The last doctor verdict per session, for the health column on the sessions list. */
+export async function latestDoctorRuns(): Promise<Map<number, DoctorRun>> {
+  const accountId = await currentAccountId();
+  const rows = await db()
+    .select({ run: doctorRuns })
+    .from(doctorRuns)
+    .innerJoin(whatsappSessions, eq(whatsappSessions.id, doctorRuns.sessionId))
+    .where(eq(whatsappSessions.accountId, accountId));
+  return new Map(rows.map((r) => [r.run.sessionId, r.run]));
+}
+
+export async function getDoctorRun(sessionId: number): Promise<DoctorRun | null> {
+  if (!(await getSession(sessionId))) return null;
+  const [row] = await db().select().from(doctorRuns).where(eq(doctorRuns.sessionId, sessionId));
+  return row ?? null;
 }

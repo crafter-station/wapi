@@ -274,6 +274,43 @@ export const webhookDispatches = pgTable(
   ],
 );
 
+/**
+ * The most recent doctor run, one row per session, overwritten each time.
+ *
+ * Persisted rather than ephemeral so the sessions list can say which session is actually
+ * healthy instead of only what it is called — that is the difference between a diagnostic
+ * button and an operator feature. Deliberately not a history: a trend nobody has asked to read
+ * is storage built on speculation, and the row count here stays equal to the session count.
+ *
+ * `checks` holds the per-step results as JSON rather than columns, because the set of checks
+ * will change and a migration per check would be the wrong trade for a display-only field.
+ */
+export const doctorRuns = pgTable("doctor_runs", {
+  sessionId: integer("session_id")
+    .primaryKey()
+    .references(() => whatsappSessions.id, { onDelete: "cascade" }),
+  /** `ok` | `degraded` | `failed` — degraded means something was skipped, not broken. */
+  verdict: text("verdict").notNull(),
+  checks: jsonb("checks").$type<DoctorCheck[]>().notNull().default(sql`'[]'::jsonb`),
+  durationMs: integer("duration_ms"),
+  ranAt: timestamp("ran_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * One step of a doctor run.
+ *
+ * `skipped` exists because "not configured" is not a failure: a session with no webhook is not
+ * broken, and reporting it as broken is how a health check earns the reputation of crying wolf
+ * and stops being read.
+ */
+export type DoctorCheck = {
+  name: string;
+  state: "pass" | "fail" | "skipped";
+  detail: string;
+  ms?: number;
+};
+
+export type DoctorRun = typeof doctorRuns.$inferSelect;
 export type WebhookDispatch = typeof webhookDispatches.$inferSelect;
 export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;
 export type BackupRun = typeof backupRuns.$inferSelect;

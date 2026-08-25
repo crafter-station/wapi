@@ -83,10 +83,16 @@ services:
       GATEWAY_TOKEN: ${GATEWAY_TOKEN}
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      # Page renders take the internal hop: no TLS, no public round-trip, no dependency on
+      # outbound DNS from inside the container. The doctor deliberately uses the public URL,
+      # because the edge is part of what it is checking.
+      API_INTERNAL_URL: http://api:3001
+      API_PUBLIC_URL: https://api.wapi.crafter.run
     expose:
       - "3000"
     depends_on:
       - gateway
+      - api
     networks:
       - dokploy-network
 

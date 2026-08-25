@@ -227,6 +227,17 @@ const statements: [label: string, ddl: string][] = [
     `CREATE INDEX IF NOT EXISTS webhook_dispatches_age_idx
        ON webhook_dispatches (last_attempt_at)`,
   ],
+  [
+    "doctor_runs",
+    // One row per session, overwritten: the last verdict, not a history.
+    `CREATE TABLE IF NOT EXISTS doctor_runs (
+       session_id  integer PRIMARY KEY REFERENCES whatsapp_sessions(id) ON DELETE CASCADE,
+       verdict     text NOT NULL,
+       checks      jsonb NOT NULL DEFAULT '[]'::jsonb,
+       duration_ms integer,
+       ran_at      timestamptz NOT NULL DEFAULT now()
+     )`,
+  ],
 ];
 
 for (const [label, ddl] of statements) {

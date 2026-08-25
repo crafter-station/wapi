@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { runDoctor, type DoctorResult } from "./doctor";
 import {
   createSession,
+  currentAccountId,
   createToken,
   deleteSession,
   getSession,
@@ -209,4 +211,33 @@ export async function regenerateKeyAction(
   if (!key) return { error: "Session not found." };
   revalidatePath(`/sessions/${id}`);
   return { key };
+}
+
+export type DoctorState = { error?: string; result?: DoctorResult } | null;
+
+/**
+ * Run the connection doctor.
+ *
+ * The only write it performs is a message to the session's own number — never a group, never a
+ * third party. A health check has to be safe to press repeatedly by anyone who can see it.
+ *
+ * Not exposed on a schedule: an unattended process sending WhatsApp messages on a timer, from a
+ * number that can be banned, for a signal nobody is watching, is the least deliberate version
+ * of the thing we said should be deliberate.
+ */
+export async function runDoctorAction(
+  _prev: DoctorState,
+  formData: FormData,
+): Promise<DoctorState> {
+  const id = Number(formData.get("id"));
+  const accountId = await currentAccountId();
+  try {
+    const result = await runDoctor(id, accountId);
+    if (!result) return { error: "Session not found, or it has no API key yet." };
+    revalidatePath(`/sessions/${id}/doctor`);
+    revalidatePath("/sessions");
+    return { result };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "The check could not be completed." };
+  }
 }
