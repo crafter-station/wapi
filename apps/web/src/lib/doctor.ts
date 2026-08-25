@@ -136,7 +136,7 @@ const CHECKS: {
 async function webhookCheck(
   db: ReturnType<typeof createDb>["db"],
   sessionId: number,
-  session: { webhookEnabled: boolean; webhookUrl: string | null },
+  session: { webhookEnabled: boolean; webhookUrl: string | null; webhookEvents: string[] | null },
   since: Date,
 ): Promise<DoctorCheck> {
   const started = nowMs();
@@ -180,12 +180,18 @@ async function webhookCheck(
   /**
    * No record inside the window is genuinely ambiguous, so it is reported as such.
    *
-   * The most common cause is benign: this session subscribes to specific events and a message
-   * it *sent* is not one it *received*, so nothing was queued. Calling that a failure would be
-   * wrong; calling it a pass would be a lie.
+   * The most common cause is benign: a message this session *sent* is not one it *received*, so
+   * if it subscribes only to inbound events nothing was ever queued. Naming the subscription is
+   * what turns that from a shrug into something the reader can act on — the fix is a settings
+   * change, not a bug hunt.
    */
+  const subscribed = session.webhookEvents ?? [];
+  const why =
+    subscribed.length === 0
+      ? "this session delivers every event, so the queue may simply be behind"
+      : `this session subscribes only to ${subscribed.join(", ")} — a message it sent is not one it received`;
   return {
-    detail: "no delivery recorded in 12s — the sent event may not be one this session subscribes to",
+    detail: `no delivery recorded in 12s: ${why}`,
     ms: nowMs() - started,
     name: "Webhook delivery",
     state: "skipped",
