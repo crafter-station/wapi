@@ -33,6 +33,22 @@ export default clerkMiddleware(async (auth, req) => {
   if (!isPublic(req)) await auth.protect();
 });
 
+/**
+ * Static assets skip the middleware entirely.
+ *
+ * `webmanifest` was missing from this list, so `/site.webmanifest` fell through to
+ * `auth.protect()` and 307'd to Clerk's sign-in page — the same failure already recorded above
+ * for `/api/webhook-sink`, and just as quiet: the manifest is fetched by the browser rather
+ * than by a person, so nothing surfaces except a PWA install prompt that never appears.
+ *
+ * The others are here because they are the assets most likely to be added next — fonts, a
+ * robots.txt, a modern image format — and each would fail exactly the same silent way.
+ * Everything listed lives in `public/`, which Next serves publicly by definition, so excluding
+ * them widens nothing that was ever protected.
+ */
 export const config = {
-  matcher: ["/((?!_next|[^?]*\.(?:ico|png|svg|jpg|css|js)).*)", "/(api|trpc)(.*)"],
+  matcher: [
+    "/((?!_next|[^?]*\.(?:ico|png|svg|jpg|webp|avif|css|js|txt|woff|woff2|webmanifest)).*)",
+    "/(api|trpc)(.*)",
+  ],
 };
