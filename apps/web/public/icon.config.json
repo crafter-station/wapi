@@ -1,0 +1,22 @@
+{
+  "text": "w",
+  "svg": null,
+  "glyph": null,
+  "glyphBox": 24,
+  "out": ".",
+  "name": "wapi",
+  "shortName": "wapi",
+  "face": "sans-medium",
+  "bg": "#0a0a0a",
+  "fg": "#fafafa",
+  "bgDark": "#fafafa",
+  "fgDark": "#0a0a0a",
+  "radius": 6,
+  "scale": 0.78,
+  "padding": 5,
+  "stroke": null,
+  "recolor": true,
+  "darkRasters": false,
+  "svgOnly": false,
+  "themeColor": "#0a0a0a"
+}

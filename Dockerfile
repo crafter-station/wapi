@@ -106,6 +106,9 @@ ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
 # Standalone output carries its own minimal node_modules.
 COPY --from=web-builder /app/apps/web/.next/standalone ./
 COPY --from=web-builder /app/apps/web/.next/static ./apps/web/.next/static
+# `public/` is NOT included in standalone output and has to be copied explicitly, or every
+# static asset 404s in production while working perfectly in `next dev`.
+COPY --from=web-builder /app/apps/web/public ./apps/web/public
 EXPOSE 3000
 CMD ["node", "apps/web/server.js"]
 
