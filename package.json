@@ -8,7 +8,7 @@
     "compat"
   ],
   "scripts": {
-    "typecheck": "tsc --build",
+    "typecheck": "node ops/typecheck.mjs",
     "test": "bun test",
     "contracts:generate": "bun run packages/contracts/src/generate.ts"
   },
