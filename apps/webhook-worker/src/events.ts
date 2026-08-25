@@ -85,3 +85,25 @@ export function passesSessionFilters(
   if (opts.ignoreBroadcasts && isBroadcast(jid)) return false;
   return true;
 }
+
+/**
+ * Resolve a delivery attempt into a stored status.
+ *
+ * Extracted from the worker because it is the one piece of dispatch recording that cannot be
+ * exercised against a live session: proving the retry path needs a webhook that fails, and the
+ * only session available points at a real application that answers 200.
+ *
+ * `attemptsMade` is BullMQ's count of attempts *before* the current one, which is 0 on the
+ * first run. That off-by-one is version-sensitive and exactly the kind of thing that silently
+ * mislabels a first failure as final, so it is pinned by tests rather than reasoned about.
+ */
+export function dispatchStatus(args: {
+  attemptsMade: number;
+  maxAttempts: number;
+  ok: boolean;
+}): { attempts: number; status: "delivered" | "failed" | "retrying" } {
+  const attempts = (args.attemptsMade ?? 0) + 1;
+  if (args.ok) return { attempts, status: "delivered" };
+  // Only the last permitted attempt is terminal; everything before it will be retried.
+  return { attempts, status: attempts >= args.maxAttempts ? "failed" : "retrying" };
+}

@@ -23,7 +23,12 @@ import {
   whatsappSessions,
   type WhatsappSession,
 } from "@wapi/db";
-import { toPublicEvents, passesSessionFilters, type PublicEvent } from "./events.js";
+import {
+  dispatchStatus,
+  passesSessionFilters,
+  toPublicEvents,
+  type PublicEvent,
+} from "./events.js";
 
 const DATABASE_URL = process.env["DATABASE_URL"];
 const REDIS_URL = process.env["REDIS_URL"];
@@ -255,9 +260,13 @@ async function recordDispatch(
     | { ok: false; statusCode: number | null; durationMs: number; error: string },
 ): Promise<void> {
   try {
-    const attempts = (job.attemptsMade ?? 0) + 1;
-    const maxAttempts = job.opts?.attempts ?? attempts;
-    const status = outcome.ok ? "delivered" : attempts >= maxAttempts ? "failed" : "retrying";
+    const { attempts, status } = dispatchStatus({
+      attemptsMade: job.attemptsMade ?? 0,
+      // From the job's own options rather than a second copy of the retry policy, which could
+      // drift from the `queue.add` call that set it.
+      maxAttempts: job.opts?.attempts ?? 1,
+      ok: outcome.ok,
+    });
     const now = new Date();
 
     const row = {
