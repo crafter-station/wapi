@@ -94,6 +94,18 @@ export interface WhatsAppEngine {
    * growing a method per media type.
    */
   send(sessionId: number, to: string, content: SendContent, opts?: SendOptions): Promise<SendResult>;
+  /**
+   * React to a message, or clear a reaction with an empty string.
+   *
+   * Takes the WhatsApp `key` rather than our `msgId` because the useful case is reacting to a
+   * message someone else sent, and inbound messages have no row in our table — the same reason
+   * `readMessages` is keyed this way.
+   */
+  reactToMessage(
+    sessionId: number,
+    key: Record<string, unknown>,
+    emoji: string,
+  ): Promise<{ id: string | null }>;
   readMessages(sessionId: number, keys: Record<string, unknown>[]): Promise<void>;
 
   /**

@@ -313,6 +313,25 @@ export class BaileysEngine implements WhatsAppEngine {
   }
 
   /**
+   * Reactions are ordinary messages carrying a `react` node, not a separate protocol verb.
+   *
+   * They are addressed to the *chat* the target lives in, so `key.remoteJid` is the recipient
+   * — reacting in a group means sending to the group, with the key identifying whose message
+   * inside it is being reacted to.
+   *
+   * An empty string is WhatsApp's own convention for removing a reaction rather than a
+   * separate call, so it is passed through untouched instead of being rejected as blank.
+   */
+  async reactToMessage(sessionId: number, key: Record<string, unknown>, emoji: string) {
+    const chat = String(key["remoteJid"] ?? "");
+    if (!chat) throw new Error("key.remoteJid is required to react");
+    const sent = await this.live(sessionId).sock.sendMessage(chat, {
+      react: { key: key as never, text: emoji },
+    });
+    return { id: sent?.key?.id ?? null };
+  }
+
+  /**
    * v7 removed LIDs from `onWhatsApp()` results, which is part of why the LID routes were
    * promoted into Tier 1 — the mapping has to come from `lidFromPn` instead (PLAN.md §1).
    */

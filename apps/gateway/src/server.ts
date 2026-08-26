@@ -149,6 +149,11 @@ app.post("/rpc/read-messages", async (c) => {
   return rpc(() => engine.readMessages(Number(sessionId), keys).then(() => ({ ok: true })))(c);
 });
 
+app.post("/rpc/react", async (c) => {
+  const { sessionId, key, emoji } = await c.req.json();
+  return rpc(() => engine.reactToMessage(Number(sessionId), key, String(emoji ?? "")))(c);
+});
+
 app.post("/rpc/on-whatsapp", async (c) => {
   const { sessionId, identifier } = await c.req.json();
   return rpc(() => engine.onWhatsApp(Number(sessionId), String(identifier)))(c);

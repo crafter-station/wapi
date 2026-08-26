@@ -119,6 +119,9 @@ export const gateway = {
   readMessages: (sessionId: number, keys: Record<string, unknown>[]) =>
     post<{ ok: true }>("/rpc/read-messages", { sessionId, keys }),
 
+  reactToMessage: (sessionId: number, key: Record<string, unknown>, emoji: string) =>
+    post<{ id: string | null }>("/rpc/react", { sessionId, key, emoji }),
+
   onWhatsApp: (sessionId: number, identifier: string) =>
     post<{ exists: boolean; jid: string | null }>("/rpc/on-whatsapp", { sessionId, identifier }),
 

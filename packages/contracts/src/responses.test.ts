@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { EXTENSION_ROUTES } from "./extensions.ts";
 import { ROUTES } from "./generated/routes.ts";
 import { buildOpenApiDocument } from "./openapi.ts";
 import { SUCCESS_RESPONSES, type SuccessResponse } from "./responses.ts";
@@ -32,8 +33,18 @@ describe("response schemas", () => {
   });
 
   test("and none is stale", () => {
-    const known = new Set<string>(ROUTES.map((r) => r.operationId));
+    // Extensions are published in the same document, so they count as known here — see
+    // `extensions.ts` for why they are not in ROUTES.
+    const known = new Set<string>([
+      ...ROUTES.map((r) => r.operationId),
+      ...EXTENSION_ROUTES.map((r) => r.operationId),
+    ]);
     expect(Object.keys(SUCCESS_RESPONSES).filter((id) => !known.has(id))).toEqual([]);
+  });
+
+  test("every extension has a response schema too", () => {
+    const table: Record<string, unknown> = SUCCESS_RESPONSES;
+    expect(EXTENSION_ROUTES.filter((r) => table[r.operationId] === undefined)).toEqual([]);
   });
 
   test("the published document has no empty success schema", () => {

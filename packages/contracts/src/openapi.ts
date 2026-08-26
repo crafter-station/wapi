@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { EXTENSION_ROUTES } from "./extensions.js";
 import { ROUTES } from "./generated/routes.js";
 import {
   failureBody,
@@ -58,6 +59,7 @@ const SUMMARIES: Record<string, string> = {
   postApiGroups: "Create a group",
   getApiGroupsGroupJidMetadata: "Group subject, description, owner and participants",
   getApiGroupsGroupJidParticipants: "Participants of a group",
+  postApiMessagesReact: "React to a message, or clear a reaction with an empty emoji",
   postApiGroupsGroupJidParticipantsAdd: "Add participants to a group",
   postApiGroupsGroupJidParticipantsRemove: "Remove participants from a group",
 };
@@ -141,7 +143,23 @@ const responsesFor = (operationId: string): Record<string, unknown> => {
 export function buildOpenApiDocument(serverUrl: string) {
   const paths: Record<string, Record<string, unknown>> = {};
 
-  for (const route of ROUTES) {
+  const extensionIds = new Set<string>(EXTENSION_ROUTES.map((r) => r.operationId));
+
+  // Extensions are published alongside the cloned surface but labelled, so a reader can tell
+  // which endpoints exist upstream and which are ours. Order matters only for readability.
+  /**
+   * Structural, not `typeof ROUTES`: that is a fixed-length tuple, so concatenating extensions
+   * onto it is a type error rather than a wider array. The loop only needs these four fields.
+   */
+  type AnyRoute = {
+    readonly operationId: string;
+    readonly method: string;
+    readonly path: string;
+    readonly pathParams: readonly string[];
+    readonly body?: unknown;
+  };
+
+  for (const route of [...ROUTES, ...EXTENSION_ROUTES] as readonly AnyRoute[]) {
     const path = route.path;
     paths[path] ??= {};
 
@@ -178,14 +196,19 @@ export function buildOpenApiDocument(serverUrl: string) {
       }
     }
 
-    const patOnly = PAT_ONLY.has(route.operationId);
+    const patOnly = PAT_ONLY.has(route.operationId as never);
 
     paths[path]![route.method.toLowerCase()] = {
       operationId: route.operationId,
       summary: SUMMARIES[route.operationId] ?? route.operationId,
-      description: patOnly
-        ? "Requires a **Personal Access Token**. Session API keys are rejected."
-        : "Requires a **Session API Key**. The key identifies the session, so no session id is passed.",
+      description:
+        (extensionIds.has(route.operationId)
+          ? "**wapi extension.** Not part of the WasenderAPI interface this server reproduces — " +
+            "their SDK never calls it, and a drop-in client does not need it.\n\n"
+          : "") +
+        (patOnly
+          ? "Requires a **Personal Access Token**. Session API keys are rejected."
+          : "Requires a **Session API Key**. The key identifies the session, so no session id is passed."),
       tags: [tagFor(path)],
       ...(parameters.length ? { parameters } : {}),
       ...(route.body && !queryFromBody

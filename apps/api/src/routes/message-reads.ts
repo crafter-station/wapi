@@ -165,5 +165,56 @@ export function messageReadRoutes(db: Db) {
     }
   });
 
+  /**
+   * POST /api/messages/react — session-key scoped. **A wapi extension.**
+   *
+   * WasenderAPI emits `messages.reaction` as a webhook but documents no way to send one; none of
+   * the 51 endpoints in the mirrored spec does. This is therefore ours, and lives in
+   * `packages/contracts/src/extensions.ts` rather than the generated route table so the cloned
+   * surface stays exactly the 29 endpoints being reproduced.
+   *
+   * Keyed the same way as `/messages/read`, for the same reason: the useful case is reacting to
+   * a message someone *else* sent, and inbound messages have no row in our table. `msgId` only
+   * ever identifies something we sent.
+   */
+  app.post("/messages/react", async (c) => {
+    const auth = c.get("auth");
+    if (auth.kind !== "session") return c.json(fail("This endpoint requires a session API key."), 403);
+
+    const body = (await c.req.json().catch(() => ({}))) as {
+      key?: Record<string, unknown>;
+      emoji?: unknown;
+    };
+    const key = body.key;
+    if (!key || typeof key["id"] !== "string" || !key["id"]) {
+      return c.json(fail("The key.id field is required and must be a non-empty string."), 422);
+    }
+    if (typeof key["remoteJid"] !== "string" || !key["remoteJid"]) {
+      return c.json(fail("The key.remoteJid field is required and must be a non-empty string."), 422);
+    }
+    /**
+     * An empty string is valid and means "remove the reaction" — WhatsApp's own convention
+     * rather than a separate call. Rejecting blanks would leave no way to undo one.
+     */
+    if (typeof body.emoji !== "string") {
+      return c.json(fail("The emoji field is required and must be a string."), 422);
+    }
+    const emoji = body.emoji;
+    if ([...emoji].length > 8) {
+      return c.json(fail("The emoji field must be a single emoji."), 422);
+    }
+
+    try {
+      const { id } = await gateway.reactToMessage(auth.sessionId, key, emoji);
+      return c.json(ok({ id, emoji }));
+    } catch (err) {
+      if (err instanceof SessionNotConnectedError) return c.json(fail(err.message), 409);
+      if (err instanceof GatewayUnavailableError) {
+        return c.json(fail("The WhatsApp service is temporarily unavailable. Please retry."), 503);
+      }
+      throw err;
+    }
+  });
+
   return app;
 }

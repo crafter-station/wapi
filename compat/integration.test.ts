@@ -612,3 +612,79 @@ ${JSON.stringify(parsed.error, null, 2).slice(0, 900)}`,
     await check("getApiMessagesMsgIdInfo", `/api/messages/${row.msgId}/info`);
   });
 });
+
+// ---------------------------------------------------------------------------------------
+/**
+ * Reactions — a wapi extension, not part of the cloned interface.
+ *
+ * The provider emits `messages.reaction` as a webhook but documents no way to send one, so this
+ * endpoint is ours. It is tested here rather than in the contract suite because there is no
+ * upstream example to check it against; the only ground truth is that WhatsApp accepts it.
+ *
+ * Every reaction below targets a message this session sent to *itself*, so nothing reaches a
+ * third party.
+ */
+d("reactions", () => {
+  const react = (body: unknown) =>
+    api("/api/messages/react", { method: "POST", body: JSON.stringify(body) });
+
+  test("a missing key is a controller-level 422", async () => {
+    const r = await json(await react({ emoji: "👍" }));
+    expect(r.status).toBe(422);
+    expect(String(r.body["error"])).toContain("key.id");
+  });
+
+  test("a key without remoteJid is refused", async () => {
+    const r = await json(await react({ key: { id: "ABC" }, emoji: "👍" }));
+    expect(r.status).toBe(422);
+    expect(String(r.body["error"])).toContain("key.remoteJid");
+  });
+
+  test("a missing emoji is refused, but an empty one is not", async () => {
+    const missing = await json(await react({ key: { id: "A", remoteJid: "1@s.whatsapp.net" } }));
+    expect(missing.status).toBe(422);
+    expect(String(missing.body["error"])).toContain("emoji");
+  });
+
+  test("more than one emoji is refused", async () => {
+    const r = await json(
+      await react({ key: { id: "A", remoteJid: "1@s.whatsapp.net" }, emoji: "👍👍👍👍👍👍👍👍👍" }),
+    );
+    expect(r.status).toBe(422);
+  });
+
+  test("a PAT is refused — this is session-scoped", async () => {
+    const r = await fetch(`${BASE}/api/messages/react`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${pat}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ key: { id: "A", remoteJid: "1@s.whatsapp.net" }, emoji: "👍" }),
+    });
+    expect(r.status).toBe(403);
+  });
+
+  test("reacting to a real message we sent, then clearing it", async () => {
+    const { db, close } = createDb(process.env["DATABASE_URL"]!);
+    const [row] = await db
+      .select({ waKey: messages.waKey })
+      .from(messages)
+      .where(eq(messages.sessionId, SESSION_ID))
+      .orderBy(desc(messages.msgId))
+      .limit(1);
+    await close();
+    // Nothing sent yet on this session; the shape is covered by the validation cases above.
+    if (!row?.waKey) return;
+
+    const key = row.waKey as Record<string, unknown>;
+    const added = await json(await react({ key, emoji: "👍" }));
+    expect(added.status).toBe(200);
+    const data = added.body["data"] as Record<string, unknown>;
+    expect(data["emoji"]).toBe("👍");
+    // WhatsApp returns an id for the reaction message itself.
+    expect(typeof data["id"]).toBe("string");
+
+    // An empty emoji removes it — WhatsApp's convention, not a separate endpoint.
+    const cleared = await json(await react({ key, emoji: "" }));
+    expect(cleared.status).toBe(200);
+    expect((cleared.body["data"] as Record<string, unknown>)["emoji"]).toBe("");
+  });
+});

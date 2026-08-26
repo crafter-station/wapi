@@ -291,6 +291,11 @@ export const SUCCESS_RESPONSES: Record<string, SuccessResponse> = {
     ),
   },
   postApiMessagesRead: { status: 200, schema: ok(z.object({ status: z.string() })) },
+  // wapi extension — see `extensions.ts`. `id` is WhatsApp's id for the reaction message.
+  postApiMessagesReact: {
+    status: 200,
+    schema: ok(z.object({ id: z.string().nullable(), emoji: z.string() })),
+  },
 
   // -- media: `publicUrl` at the top level
   postApiUpload: {
