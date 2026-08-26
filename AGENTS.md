@@ -162,6 +162,21 @@ the *WhatsApp* record, so `messageTimestamp` is a **string** (protobuf int64) an
 
 `msgId` is our own Postgres sequence starting at 100000 — not WhatsApp's id, which is `key.id`.
 
+### Extensions
+
+Anything of ours goes in `packages/contracts/src/extensions.ts`, never in `generated/routes.ts`
+— that file is rewritten wholesale by `contracts:generate`, and folding an addition into
+`ROUTES` would falsify the "29 routes" claim that a test asserts and `/health` reports. The two
+counts are reported separately for that reason.
+
+The bar is high. Fidelity means their SDK runs unmodified, and an endpoint they never call
+cannot break that — but each addition is one more thing true of wapi and not of the interface it
+claims to clone. Extending an *existing documented route* is worse and stays off the table:
+that changes behaviour a client already knows.
+
+Current extensions: `POST /api/messages/react` (they emit `messages.reaction` as a webhook but
+document no way to send one), and `webhook_hmac`, which is dashboard-only.
+
 ---
 
 ## Verification layers

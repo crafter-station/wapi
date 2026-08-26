@@ -243,6 +243,24 @@ print(r.json()["data"]["msgId"])  # 100024`,
   "replyTo": 100024 }`,
                 },
                 {
+                  label: "React", lang: "bash",
+                  code: `# A wapi extension: WasenderAPI reports reactions over webhooks but
+# has no endpoint to send one. Their SDK never calls this.
+#
+# Addressed by WhatsApp key, not msgId — you mostly react to messages
+# someone else sent, and those have no msgId. Take the key from the
+# webhook payload.
+curl -X POST ${API}/api/messages/react \
+  -H "Authorization: Bearer $KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"key":{"id":"3EB0...","remoteJid":"51999888777@s.whatsapp.net",
+              "fromMe":false},
+       "emoji":"👍"}'
+
+# An empty emoji removes the reaction. That is WhatsApp's convention,
+# not a separate endpoint.`,
+                },
+                {
                   label: "Mentions", lang: "json",
                   code: `{ "to": "120363000000000000@g.us",
   "text": "@51999888777 can you confirm?",
