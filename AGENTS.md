@@ -69,6 +69,10 @@ what the URL already says.
 `apps/web/src/app/sessions/[id]/layout.tsx` resolves and authorises the session, so it is the
 ownership check for every page beneath it.
 
+`/audit` is the exception to the session-scoped rule and deliberately so: calls made with a PAT —
+creating a session, rotating a key — belong to the account and have no session at all, so filing
+the trail under a session would hide the actions most worth auditing.
+
 **Where data comes from is a rule, not a habit:**
 
 | | Source | Why |
@@ -97,6 +101,51 @@ that we saw the payload.
 
 It does **not** run on a schedule, and should not: that is unattended WhatsApp traffic from a
 bannable number, for a signal nobody is watching.
+
+---
+
+## Audit logs
+
+Every API request lands one row in `audit_logs`: which credential acted, the endpoint, the route
+pattern, headers, request, response, status, duration, IP and user agent.
+
+**Read `packages/core/src/redact.ts` before touching any of it.** `Authorization` carries a full
+WhatsApp credential, and the session detail and regenerate-key responses return `api_key` and
+`webhook_secret` in plaintext because fidelity requires it. Recorded verbatim this table is a
+list of every live key the system has issued.
+
+The rule is **allow-list for headers, deny-list for bodies**. Header names are a small closed set
+we control, so a future `x-internal-key` is excluded by default. Body shapes are open-ended, so an
+allow-list would drop the fields that make the log useful — there secrets are stripped
+recursively, bulk fields described rather than stored, arrays sampled and everything bounded.
+`redact.test.ts` is the specification, written as "this must never appear".
+
+Three properties, and they are ordered by how badly getting them wrong would hurt:
+
+1. **It cannot leak.** See above.
+2. **It cannot fail a request.** The insert is fire-and-forget with swallowed errors — no send
+   should fail because bookkeeping did.
+3. **It cannot slow the hot path.** The insert is not awaited.
+
+The cost of (2): rows are **best-effort**. If Postgres is down nothing is written, and an
+in-flight write is lost when the process is replaced. This is an operational record, not a
+compliance ledger. Do not let anyone believe otherwise.
+
+Registered *before* authentication, so a rejected request is recorded too — a sweep of failed
+credentials is the thing an audit trail exists to show.
+
+**Bodies carry message content.** Redaction removes credentials, not information: a send-message
+body holds the message text and the recipient's number. `AUDIT_BODIES=off` keeps the metadata
+trail without them. Retention nulls bodies at 7 days and deletes rows at 90 — metadata outlives
+content because "which credential called what, when" is asked about last quarter far more often
+than last week.
+
+**No geolocation.** Cloudflare is DNS-only here, not proxying, so there is no `CF-IPCountry` and
+`country` stays null. That is deliberate: a per-request GeoIP lookup would add a network
+dependency to every call and hand client IPs to a third party. The column populates by itself if
+proxying is ever enabled.
+
+Webhook *triggers* are not duplicated here — they are in `webhook_dispatches` below.
 
 ---
 
@@ -218,6 +267,14 @@ database. A backup that has never been restored is not a backup.
 Every one of these has already broken something here.
 
 **Build / deploy**
+
+- **`vps compose` reporting `done` means the build finished, not that containers have swapped.**
+  Verifying a deploy immediately after can test the *old* container and read as a broken feature.
+  Give it a few seconds, or check for something only the new build does.
+- **A stray `nul` file breaks `git add -A`** with "short read while indexing nul" — it is a
+  Windows reserved device name that some tool in the toolchain writes to as if it were a path.
+  The commit then fails while a chained deploy ships the previous build. Now gitignored; it
+  happened three times before that.
 
 - **Every workspace manifest must reach the Dockerfile deps stage.** `bun install
   --frozen-lockfile` validates the *whole* workspace, so a missing `package.json` reads as

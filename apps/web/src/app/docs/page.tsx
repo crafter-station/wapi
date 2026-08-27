@@ -510,6 +510,13 @@ app.post("/hook", express.raw({ type: "*/*" }), (req, res) => {
               />
             </div>
             <p className="mt-5">
+              <strong>Every call is audited.</strong> The{" "}
+              <Link href="/audit">Audit</Link> page shows one row per request — which credential
+              acted, what came in, what went out, status and duration. Credentials are never
+              stored, only which kind was used, and request and response bodies are dropped after
+              seven days.
+            </p>
+            <p className="mt-5">
               Rate-limit headers — <code>X-RateLimit-Limit</code>,{" "}
               <code>X-RateLimit-Remaining</code>, <code>X-RateLimit-Reset</code> — are on every
               response. A <code>429</code> carries <code>retry_after</code> in seconds.
