@@ -328,6 +328,105 @@ d("sending", () => {
   });
 });
 
+/**
+ * Group mutations, exercised for the first time.
+ *
+ * These routes shipped untested, and not by oversight: testing them against a real number means
+ * creating a real group and adding real people to it, which is the exact mistake this repo has
+ * already made once. The sandbox is what makes them safe to run at all, so this block is the
+ * clearest case of it paying for itself.
+ */
+d("group mutations", () => {
+  let created: { id: string; participants: { id: string }[] } | null = null;
+
+  test("creating a group returns it, and listing shows it afterwards", async () => {
+    const contacts = (await json(await api("/api/contacts"))).body["data"] as { jid: string }[];
+    const r = await json(
+      await api("/api/groups", {
+        body: JSON.stringify({ name: "Launch", participants: [contacts[0]!.jid] }),
+        method: "POST",
+      }),
+    );
+    expect(r.status).toBe(201);
+    created = (r.body["data"] as { id: string; participants: { id: string }[] });
+    expect(created.id).toMatch(/@g\.us$/);
+
+    // The half that used to be missing: a create the listing never reflected.
+    const list = (await json(await api("/api/groups"))).body["data"] as { id: string }[];
+    expect(list.map((g) => g.id)).toContain(created.id);
+  });
+
+  test("adding a participant reports per-participant status and takes effect", async () => {
+    const contacts = (await json(await api("/api/contacts"))).body["data"] as { jid: string }[];
+    const newcomer = contacts[3]!.jid;
+
+    const r = await json(
+      await api(`/api/groups/${created!.id}/participants/add`, {
+        body: JSON.stringify({ participants: [newcomer] }),
+        method: "POST",
+      }),
+    );
+    expect(r.status).toBe(200);
+    expect(r.body["data"]).toEqual([{ jid: newcomer, status: "200" }]);
+
+    const after = (await json(await api(`/api/groups/${created!.id}/participants`))).body["data"] as {
+      id: string;
+    }[];
+    expect(after.map((p) => p.id)).toContain(newcomer);
+  });
+
+  test("adding somebody already in the group is a 409 for that participant, not a failure", async () => {
+    const contacts = (await json(await api("/api/contacts"))).body["data"] as { jid: string }[];
+    const r = await json(
+      await api(`/api/groups/${created!.id}/participants/add`, {
+        body: JSON.stringify({ participants: [contacts[3]!.jid] }),
+        method: "POST",
+      }),
+    );
+    // The request succeeded; the participant did not. A caller that only checks the HTTP status
+    // needs the per-participant status to tell those apart.
+    expect(r.status).toBe(200);
+    expect(r.body["data"]).toEqual([{ jid: contacts[3]!.jid, status: "409" }]);
+  });
+
+  test("removing a participant takes effect", async () => {
+    const contacts = (await json(await api("/api/contacts"))).body["data"] as { jid: string }[];
+    const leaving = contacts[3]!.jid;
+    const r = await json(
+      await api(`/api/groups/${created!.id}/participants/remove`, {
+        body: JSON.stringify({ participants: [leaving] }),
+        method: "POST",
+      }),
+    );
+    expect(r.body["data"]).toEqual([{ jid: leaving, status: "200" }]);
+
+    const after = (await json(await api(`/api/groups/${created!.id}/participants`))).body["data"] as {
+      id: string;
+    }[];
+    expect(after.map((p) => p.id)).not.toContain(leaving);
+  });
+
+  test("an empty participants list is refused before anything is attempted", async () => {
+    for (const path of ["/api/groups", `/api/groups/${created!.id}/participants/add`]) {
+      const body = path === "/api/groups" ? { name: "x", participants: [] } : { participants: [] };
+      const r = await json(await api(path, { body: JSON.stringify(body), method: "POST" }));
+      expect(r.status).toBe(422);
+    }
+  });
+
+  test("creating a group needs a name", async () => {
+    const contacts = (await json(await api("/api/contacts"))).body["data"] as { jid: string }[];
+    const r = await json(
+      await api("/api/groups", {
+        body: JSON.stringify({ participants: [contacts[0]!.jid] }),
+        method: "POST",
+      }),
+    );
+    expect(r.status).toBe(422);
+    expect(String(r.body["error"])).toContain("name");
+  });
+});
+
 d("sandbox controls refuse where they should", () => {
   test("a PAT cannot drive a session-scoped control", async () => {
     const r = await json(

@@ -193,6 +193,168 @@ describe("inbound", () => {
   });
 });
 
+describe("group mutations", () => {
+  /**
+   * The behaviour that used to be missing. A fake where creating a group does not create a group
+   * teaches the wrong thing about the real endpoint, and "create then list" is the first thing
+   * anybody writes.
+   */
+  test("a created group is listed afterwards", async () => {
+    const { engine } = await connected(3);
+    const [contact] = await engine.contacts(3);
+    const created = await engine.createGroup(3, "Launch", [contact!.jid]);
+
+    expect(created.subject).toBe("Launch");
+    const groups = await engine.groups(3);
+    expect(groups.map((g) => g.id)).toContain(created.id);
+    // And metadata must agree with the listing, as it does for the derived pair.
+    expect(await engine.groupMetadata(3, created.id)).toEqual(created);
+  });
+
+  test("the session owns what it creates, and the invitee is a plain member", async () => {
+    const { engine } = await connected(3);
+    const [contact] = await engine.contacts(3);
+    const group = await engine.createGroup(3, "Launch", [contact!.jid]);
+    expect(group.owner).toBe("99900000003@s.whatsapp.net");
+    expect(group.participants.find((p) => p.id === contact!.jid)).toMatchObject({ admin: null });
+  });
+
+  test("adding and removing a participant changes the stored group", async () => {
+    const { engine } = await connected(3);
+    const contacts = await engine.contacts(3);
+    const [group] = await engine.groups(3);
+    const outsider = contacts[4]!.jid;
+
+    await engine.updateParticipants(3, group!.id, [outsider], "add");
+    expect((await engine.groupMetadata(3, group!.id))!.participants.map((p) => p.id)).toContain(outsider);
+
+    await engine.updateParticipants(3, group!.id, [outsider], "remove");
+    expect((await engine.groupMetadata(3, group!.id))!.participants.map((p) => p.id)).not.toContain(outsider);
+  });
+
+  test("a no-op reports its own status rather than a blanket 200", async () => {
+    const { engine } = await connected(3);
+    const [group] = await engine.groups(3);
+    const alreadyIn = group!.participants[1]!.id;
+
+    // WhatsApp reports per participant, and a caller that only ever sees 200 never writes the
+    // branch that handles the rest.
+    expect(await engine.updateParticipants(3, group!.id, [alreadyIn], "add")).toEqual([
+      { jid: alreadyIn, status: "409" },
+    ]);
+    expect(await engine.updateParticipants(3, group!.id, ["99900000003999@s.whatsapp.net"], "remove")).toEqual([
+      { jid: "99900000003999@s.whatsapp.net", status: "404" },
+    ]);
+  });
+
+  test("promote and demote move a participant in and out of admin", async () => {
+    const { engine } = await connected(3);
+    const [group] = await engine.groups(3);
+    const member = group!.participants[1]!.id;
+
+    await engine.updateParticipants(3, group!.id, [member], "promote");
+    const promoted = await engine.groupMetadata(3, group!.id);
+    expect(promoted!.participants.find((p) => p.id === member)!.admin).toBe("admin");
+
+    await engine.updateParticipants(3, group!.id, [member], "demote");
+    const demoted = await engine.groupMetadata(3, group!.id);
+    expect(demoted!.participants.find((p) => p.id === member)!.admin).toBeNull();
+  });
+
+  test("an unknown group is an error, not a silent success", async () => {
+    const { engine } = await connected(3);
+    await expect(engine.updateParticipants(3, "1@g.us", ["x@s.whatsapp.net"], "add")).rejects.toThrow();
+  });
+
+  test("mutations do not leak between sessions", async () => {
+    // One engine, two sessions — separate instances would prove nothing, since the state is
+    // per-instance anyway. The gateway runs a single engine for every sandbox on the box.
+    const { engine } = engineFor();
+    for (const id of [3, 4]) {
+      await engine.connect(id);
+      engine.scan(id);
+    }
+    await engine.createGroup(3, "Only mine", []);
+    expect(await engine.groups(3)).toHaveLength(3);
+    expect(await engine.groups(4)).toHaveLength(2);
+    await engine.send(3, "+99900000003001", { kind: "text", text: "mine" });
+    expect(engine.thread(4)).toEqual([]);
+  });
+});
+
+describe("the conversation", () => {
+  /** What makes the dashboard able to show a sandbox as a chat rather than a status field. */
+  test("records both directions, oldest first", async () => {
+    const { engine } = await connected(3);
+    const [contact] = await engine.contacts(3);
+
+    await engine.send(3, contact!.jid, { kind: "text", text: "out" });
+    engine.inbound(3, contact!.jid, "in");
+
+    const thread = engine.thread(3);
+    expect(thread).toHaveLength(2);
+    expect(thread.map((t) => [t.fromMe, t.text])).toEqual([
+      [true, "out"],
+      [false, "in"],
+    ]);
+    // Always the other party, never this session — the dashboard groups by it.
+    expect(thread.every((t) => t.jid === contact!.jid)).toBe(true);
+  });
+
+  test("carries the kind, and a preview for kinds that have one", async () => {
+    const { engine } = await connected(3);
+    const to = "+99900000003001";
+    await engine.send(3, to, { caption: "a cat", kind: "image", url: "https://x/y.png" });
+    await engine.send(3, to, { kind: "sticker", url: "https://x/y.webp" });
+    await engine.send(3, to, { kind: "poll", options: ["a", "b"], question: "which?" });
+
+    expect(engine.thread(3).map((t) => [t.kind, t.text])).toEqual([
+      ["image", "a cat"],
+      // A sticker has no text of its own; null is honest where an empty string would render blank.
+      ["sticker", null],
+      ["poll", "which?"],
+    ]);
+  });
+
+  test("survives a restart, because a phone whose socket dropped keeps its chats", async () => {
+    const { engine } = await connected(3);
+    await engine.send(3, "+99900000003001", { kind: "text", text: "before" });
+    await engine.restart(3);
+    engine.scan(3);
+    expect(engine.thread(3)).toHaveLength(1);
+  });
+
+  test("logout is the deliberate reset", async () => {
+    const { engine } = await connected(3);
+    await engine.send(3, "+99900000003001", { kind: "text", text: "before" });
+    await engine.createGroup(3, "gone", []);
+    await engine.logout(3);
+
+    await engine.connect(3);
+    engine.scan(3);
+    expect(engine.thread(3)).toEqual([]);
+    expect(await engine.groups(3)).toHaveLength(2);
+  });
+
+  test("is bounded, so a long-lived gateway cannot grow without limit", async () => {
+    const { engine } = await connected(3);
+    for (let i = 0; i < 205; i++) {
+      await engine.send(3, "+99900000003001", { kind: "text", text: `${i}` });
+    }
+    const thread = engine.thread(3);
+    expect(thread).toHaveLength(200);
+    // The oldest are dropped, not the newest — a developer is looking at what just happened.
+    expect(thread[thread.length - 1]!.text).toBe("204");
+  });
+
+  test("reading it does not hand out the live array", async () => {
+    const { engine } = await connected(3);
+    await engine.send(3, "+99900000003001", { kind: "text", text: "x" });
+    engine.thread(3).push({ at: "", fromMe: true, id: "forged", jid: "x", kind: "text", text: "forged" });
+    expect(engine.thread(3)).toHaveLength(1);
+  });
+});
+
 describe("media", () => {
   test("decrypt returns real bytes so the round-trip path stays whole", async () => {
     const { engine } = await connected(3);

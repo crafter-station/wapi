@@ -10,9 +10,12 @@
  * the same interface it uses for Baileys, so a sandbox session is a genuine rehearsal of
  * production rather than a separate code path that could diverge.
  *
- * **Stateless by construction.** Identity, contacts and groups are pure functions of the session
- * id, so a gateway restart is invisible and there is nothing to persist or lose. It also makes
- * fixtures assertable: a test can expect `contacts[0].jid` rather than "some contact".
+ * **Derived, then mutable.** Identity and contacts are pure functions of the session id, so a
+ * gateway restart returns a session to a known state and a test can assert `contacts[0].jid`
+ * rather than "some contact". Groups start derived the same way but accept mutation, and the
+ * conversation is recorded, because a fake where creating a group does not create a group is a
+ * fake that teaches the wrong lesson. Both live in memory only: there is nothing here worth a
+ * table, and a restart resetting a sandbox to its fixtures is a feature.
  *
  * Two deliberate divergences from production, both documented for callers:
  *
@@ -113,8 +116,37 @@ const AUTO_PAIR_MS = 4_000;
 
 type Live = { status: SessionStatus; qr: string | null; timer?: NodeJS.Timeout };
 
+/**
+ * One line of the fake conversation.
+ *
+ * Recorded so the dashboard can show a sandbox as a chat rather than as a status field. wapi does
+ * not store a real session's messages and this does not change that — a real phone keeps its own
+ * history, and here the fake phone keeps its own too.
+ */
+export type ThreadEntry = {
+  /** ISO 8601. */
+  at: string;
+  fromMe: boolean;
+  id: string;
+  /** The other party, always — the contact or group, never this session. */
+  jid: string;
+  kind: SendContent["kind"];
+  /** A short human preview. Null for a kind that carries no text. */
+  text: string | null;
+};
+
+/**
+ * Bounded so a long-running gateway cannot accumulate without limit. Generous enough that a
+ * developer scrolling their sandbox sees the whole session they are debugging.
+ */
+const THREAD_LIMIT = 200;
+
+/** Everything a sandbox session accumulates while it is alive. */
+type World = { groups: GroupRecord[]; thread: ThreadEntry[] };
+
 export class SandboxEngine implements WhatsAppEngine {
   private readonly sessions = new Map<number, Live>();
+  private readonly worlds = new Map<number, World>();
   private handler: ((e: EngineEvent) => void) | null = null;
   private counter = 0;
 
@@ -138,6 +170,30 @@ export class SandboxEngine implements WhatsAppEngine {
 
   private emit(event: EngineEvent) {
     this.handler?.(event);
+  }
+
+  /** Lazily seeded from the derived fixtures, so an untouched session costs nothing. */
+  private world(sessionId: number): World {
+    let world = this.worlds.get(sessionId);
+    if (!world) {
+      world = { groups: groupsFor(sessionId), thread: [] };
+      this.worlds.set(sessionId, world);
+    }
+    return world;
+  }
+
+  private record(sessionId: number, entry: ThreadEntry) {
+    const { thread } = this.world(sessionId);
+    thread.push(entry);
+    if (thread.length > THREAD_LIMIT) thread.splice(0, thread.length - THREAD_LIMIT);
+  }
+
+  /**
+   * The fake conversation, oldest first. Not part of `WhatsAppEngine` — a real engine has no
+   * equivalent, because a real phone's history is not ours to read.
+   */
+  thread(sessionId: number): ThreadEntry[] {
+    return [...this.world(sessionId).thread];
   }
 
   private setStatus(sessionId: number, status: SessionStatus) {
@@ -204,8 +260,16 @@ export class SandboxEngine implements WhatsAppEngine {
     return { status: (await this.connect(sessionId)).status };
   }
 
+  /**
+   * Unlink, and forget.
+   *
+   * `disconnect` and `restart` keep the world, because a phone whose socket dropped still has its
+   * chats. Logout is the deliberate reset — the only way back to the fixtures without restarting
+   * the gateway, and the thing to reach for when a sandbox has accumulated a confusing history.
+   */
   async logout(sessionId: number) {
     await this.disconnect(sessionId);
+    this.worlds.delete(sessionId);
     this.setStatus(sessionId, "logged_out");
   }
 
@@ -252,6 +316,15 @@ export class SandboxEngine implements WhatsAppEngine {
     this.require(sessionId);
     const remoteJid = to.includes("@") ? to : `${to.replace(/[^\d]/g, "")}@s.whatsapp.net`;
     const key = { fromMe: true, id: this.nextKeyId(), remoteJid };
+
+    this.record(sessionId, {
+      at: new Date().toISOString(),
+      fromMe: true,
+      id: key.id,
+      jid: remoteJid,
+      kind: content.kind,
+      text: previewOf(content),
+    });
 
     // The same event a real send produces, so the webhook pipeline behaves identically.
     this.emit({
@@ -331,19 +404,26 @@ export class SandboxEngine implements WhatsAppEngine {
 
   async groups(sessionId: number) {
     this.require(sessionId);
-    return groupsFor(sessionId);
+    return this.world(sessionId).groups;
   }
 
   async groupMetadata(sessionId: number, jid: string) {
     this.require(sessionId);
-    return groupsFor(sessionId).find((g) => g.id === jid) ?? null;
+    return this.world(sessionId).groups.find((g) => g.id === jid) ?? null;
   }
 
   async createGroup(sessionId: number, subject: string, participants: string[]): Promise<GroupRecord> {
     this.require(sessionId);
-    // Not persisted: the directory is derived. The response is shaped correctly so a caller can
-    // exercise the path, but a subsequent `groups()` will not list it — stated in the docs.
-    return {
+    /**
+     * Kept, so `POST /api/groups` then `GET /api/groups` behaves the way anyone would expect.
+     *
+     * This used to return a correctly-shaped group that `groups()` never listed. The shape was
+     * right and the behaviour was wrong, and "create a group, then list groups" is the first
+     * thing a person writes when trying the endpoint — so the fake taught them something untrue
+     * about the real one. Lives for the life of the gateway process; a restart returns the
+     * session to its fixtures.
+     */
+    const group: GroupRecord = {
       creation: Math.floor(Date.now() / 1000),
       desc: null,
       id: `${100000000000 + sessionId}-${this.nextKeyId()}@g.us`,
@@ -354,16 +434,45 @@ export class SandboxEngine implements WhatsAppEngine {
       ],
       subject,
     };
+    this.world(sessionId).groups.push(group);
+    return group;
   }
 
+  /**
+   * Apply a participant change to the stored group.
+   *
+   * Per-participant `status` mirrors WhatsApp's own reporting rather than a blanket 200: adding
+   * somebody already in the group, or removing somebody who is not, is a no-op there and reports
+   * 409 — and a caller that only ever sees 200 will never write the branch that handles it.
+   */
   async updateParticipants(
     sessionId: number,
-    _jid: string,
+    jid: string,
     participants: string[],
-    _action: "add" | "remove" | "promote" | "demote",
+    action: "add" | "remove" | "promote" | "demote",
   ) {
     this.require(sessionId);
-    return participants.map((jid) => ({ jid, status: "200" }));
+    const group = this.world(sessionId).groups.find((g) => g.id === jid);
+    if (!group) throw new Error(`sandbox group ${jid} not found`);
+
+    return participants.map((participant) => {
+      const existing = group.participants.find((p) => p.id === participant);
+      switch (action) {
+        case "add":
+          if (existing) return { jid: participant, status: "409" };
+          group.participants.push({ admin: null, id: participant });
+          return { jid: participant, status: "200" };
+        case "remove":
+          if (!existing) return { jid: participant, status: "404" };
+          group.participants = group.participants.filter((p) => p.id !== participant);
+          return { jid: participant, status: "200" };
+        default: {
+          if (!existing) return { jid: participant, status: "404" };
+          existing.admin = action === "promote" ? "admin" : null;
+          return { jid: participant, status: "200" };
+        }
+      }
+    });
   }
 
   /**
@@ -379,6 +488,15 @@ export class SandboxEngine implements WhatsAppEngine {
     this.require(sessionId);
     const sender = from ?? contactsFor(sessionId)[0]!.jid;
     const key = { fromMe: false, id: this.nextKeyId(), remoteJid: sender };
+
+    this.record(sessionId, {
+      at: new Date().toISOString(),
+      fromMe: false,
+      id: key.id,
+      jid: sender,
+      kind: "text",
+      text,
+    });
     this.emit({
       event: "messages.upsert",
       payload: {
@@ -389,6 +507,26 @@ export class SandboxEngine implements WhatsAppEngine {
       type: "wa",
     });
     return { key };
+  }
+}
+
+/** A one-line human preview for the dashboard. Null where the kind carries no text of its own. */
+function previewOf(content: SendContent): string | null {
+  switch (content.kind) {
+    case "text":
+      return content.text;
+    case "image":
+    case "video":
+    case "document":
+      return content.caption ?? null;
+    case "location":
+      return content.name ?? `${content.latitude}, ${content.longitude}`;
+    case "contact":
+      return content.displayName;
+    case "poll":
+      return content.question;
+    default:
+      return null;
   }
 }
 

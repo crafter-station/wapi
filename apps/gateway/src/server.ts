@@ -217,6 +217,11 @@ app.post("/rpc/sandbox-scan", async (c) => {
   return rpc(() => engine.sandboxScan(Number(sessionId)).then(() => ({ ok: true })))(c);
 });
 
+app.post("/rpc/sandbox-thread", async (c) => {
+  const { sessionId } = await c.req.json();
+  return rpc(() => engine.sandboxThread(Number(sessionId)))(c);
+});
+
 app.post("/rpc/on-whatsapp", async (c) => {
   const { sessionId, identifier } = await c.req.json();
   return rpc(() => engine.onWhatsApp(Number(sessionId), String(identifier)))(c);

@@ -211,4 +211,12 @@ export class DispatchingEngine implements WhatsAppEngine {
     }
     this.sandbox.scan(sessionId);
   }
+
+  /** The fake conversation, for the dashboard's sandbox view. */
+  async sandboxThread(sessionId: number) {
+    if (!(await this.isSandbox(sessionId))) {
+      throw new Error(`session ${sessionId} is not a sandbox session`);
+    }
+    return { thread: this.sandbox.thread(sessionId) };
+  }
 }
