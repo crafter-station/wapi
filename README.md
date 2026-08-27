@@ -111,6 +111,11 @@ bun run typecheck && bun test
 docker compose up
 ```
 
+`bun test` covers unit, contract and SDK-compat suites; the ones needing a running stack or a real
+number skip themselves rather than fail. The dashboard has its own browser suite
+(`bun run --cwd apps/web e2e`) — see [`apps/web/e2e/README.md`](apps/web/e2e/README.md) for the
+one-time Chromium and Clerk setup.
+
 The full stack is four services plus Postgres, Redis and object storage —
 see [`docker-compose.yaml`](docker-compose.yaml). Deployment targets a
 [Dokploy](https://dokploy.com) VPS from a single root [`Dockerfile`](Dockerfile).
@@ -185,8 +190,9 @@ so your agent writes the integration correctly the first time.
 
 wapi is built on [Baileys](https://github.com/WhiskeySockets/Baileys), which speaks
 WhatsApp's protocol directly. That is what makes group access possible, and it is **against
-WhatsApp's terms** — numbers driven this way can be restricted or banned. There is per-session
-proxy support and an account-protection mode that paces sends. Neither is a guarantee.
+WhatsApp's terms** — numbers driven this way can be restricted or banned. Each session can route
+through its own proxy (http, https or socks5, covering both the socket and media transfers) and
+an account-protection mode paces sends. Neither is a guarantee.
 
 **Use a number you can afford to lose.**
 
@@ -206,6 +212,7 @@ proxy support and an account-protection mode that paces sends. Neither is a guar
 | `sdk/python` | Python client — stdlib only, same surface |
 | `sdk/go` | Go client — `net/http` only, nested module |
 | `compat/` | SDK-compatibility, fidelity (sandbox) and live integration suites |
+| `apps/web/e2e` | Playwright — the only thing that renders a page |
 
 Design decisions and their reasoning live in [`PLAN.md`](PLAN.md); repo conventions and the
 traps worth knowing before changing anything are in [`AGENTS.md`](AGENTS.md).

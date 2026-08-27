@@ -102,9 +102,22 @@ like them exists in WasenderAPI. A sandbox session is a fake number that pairs i
 made to receive messages, which is the only way to exercise a webhook handler without a real
 conversation.
 
-It is the *same* API otherwise: same routes, same envelopes, same code. Two divergences to know
-before tuning anything against it — `account_protection` pacing is ignored, so sends return
-instantly where production waits five seconds, and `decrypt-media` returns a fixed PNG.
+It is the *same* API otherwise: same routes, same envelopes, same code — the fake implements the
+same interface the real engine does, rather than being a separate path that could drift.
+
+Group mutations work and persist: create a group and `GET /api/groups` lists it, add a participant
+and the membership changes. Per-participant status is reported the way WhatsApp reports it, so
+adding somebody already in the group is a `409` **for that participant** inside a `200` response —
+write the branch that handles it.
+
+Three divergences to know before tuning anything against it:
+
+- `account_protection` pacing is ignored, so sends return instantly where production waits five
+  seconds per send.
+- `decrypt-media` returns a fixed 1×1 PNG rather than real media.
+- Everything a sandbox accumulates — its conversation, any groups you create — lives in memory for
+  the life of the gateway process. A restart returns it to its fixtures, and `logout` is the
+  deliberate way to reset it on purpose.
 
 ## Rate limiting
 

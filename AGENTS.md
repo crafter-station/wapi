@@ -47,6 +47,21 @@ PORT=3101 bun apps/api/src/index.ts &
 WAPI_PAT=$(bun ops/seed-ci.ts) WAPI_BASE_URL=http://127.0.0.1:3101 bun test compat/sandbox.test.ts
 ```
 
+Add `REDIS_URL` and a running `apps/webhook-worker` and the webhook-delivery test runs too — it
+hosts its own sink, fabricates an inbound message and waits for the signed POST. Without Redis it
+skips, because there is no worker and therefore no delivery.
+
+Browser tests need Chromium and real Clerk keys, both one-time:
+
+```bash
+bunx playwright install chromium
+clerk env pull --file apps/web/.env.local   # then add a NEXT_PUBLIC_-prefixed publishable key
+bun run --cwd apps/web e2e
+```
+
+See `apps/web/e2e/README.md` — it records three sign-in approaches that fail in ways that look
+like success, and is worth reading before changing anything there.
+
 ---
 
 ## Layout
@@ -61,7 +76,8 @@ WAPI_PAT=$(bun ops/seed-ci.ts) WAPI_BASE_URL=http://127.0.0.1:3101 bun test comp
 | `packages/core` | — | shared logic, `WhatsAppEngine` + `Storage` interfaces |
 | `packages/db` | — | Drizzle schema + migrations |
 | `packages/baileys-auth` | — | Postgres-backed `AuthenticationState` |
-| `compat/` | — | SDK-compat + live integration suites |
+| `compat/` | — | SDK-compat, fidelity (sandbox) and live integration suites |
+| `apps/web/e2e` | — | Playwright — the only thing that renders a page |
 | `sdk/typescript` | — | TypeScript client. Types generated, surface hand-written |
 | `sdk/python` | — | Python client. Stdlib only, same surface, snake_case |
 | `sdk/go` | — | Go client. `net/http` only, nested module |
@@ -212,6 +228,15 @@ is the half that fires the webhook somebody is trying to debug. The tab is hidde
 **Group mutations are only testable here.** Exercising them against a real number means creating
 a real group and adding real people to it. Covered in `sandbox-engine.test.ts` and
 `compat/sandbox.test.ts`; do not move them to the live suite.
+
+**`proxy_url` is applied at connect, not pushed.** `BaileysEngine` builds a tunnelling agent from
+it and gives it to *both* the WebSocket (`agent`) and the media transfers (`fetchAgent`). Setting
+only the first is the subtle version of the bug this fixed: control traffic proxied, media not, so
+the egress IP leaks on exactly the requests carrying the content. Being read at connect also means
+a change takes effect on the next connect — a live socket cannot be re-pointed without rebuilding
+it, and `account_protection` works the same way. An unusable proxy refuses the connect rather than
+falling back to a direct one; falling back is the failure a proxy user would least want and least
+likely notice.
 
 ---
 
@@ -380,15 +405,29 @@ Each catches something the others cannot. Do not collapse them.
    driven through a sandbox session. Envelopes, status codes, validation, pagination arithmetic
    and auth boundaries. Runs in CI on every push, so a broken envelope fails a check instead of
    a client.
-5. **Live integration** (`compat/integration.test.ts`) — real HTTP against production,
+5. **Browser** (`apps/web/e2e`, Playwright) — the dashboard actually rendered. Public pages
+   signed out; signed in, every page including a full session workspace, driven against a real
+   empty database. Nothing else here opens a page: typecheck proves the TypeScript is sound and
+   `next build` proves the routes compile, and neither can tell you a button does nothing or that
+   a nav is unusable on a phone — both of which it found on its first run.
+6. **Live integration** (`compat/integration.test.ts`) — real HTTP against production,
    including parsing live responses with the schemas `/openapi.json` publishes. This is what
    catches a handler drifting from its own documentation.
 
-The line between 4 and 5 is **what a test proves**, not what is convenient. Anything a fake can
+The line between 4 and 6 is **what a test proves**, not what is convenient. Anything a fake can
 fail belongs in 4, where it runs before deploy. Anything only a real linked number can fail —
 Baileys pairing, a message reaching a phone, WhatsApp resolving a number or a LID, a real
-encrypted media node — belongs in 5 and must never be moved. A fake cannot catch what a fake
+encrypted media node — belongs in 6 and must never be moved. A fake cannot catch what a fake
 does not do.
+
+**Group mutations live in 4 and stay there.** Exercising them for real means creating a real group
+and adding real people to it, which is the one part of the surface nobody should rehearse on a
+live number.
+
+CI runs 1–5. The `sandbox` job boots Postgres, Redis, the gateway, the API and the webhook worker;
+the `browser` job does the same plus Chromium, and skips loudly without a `CLERK_SECRET_KEY`
+secret — `clerkMiddleware` contacts Clerk at runtime, so without real credentials every page 400s
+and a suite would assert against an error page rather than the app.
 
 Everything expensive learned in this repo was invisible to unit tests: a NOT NULL violation
 inside the auth store, middleware registered after its routes, a bind mount that never resolved.
@@ -413,6 +452,20 @@ database. A backup that has never been restored is not a backup.
 ---
 
 ## Traps
+
+**YAML eats an unquoted hex key.** `ENCRYPTION_KEY: 000…001` in a workflow parses as an integer
+and loses its leading zeros, arriving as `"1"`. Every request touching an encrypted column then
+500s. Quoted values only — and this is invisible locally, because nothing else in the repo puts a
+key through a YAML parser.
+
+**Bun auto-loads `.env`.** A local process therefore has credentials CI does not, which is how the
+first sandbox CI run passed `/api/upload` locally and 503'd on the runner. When rehearsing a CI
+job, assume your shell is more privileged than the runner.
+
+**Session status only reaches Postgres via Redis.** Nothing writes `connected` except the webhook
+worker, reacting to the gateway's event on `wapi:events`. The dashboard's own Connect button talks
+to the gateway directly and persists nothing. With Redis or the worker down, the gateway pairs a
+session perfectly and the dashboard shows "disconnected" indefinitely.
 
 Every one of these has already broken something here.
 

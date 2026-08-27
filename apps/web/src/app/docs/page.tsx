@@ -570,17 +570,32 @@ await wapi.sandbox.inbound("and a reply");      // fires your webhook`,
               ]}
             />
             <p className="mt-5">
-              <strong>Two things behave differently on purpose.</strong>{" "}
+              <strong>Groups are safe to change here, and only here.</strong> Creating a group and
+              adding participants is the one part of the API worth never rehearsing on a real
+              number, because it makes a real group and adds real people to it. On a sandbox the
+              participants are invented. A created group is listed by <code>GET /api/groups</code>
+              afterwards, and per-participant status is reported the way WhatsApp reports it — so
+              adding somebody already in the group comes back as <code>409</code> for that
+              participant inside a <code>200</code> response.
+            </p>
+            <p>
+              <strong>Three things behave differently on purpose.</strong>{" "}
               <code>account_protection</code> pacing is ignored, so sends return immediately where
               production waits five seconds — it protects a phone number from being banned, and a
-              fake number cannot be. And <code>decrypt-media</code> returns a fixed PNG rather
-              than real media. Both matter if you tune retry or timing logic against a sandbox:
-              production is slower.
+              fake number cannot be. <code>decrypt-media</code> returns a fixed PNG rather than
+              real media. And everything a sandbox accumulates — its conversation, any groups you
+              create — lives in memory: a restart returns it to its fixtures, and{" "}
+              <code>logout</code> is how you reset one deliberately. The first two matter if you
+              tune retry or timing logic against a sandbox: production is slower.
             </p>
             <p>
               Sandbox sessions are capped at 25 per account and carry a{" "}
               <strong>sandbox</strong> badge everywhere they appear in the dashboard, so a fake
-              number is never mistaken for a live one.
+              number is never mistaken for a live one. Each also gets its own{" "}
+              <strong>Sandbox</strong> tab — the invented contacts, the conversation as it happens,
+              and a box to write a message <em>as</em> one of those contacts. It is the shortest
+              path from &ldquo;I have a webhook handler&rdquo; to &ldquo;I have watched it
+              run&rdquo;.
             </p>
           </S>
 
