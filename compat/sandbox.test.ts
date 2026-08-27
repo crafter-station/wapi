@@ -27,6 +27,24 @@ const PAT = process.env["WAPI_PAT"] ?? "";
 const CAN_RUN = Boolean(PAT);
 const d = CAN_RUN ? describe : describe.skip;
 
+/**
+ * Whether this deployment has object storage.
+ *
+ * Probed rather than configured, so nobody has to remember a flag. CI runs Postgres and Redis but
+ * no bucket, and `/api/upload` correctly 503s there — failing on that would be the suite
+ * reporting a missing dependency as a broken envelope. The upload envelope stays covered by
+ * `integration.test.ts`, which runs against a deployment that does have storage.
+ *
+ * Top-level await: the flag has to exist before the tests are defined, since `skipIf` is
+ * evaluated then and not when they run.
+ */
+const HAS_STORAGE = CAN_RUN
+  ? await fetch(`${BASE}/health`)
+      .then((r) => r.json() as Promise<{ storage?: boolean }>)
+      .then((h) => h.storage === true)
+      .catch(() => false)
+  : false;
+
 let sessionId = 0;
 let key = "";
 
@@ -115,7 +133,7 @@ d("the five success envelopes", () => {
     key = r.body["api_key"] as string; // the old one is dead from here on
   });
 
-  test("upload puts publicUrl at the TOP level", async () => {
+  test.skipIf(!HAS_STORAGE)("upload puts publicUrl at the TOP level", async () => {
     const r = await json(
       await api("/api/upload", {
         body: JSON.stringify({ base64: "aGVsbG8=", mimetype: "text/plain" }),

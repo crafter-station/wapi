@@ -55,6 +55,15 @@ app.get("/health", (c) =>
     routes: ROUTES.length,
     extensions: EXTENSION_ROUTES.length,
     commit: process.env["GIT_COMMIT"] ?? "dev",
+    /**
+     * Whether object storage is configured at all.
+     *
+     * `/api/upload` returns 503 without it, which is correct but indistinguishable from an outage
+     * — so a caller cannot tell "this deployment has no storage" from "storage is down right
+     * now". The fidelity suite reads this to skip the upload envelope rather than fail on a
+     * deployment that was never going to serve one.
+     */
+    storage: Boolean(process.env["UPLOADX_URL"] && process.env["UPLOADX_TOKEN"]),
   }),
 );
 
