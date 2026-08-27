@@ -310,6 +310,59 @@ export type DoctorCheck = {
   ms?: number;
 };
 
+/**
+ * Every API request, after redaction.
+ *
+ * The point of an audit trail is answering "who did what, when, and what did we say back" —
+ * which means it necessarily holds the most sensitive data in the system. `packages/core/redact`
+ * is what makes that safe, and it is the thing to read before changing anything here: headers
+ * are allow-listed, bodies are deny-listed recursively, and credentials are dropped rather than
+ * truncated or hashed.
+ *
+ * `credentialKind` and the account/session columns are stored *instead of* the token that
+ * authenticated the call. That answers the audit question — which credential acted — without the
+ * table becoming a list of live keys.
+ *
+ * Not nullable-by-accident: an unauthenticated or rejected request still gets a row, so a 401
+ * sweep is visible. Those rows have no account.
+ */
+export const auditLogs = pgTable(
+  "audit_logs",
+  {
+    id: serial("id").primaryKey(),
+    accountId: integer("account_id").references(() => accounts.id, { onDelete: "set null" }),
+    sessionId: integer("session_id").references(() => whatsappSessions.id, {
+      onDelete: "set null",
+    }),
+    /** `session` | `pat` | null when the request never authenticated. */
+    credentialKind: text("credential_kind"),
+    method: text("method").notNull(),
+    /** The concrete path, e.g. `/api/groups/1203@g.us/metadata`. */
+    path: text("path").notNull(),
+    /** The pattern, e.g. `/api/groups/{groupJid}/metadata`, so rows can be grouped by endpoint. */
+    route: text("route"),
+    status: integer("status").notNull(),
+    durationMs: integer("duration_ms"),
+    requestHeaders: jsonb("request_headers").$type<Record<string, string>>(),
+    requestBody: text("request_body"),
+    responseBody: text("response_body"),
+    ip: text("ip"),
+    /** Only ever populated when an upstream proxy supplies it; never inferred locally. */
+    country: text("country"),
+    userAgent: text("user_agent"),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // The two queries the UI makes: one account newest-first, and one session newest-first.
+    index("audit_logs_account_idx").on(t.accountId, t.createdAt),
+    index("audit_logs_session_idx").on(t.sessionId, t.createdAt),
+    // Retention sweeps by age.
+    index("audit_logs_age_idx").on(t.createdAt),
+  ],
+);
+
+export type AuditLog = typeof auditLogs.$inferSelect;
 export type DoctorRun = typeof doctorRuns.$inferSelect;
 export type WebhookDispatch = typeof webhookDispatches.$inferSelect;
 export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;

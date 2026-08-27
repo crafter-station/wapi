@@ -13,6 +13,7 @@ import {
   ROUTES,
 } from "@wapi/contracts";
 import { createDb } from "@wapi/db";
+import { auditRequests } from "./middleware/audit.ts";
 import { rateLimitHeaders } from "./middleware/rate-limit.ts";
 import { authenticate, requirePat } from "./middleware/auth.ts";
 import { sessionRoutes } from "./routes/sessions.ts";
@@ -32,6 +33,16 @@ const { db } = createDb(DATABASE_URL);
 
 const app = new Hono();
 app.use("*", rateLimitHeaders);
+
+/**
+ * Audit before authentication, so a rejected request is recorded too.
+ *
+ * Hono runs `app.use` in registration order and this one wraps the rest of the chain, which is
+ * what lets it read `auth` in its `finally` — set later by `authenticate` — and still see the
+ * status of a 401 that never reached a handler. A sweep of failed credentials is exactly the
+ * thing an audit trail exists to show.
+ */
+app.use("/api/*", auditRequests(db));
 
 /** Internal liveness probe — outside /api so it cannot collide with a real route. */
 app.get("/health", (c) =>

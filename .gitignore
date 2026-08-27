@@ -36,3 +36,9 @@ docs/wasenderapi/manifest.json
 # gateway scratch auth state (phase 1a only)
 apps/gateway/.auth-scratch/
 .redis-external
+
+# Windows reserved device name. Some tool in the toolchain redirects to `nul` as if it were a
+# path, which creates a file git cannot index — `git add -A` then dies with "short read while
+# indexing nul" and the commit fails silently while a deploy carries on shipping old code.
+# That has happened three times; ignoring it is cheaper than rediscovering it a fourth.
+nul

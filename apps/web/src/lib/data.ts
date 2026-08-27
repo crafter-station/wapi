@@ -1,14 +1,16 @@
 import "server-only";
 import { auth } from "@clerk/nextjs/server";
-import { and, count, desc, eq, isNull } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNull } from "drizzle-orm";
 import {
   accounts,
+  auditLogs,
   createDb,
   doctorRuns,
   messages,
   personalAccessTokens,
   webhookDispatches,
   whatsappSessions,
+  type AuditLog,
   type DoctorRun,
   type Message,
   type WebhookDispatch,
@@ -307,4 +309,36 @@ export async function getDoctorRun(sessionId: number): Promise<DoctorRun | null>
   if (!(await getSession(sessionId))) return null;
   const [row] = await db().select().from(doctorRuns).where(eq(doctorRuns.sessionId, sessionId));
   return row ?? null;
+}
+
+/**
+ * The audit trail, account-scoped.
+ *
+ * Top-level rather than under a session because it is not session-scoped data: calls made with a
+ * Personal Access Token — creating a session, rotating a key — belong to the account and have no
+ * session at all. Filing them under a session would hide exactly the actions most worth auditing.
+ */
+export async function listAuditLogs(
+  page: number,
+  perPage = 50,
+  filter: { sessionId?: number; status?: "errors" } = {},
+): Promise<{ rows: AuditLog[]; total: number }> {
+  const accountId = await currentAccountId();
+  const where = [eq(auditLogs.accountId, accountId)];
+  if (filter.sessionId !== undefined) where.push(eq(auditLogs.sessionId, filter.sessionId));
+  // 4xx and 5xx together: "what went wrong" rarely means one or the other.
+  if (filter.status === "errors") where.push(gte(auditLogs.status, 400));
+
+  const [tally] = await db()
+    .select({ n: count() })
+    .from(auditLogs)
+    .where(and(...where));
+  const rows = await db()
+    .select()
+    .from(auditLogs)
+    .where(and(...where))
+    .orderBy(desc(auditLogs.id))
+    .limit(perPage)
+    .offset((page - 1) * perPage);
+  return { rows, total: tally?.n ?? 0 };
 }

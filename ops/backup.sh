@@ -148,6 +148,16 @@ UPDATE webhook_deliveries SET payload = NULL
  WHERE payload IS NOT NULL AND received_at < now() - interval '7 days';
 DELETE FROM webhook_deliveries
  WHERE received_at < now() - interval '30 days';
+-- Audit rows keep their metadata longer than the webhook tables: "which credential called what,
+-- when, and what did we answer" is the question an audit trail exists for, and it is asked about
+-- last quarter far more often than last week. The bodies are a different matter -- even redacted
+-- they carry message text and recipient numbers -- so they are dropped on the same 7-day clock
+-- as everything else that holds content.
+UPDATE audit_logs SET request_body = NULL, response_body = NULL
+ WHERE created_at < now() - interval '7 days'
+   AND (request_body IS NOT NULL OR response_body IS NOT NULL);
+DELETE FROM audit_logs
+ WHERE created_at < now() - interval '90 days';
 SQL
   echo "[backup] retention sweep done"
 }

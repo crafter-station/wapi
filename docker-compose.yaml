@@ -15,6 +15,9 @@ services:
       UPLOADX_TOKEN: ${UPLOADX_TOKEN}
       UPLOADX_URL: ${UPLOADX_URL}
       PUBLIC_URL: https://api.wapi.crafter.run
+      # Audit request/response bodies. They carry message text and recipient numbers, redacted
+      # of credentials but not of content, so set this to "off" for a metadata-only trail.
+      AUDIT_BODIES: ${AUDIT_BODIES:-on}
     expose:
       - "3001"
     depends_on:

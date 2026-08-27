@@ -10,7 +10,11 @@ const API = "https://api.wapi.crafter.run";
  * Deliberately quieter than the landing nav: inside the product the content is the point, so
  * this is one hairline rule, a wordmark, three destinations and the account button.
  */
-export function AppNav({ active }: { active?: "sessions" | "tokens" | "docs" }) {
+export function AppNav({
+  active,
+}: {
+  active?: "sessions" | "tokens" | "audit" | "docs";
+}) {
   const link = (href: string, key: string, label: string) => (
     <Link
       key={key}
@@ -34,6 +38,7 @@ export function AppNav({ active }: { active?: "sessions" | "tokens" | "docs" }) 
         <div className="flex items-center gap-6 text-[0.875rem]">
           {link("/sessions", "sessions", "Sessions")}
           {link("/tokens", "tokens", "Tokens")}
+          {link("/audit", "audit", "Audit")}
           {link("/docs", "docs", "Docs")}
           <a
             href={`${API}/docs`}

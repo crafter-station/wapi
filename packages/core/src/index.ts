@@ -1,4 +1,5 @@
 export * from "./crypto.js";
+export * from "./redact.js";
 export * from "./serialize.js";
 export * from "./validation.js";
 export * from "./engine.js";

@@ -238,6 +238,41 @@ const statements: [label: string, ddl: string][] = [
        ran_at      timestamptz NOT NULL DEFAULT now()
      )`,
   ],
+  [
+    "audit_logs",
+    // Redacted request/response records. See packages/core/src/redact.ts before widening this.
+    `CREATE TABLE IF NOT EXISTS audit_logs (
+       id              serial PRIMARY KEY,
+       account_id      integer REFERENCES accounts(id) ON DELETE SET NULL,
+       session_id      integer REFERENCES whatsapp_sessions(id) ON DELETE SET NULL,
+       credential_kind text,
+       method          text NOT NULL,
+       path            text NOT NULL,
+       route           text,
+       status          integer NOT NULL,
+       duration_ms     integer,
+       request_headers jsonb,
+       request_body    text,
+       response_body   text,
+       ip              text,
+       country         text,
+       user_agent      text,
+       error           text,
+       created_at      timestamptz NOT NULL DEFAULT now()
+     )`,
+  ],
+  [
+    "audit_logs_account_idx",
+    `CREATE INDEX IF NOT EXISTS audit_logs_account_idx ON audit_logs (account_id, created_at)`,
+  ],
+  [
+    "audit_logs_session_idx",
+    `CREATE INDEX IF NOT EXISTS audit_logs_session_idx ON audit_logs (session_id, created_at)`,
+  ],
+  [
+    "audit_logs_age_idx",
+    `CREATE INDEX IF NOT EXISTS audit_logs_age_idx ON audit_logs (created_at)`,
+  ],
 ];
 
 for (const [label, ddl] of statements) {
