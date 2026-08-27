@@ -95,7 +95,12 @@ curl -X POST https://api.wapi.crafter.run/api/sandbox/sessions   -H "Authorizati
 ```
 
 It has a small directory, accepts sends, and — the point — can be made to *receive* messages, so
-your webhook handler gets a genuine signed delivery to prove itself against.
+your webhook handler gets a genuine signed delivery to prove itself against. Group mutations work
+too, which is the one part of the surface nobody should rehearse on a real number.
+
+The dashboard gives a sandbox its own **Sandbox** tab: the invented contacts, the conversation as
+it happens, and a box to write a message *as* one of those contacts — the shortest path from "I
+have a webhook handler" to "I have watched it run".
 
 ## Run it
 

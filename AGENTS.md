@@ -180,9 +180,15 @@ sandbox session reaching Baileys fails loudly; a **real session reaching the fak
 would return a `msgId`, show as sent in the dashboard and the audit log, and never leave the
 building. One `if` in a dispatcher is exactly what a later refactor inverts.
 
-**Stateless by construction.** Identity, contacts and groups are pure functions of the session id,
-so a restart is invisible and fixtures are assertable. Do not add durable state here; the absence
-of it is the design.
+**Derived, then mutable.** Identity and contacts are pure functions of the session id, so a
+restart returns a session to a known state and fixtures stay assertable — a test can expect
+`contacts[0].jid` rather than "some contact". Groups start derived the same way but accept
+mutation, and the conversation is recorded, because a fake where `POST /api/groups` does not show
+up in `GET /api/groups` teaches something untrue about the real endpoint.
+
+All of it is in memory, and that part *is* the design: none of this is worth a table, and a
+restart resetting a sandbox to its fixtures is a feature. `disconnect` and `restart` keep the
+world — a dropped socket does not erase a phone — and `logout` is the deliberate reset.
 
 Numbers use ITU country code **999**, which is unassigned and cannot route. A plausible-looking
 number would eventually be generated in a live range and belong to a real person.
@@ -193,8 +199,19 @@ five-second wait per send is how a suite stops being run), and `downloadMedia` r
 PNG so the decrypt-then-fetch path stays whole.
 
 Controls live on the dispatcher, **not the port**: `WhatsAppEngine` describes what a WhatsApp
-engine can do, and "fabricate an inbound message" is not that. Putting it there would oblige the
-Baileys engine to implement something it can never honour.
+engine can do, and "fabricate an inbound message" or "read the phone's history" is not that.
+Putting them there would oblige the Baileys engine to implement something it can never honour —
+a real phone's history is not ours to read.
+
+The dashboard's **Sandbox tab** (`/sessions/{id}/sandbox`) renders the fake as a chat, reading
+`/rpc/sandbox-thread` straight from the gateway. Its composer writes *inbound*, deliberately:
+sending already has an API, and what has no other affordance is making a message arrive — which
+is the half that fires the webhook somebody is trying to debug. The tab is hidden and the page
+404s for a real session.
+
+**Group mutations are only testable here.** Exercising them against a real number means creating
+a real group and adding real people to it. Covered in `sandbox-engine.test.ts` and
+`compat/sandbox.test.ts`; do not move them to the live suite.
 
 ---
 
