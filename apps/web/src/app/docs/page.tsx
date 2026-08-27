@@ -44,6 +44,7 @@ export default function DocsPage() {
               ["webhooks", "Webhooks"],
               ["errors", "Errors"],
               ["audit", "Audit log"],
+              ["typescript", "TypeScript SDK"],
               ["sdk", "Using their SDK"],
               ["skill", "Agent skill"],
             ].map(([id, label]) => (
@@ -605,6 +606,99 @@ app.post("/hook", express.raw({ type: "*/*" }), (req, res) => {
               send can fail because logging did, which means rows are best-effort: if the
               database is unreachable the request still succeeds and nothing is written. Treat
               this as an operational record, not a compliance ledger.
+            </p>
+          </S>
+
+          {/* ---------------------------------------------------- typescript */}
+          <S id="typescript" kicker="TypeScript SDK" title={<>A typed client, <em>batteries included.</em></>}>
+            <p>
+              <code>@wapi/sdk</code> wraps the whole surface with no runtime dependencies — it
+              uses global <code>fetch</code>, so Node 18+, Bun and Deno all work. It exists so you
+              do not have to remember which of the five success envelopes an endpoint uses.
+            </p>
+            <Code
+              tabs={[
+                {
+                  label: "Send", lang: "javascript",
+                  code: `import { WapiClient } from "@wapi/sdk";
+
+const wapi = new WapiClient({ apiKey: process.env.WAPI_KEY });
+
+const { msgId } = await wapi.messages.send({
+  to: "+51999888777",
+  text: "hello",
+});
+
+// Which field you set decides what is sent, and the types make
+// setting two of them a compile error rather than a 422.
+await wapi.messages.send({
+  to: "+51999888777",
+  imageUrl: "https://example.com/photo.jpg",
+  text: "optional caption",
+});`,
+                },
+                {
+                  label: "Browse", lang: "javascript",
+                  code: `// Grouped by resource, with sub-resources where it reads better.
+const groups = await wapi.groups.list();
+const meta   = await wapi.groups.metadata(groups[0].jid);
+await wapi.groups.participants.add(groups[0].jid, ["+51999888777"]);
+
+// list() and page() are separate on purpose: ?paginated=true returns
+// a DIFFERENT shape, not the same one with metadata attached.
+const { items, pagination } = await wapi.contacts.page({ limit: 50 });
+
+// LIDs and phone numbers are not derivable from one another.
+const lid = await wapi.contacts.lid.fromPhone("+51999888777");
+const pn  = await wapi.contacts.lid.toPhone(lid); // null when unknown`,
+                },
+                {
+                  label: "Errors", lang: "javascript",
+                  code: `import { WapiAuthError, WapiValidationError } from "@wapi/sdk";
+
+try {
+  await wapi.sessions.list();          // needs a PAT, not a session key
+} catch (err) {
+  if (err instanceof WapiValidationError) {
+    err.fields;                        // { to: ["The to field is required."] }
+  }
+  if (err instanceof WapiAuthError && err.isWrongCredentialType) {
+    // 403, not 401 — the token was valid but the wrong KIND.
+    // A configuration mistake, not a bad secret.
+  }
+}
+
+// A timeout means the request failed, NOT that the message was
+// undelivered. Retrying blindly sends twice — reconcile instead:
+await wapi.messages.info(msgId);`,
+                },
+                {
+                  label: "Sessions", lang: "javascript",
+                  code: `// Account-level routes: these need a Personal Access Token.
+const admin = new WapiClient({ apiKey: process.env.WAPI_PAT });
+
+const session = await admin.sessions.create({
+  name: "Production",
+  phone_number: "+51999888777",
+});
+
+await admin.sessions.connection.connect(session.id);
+const { qrCode } = await admin.sessions.connection.qrCode(session.id);
+
+// Regenerating invalidates the old key immediately — anything still
+// using it starts getting 401, with no grace period.
+const newKey = await admin.sessions.keys.regenerate(session.id);`,
+                },
+              ]}
+            />
+            <p className="mt-5">
+              The types are generated from the same OpenAPI document this site publishes, so they
+              cannot drift from the server; the method names are written by hand, because
+              generated ones would read{" "}
+              <code>postApiWhatsappSessionsWhatsappSessionRegenerateKey</code>. Source is in{" "}
+              <a href={`${REPO}/tree/main/sdk/typescript`}>sdk/typescript</a>, and{" "}
+              <a href={`${REPO}/tree/main/sdk`}>sdk/</a> records the shape ports to other languages
+              should follow.
             </p>
           </S>
 

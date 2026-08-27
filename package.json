@@ -5,7 +5,8 @@
   "workspaces": [
     "apps/*",
     "packages/*",
-    "compat"
+    "compat",
+    "sdk/*"
   ],
   "scripts": {
     "typecheck": "node ops/typecheck.mjs",

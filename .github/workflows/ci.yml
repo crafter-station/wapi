@@ -33,6 +33,11 @@ jobs:
         # is honest; a green tick on tests that never ran would not be.
         run: bun test
 
+      - name: SDK is in sync with the API
+        # Two ways to drift: stale generated types, or an endpoint with no method. The second is
+        # silent, which is why it is checked rather than left to review.
+        run: bun ops/check-sdk-in-sync.mjs
+
       - name: Every workspace manifest reaches the Docker deps stage
         # This exact failure shipped four times and only ever surfaced at deploy time.
         run: node ops/check-dockerfile-manifests.mjs

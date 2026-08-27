@@ -111,6 +111,22 @@ const wa = createWasender(process.env.WAPI_KEY, undefined, "https://api.wapi.cra
 That claim is a test suite, not an aspiration: response schemas are checked against the
 provider's own documented examples, and again against live responses.
 
+## TypeScript client
+
+```bash
+npm install @wapi/sdk
+```
+
+```ts
+const wapi = new WapiClient({ apiKey: process.env.WAPI_KEY! });
+await wapi.messages.send({ to: "+51999888777", text: "hello" });
+```
+
+Zero runtime dependencies. Types are generated from the OpenAPI document so they cannot drift
+from the server; the method names are hand-written, because generated ones read
+`postApiWhatsappSessionsWhatsappSessionRegenerateKey`. See [`sdk/`](sdk) — ports to other
+languages go there and follow the same shape.
+
 ## Building with an agent
 
 ```bash
@@ -142,6 +158,7 @@ proxy support and an account-protection mode that paces sends. Neither is a guar
 | `packages/core` | shared logic, `WhatsAppEngine` and `Storage` interfaces |
 | `packages/db` | Drizzle schema and migrations |
 | `packages/baileys-auth` | Postgres-backed `AuthenticationState` |
+| `sdk/typescript` | the TypeScript client — generated types, hand-written surface |
 | `compat/` | SDK-compatibility and live integration suites |
 
 Design decisions and their reasoning live in [`PLAN.md`](PLAN.md); repo conventions and the

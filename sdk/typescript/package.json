@@ -1,0 +1,21 @@
+{
+  "name": "@wapi/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript client for the wapi WhatsApp REST API",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": ["src"],
+  "scripts": {
+    "generate": "bun run scripts/generate-types.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@wapi/contracts": "workspace:*",
+    "@types/bun": "^1.3.14",
+    "typescript": "^5"
+  }
+}
