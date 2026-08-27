@@ -69,7 +69,23 @@ const engine = new DispatchingEngine(db, baileys, sandbox, logger);
 const redis = REDIS_URL ? createClient({ url: REDIS_URL }) : null;
 if (redis) {
   redis.on("error", (err) => logger.error({ err }, "redis error"));
-  await redis.connect().catch((err) => logger.error({ err }, "redis connect failed"));
+  /**
+   * Bounded, because the comment above was not true of the code below it.
+   *
+   * node-redis retries a failed initial connect indefinitely, so `await redis.connect()` never
+   * settles while Redis is unreachable — and `serve()` is further down this file. The gateway
+   * did not start "if Redis is briefly unavailable"; it hung, answering nothing, not even
+   * /health. Found by pointing a local gateway at a Redis it could not reach.
+   *
+   * Waiting a little is still worth it: connecting before the first event avoids dropping the
+   * events a resume emits. After that the client reconnects on its own, and `redis?.isReady`
+   * already guards every publish.
+   */
+  await Promise.race([
+    redis.connect().catch((err) => logger.error({ err }, "redis connect failed")),
+    new Promise((resolve) => setTimeout(resolve, 5_000)),
+  ]);
+  if (!redis.isReady) logger.warn("redis not ready; events are dropped until it connects");
 }
 
 const CHANNEL = "wapi:events";
