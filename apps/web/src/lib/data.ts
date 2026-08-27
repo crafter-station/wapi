@@ -40,7 +40,12 @@ let dbSingleton: ReturnType<typeof createDb> | null = null;
 function db() {
   const url = process.env["DATABASE_URL"];
   if (!url) throw new Error("DATABASE_URL is not set");
-  dbSingleton ??= createDb(url, { max: 4 });
+  /**
+   * Four per process — and Next runs several server workers, so the real total is a multiple of
+   * this. `DB_POOL_MAX` exists for managed Postgres with a small ceiling, where the symptom is a
+   * 500 on whichever page is opened once the limit is reached, which reads as a bug in that page.
+   */
+  dbSingleton ??= createDb(url, { max: Number(process.env["DB_POOL_MAX"]) || 4 });
   return dbSingleton.db;
 }
 

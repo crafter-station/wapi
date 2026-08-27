@@ -32,22 +32,44 @@ including the HMR socket — and with that blocked **the page never hydrates**. 
 component is inert: tabs do not switch, the copy button does nothing. Nothing is wrong with the
 app when this happens (production hydrates; that was checked directly before touching anything).
 
-## What is covered, and what is not
+## How sign-in works, and why not the obvious way
 
-Only `/` and `/docs`. Everything else is behind `auth.protect()` (see `src/proxy.ts`), and
-rendering a protected page needs a signed-in session.
+`auth.setup.ts` signs in once by **sign-in ticket** and shares the session through
+`storageState`. Three simpler approaches were tried and do not work here:
 
-**The signed-in dashboard has still never been rendered by a test.** Sessions, messages, contacts,
-groups, webhooks, doctor, settings, audit, tokens and the sandbox chat are covered by typecheck
-and by `next build` in CI — which catch a broken import or an unprerenderable page, but not a
-component that throws when it meets real data.
+- **Driving the sign-in form.** There is no `/sign-in` route, so `auth.protect()` redirects to
+  Clerk's hosted Account Portal on another origin. That form is drivable right up to the point
+  where Clerk challenges the sign-in as coming from an unrecognised device — which every fresh
+  browser is.
+- **Password sign-in via `clerk.signIn`.** Returns `needs_second_factor` on this instance, and the
+  helper does not support multi-factor. It returns *without signing in and without throwing*,
+  which looks exactly like success until the first protected page redirects.
+- **Signing in before Clerk has loaded.** Silently does nothing. The setup waits for
+  `window.Clerk.loaded`.
 
-To close it: add `@clerk/testing`, call `clerkSetup()` in a global setup and
-`setupClerkTestingToken()` per test, and sign in a seeded user. Those specs need a database, so
-the job would boot Postgres the way the `sandbox` job already does.
+The ticket strategy mints a short-lived token through the backend API and bypasses factors by
+design. A consequence worth having: the test account needs no password, so `CLERK_SECRET_KEY` is
+the only credential involved.
 
-That is a deliberate not-yet. It needs credentials this repository does not have, and a green
-suite that silently skipped the whole dashboard would be worse than an honest gap.
+## What is covered
+
+`/` and `/docs` signed out; signed in, every dashboard page — sessions, tokens, audit, and a
+session workspace across overview, messages, contacts, groups, webhooks, doctor, settings and
+sandbox. The workspace builds its own fixture by creating a **sandbox** session through the UI,
+which needs no phone and no QR — the only reason walking it automatically is possible at all.
+
+One test skips without Redis, and the reason is a real property of the system: **nothing writes
+`connected` to Postgres except the webhook worker**, reacting to the gateway's status event over
+`wapi:events`. The dashboard's own Connect button talks to the gateway directly and persists
+nothing. Without Redis the gateway pairs a sandbox perfectly and the dashboard shows
+"disconnected" forever — which is equally true in production if Redis or the worker is down. CI
+runs Redis and the worker, so it runs there.
+
+## Known dev-only noise
+
+`next dev` logs `@clerk/clerk-react: You've passed multiple children components to
+<SignInButton/>`. Both usages pass exactly one child. Production was checked directly and its
+landing page console is clean, so this is a dev-mode artifact, not a bug to chase.
 
 ## What these found on their first run
 

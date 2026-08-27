@@ -17,7 +17,17 @@ export type Db = ReturnType<typeof createDb>["db"];
  * by connection count, and a large pool just holds server slots idle.
  */
 export function createDb(url: string, opts: { max?: number } = {}) {
-  const sql = postgres(url, { max: opts.max ?? 10, prepare: false });
+  /**
+   * `DB_POOL_MAX` exists because the pool is per *process*, and wapi runs four of them.
+   *
+   * Ten connections each is fine against a dedicated Postgres and too many against a managed one
+   * with a small ceiling — where the symptom is a 500 on whichever page happens to be opened
+   * last, reading as an application bug. An explicit `opts.max` still wins, so callers that have
+   * already reasoned about their own budget are unaffected.
+   */
+  const envMax = Number(process.env["DB_POOL_MAX"]);
+  const max = opts.max ?? (Number.isFinite(envMax) && envMax > 0 ? envMax : 10);
+  const sql = postgres(url, { max, prepare: false });
   const db = drizzle(sql, { schema });
   return { db, sql, close: () => sql.end({ timeout: 5 }) };
 }

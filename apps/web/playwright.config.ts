@@ -1,4 +1,18 @@
+import { readFileSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
+import { STORAGE_STATE } from "./e2e/credentials";
+
+/**
+ * Load `.env.local` into this process as well as the web server's.
+ *
+ * Next reads that file by itself, but `clerkSetup()` runs here in the Playwright process and
+ * needs `CLERK_SECRET_KEY` too. Real environment variables win, so CI passes secrets normally and
+ * this is a no-op there.
+ */
+const envFile = readFileSync(new URL(".env.local", import.meta.url), "utf8");
+for (const [, key, value] of envFile.matchAll(/^([A-Z0-9_]+)=(.*)$/gm)) {
+  if (!process.env[key!]) process.env[key!] = value!.trim();
+}
 
 /**
  * Browser tests for the dashboard.
@@ -45,7 +59,31 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}`,
     trace: "on-first-retry",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    /**
+     * Public pages need no identity, so they never wait on sign-in.
+     */
+    {
+      name: "public",
+      testMatch: "**/public.pw.ts",
+      use: { ...devices["Desktop Chrome"] },
+    },
+    /**
+     * Signing in is its own project so it runs once, not per spec, and so a failure there is
+     * reported as a failure to sign in rather than as every dashboard test breaking at once.
+     */
+    {
+      name: "setup",
+      testMatch: "**/auth.setup.ts",
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "dashboard",
+      dependencies: ["setup"],
+      testMatch: "**/dashboard.pw.ts",
+      use: { ...devices["Desktop Chrome"], storageState: STORAGE_STATE },
+    },
+  ],
   webServer: {
     /**
      * The dev server, deliberately — and this is a real limitation, not a shortcut.
@@ -75,9 +113,21 @@ export default defineConfig({
        * `NEXT_PUBLIC_`-prefixed publishable key — see `e2e/README.md`. Listing them here would
        * override that file, and hardcoding a secret would put one in the repository.
        */
-      // `/docs` is prerendered and `/` never queries, so no database is reached. A real URL here
-      // would be worse, not better: it would let a test quietly depend on somebody's data.
-      DATABASE_URL: "postgres://placeholder/placeholder",
+      /**
+       * Real values when supplied, placeholders otherwise.
+       *
+       * The public specs reach no database — `/docs` is prerendered and `/` never queries — so a
+       * placeholder is not merely adequate there, it is safer: a real URL would let those tests
+       * quietly depend on somebody's data. The dashboard specs are the opposite and need all of
+       * these, which is why they skip when `DATABASE_URL` is absent rather than rendering a page
+       * whose every query throws `ENOTFOUND placeholder`.
+       */
+      DATABASE_URL: process.env["DATABASE_URL"] ?? "postgres://placeholder/placeholder",
+      ENCRYPTION_KEY:
+        process.env["ENCRYPTION_KEY"] ??
+        "0000000000000000000000000000000000000000000000000000000000000001",
+      GATEWAY_TOKEN: process.env["GATEWAY_TOKEN"] ?? "e2e-gateway-token",
+      GATEWAY_URL: process.env["GATEWAY_URL"] ?? "http://127.0.0.1:3102",
       PORT: String(PORT),
     },
     reuseExistingServer: !process.env["CI"],

@@ -202,7 +202,14 @@ export type DoctorResult = { checks: DoctorCheck[]; durationMs: number; verdict:
 
 /** Runs every check in order and stores the result, replacing the session's previous run. */
 export async function runDoctor(sessionId: number, accountId: number): Promise<DoctorResult | null> {
-  const { db, close } = createDb(process.env["DATABASE_URL"]!);
+  /**
+   * Two connections, not the default ten.
+   *
+   * This is a one-shot, strictly sequential run that opens its own pool and closes it again, so
+   * eight of those connections would never carry a query — they would just sit against the
+   * server's limit while every other process in the stack competes for it.
+   */
+  const { db, close } = createDb(process.env["DATABASE_URL"]!, { max: 2 });
   try {
     const [session] = await db
       .select()
