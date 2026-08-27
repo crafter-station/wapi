@@ -27,6 +27,7 @@ import { join } from "node:path";
 
 const SDK = "sdk/typescript";
 const GENERATED = join(SDK, "src/types.gen.ts");
+const PYTHON_SDK = "sdk/python/wapi";
 
 let failures = 0;
 const fail = (message) => {
@@ -90,6 +91,45 @@ if (missing.length) {
   );
 } else {
   console.log(`  ok    all ${Object.values(doc.paths).flatMap(Object.keys).length} operations have a method`);
+}
+
+// ------------------------------------------------------ 3. every other SDK covers them too
+/**
+ * The same coverage check, per language.
+ *
+ * `sdk/README.md` says to extend this when adding one, because a rule nobody enforces is a rule
+ * that drifts — and the failure is silent in exactly the same way: a shipped endpoint with no
+ * method is not a type error anywhere, it is simply missing.
+ *
+ * Python paths are f-strings, so `{quote(jid)}` normalises to `{}` just as the TypeScript
+ * template literals do. The regex is looser than the TS one because there is no generic to
+ * anchor on; the request helper's name is the anchor instead.
+ */
+const pySources = readdirSync(PYTHON_SDK, { recursive: true })
+  .filter((f) => String(f).endsWith(".py"))
+  .map((f) => readFileSync(join(PYTHON_SDK, String(f)), "utf8"))
+  .join("\n");
+
+const pyCalled = new Set();
+for (const m of pySources.matchAll(/request\(\s*"(\w+)",\s*f?"([^"]+)"/g)) {
+  pyCalled.add(`${m[1]} ${normalise(m[2])}`);
+}
+
+const pyMissing = [];
+for (const [path, methods] of Object.entries(doc.paths)) {
+  for (const method of Object.keys(methods)) {
+    const key = `${method.toUpperCase()} ${normalise(path)}`;
+    if (!pyCalled.has(key)) pyMissing.push(`${key}  (${methods[method].operationId})`);
+  }
+}
+
+if (pyMissing.length) {
+  fail(
+    `the Python SDK does not implement ${pyMissing.length} operation(s):\n` +
+      pyMissing.map((m) => `          ${m}`).join("\n"),
+  );
+} else {
+  console.log(`  ok    the Python SDK covers all ${pyCalled.size} operations`);
 }
 
 if (failures) {

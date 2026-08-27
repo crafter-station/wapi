@@ -45,6 +45,7 @@ export default function DocsPage() {
               ["errors", "Errors"],
               ["audit", "Audit log"],
               ["typescript", "TypeScript SDK"],
+              ["python", "Python SDK"],
               ["sdk", "Using their SDK"],
               ["skill", "Agent skill"],
             ].map(([id, label]) => (
@@ -700,6 +701,71 @@ const newKey = await admin.sessions.keys.regenerate(session.id);`,
               <a href={`${REPO}/tree/main/sdk`}>sdk/</a> records the shape ports to other languages
               should follow.
             </p>
+          </S>
+
+          {/* -------------------------------------------------------- python */}
+          <S id="python" kicker="Python SDK" title={<>The same client, <em>in Python.</em></>}>
+            <p>
+              Same surface, same decisions, snake_case. Zero runtime dependencies — it uses{" "}
+              <code>urllib</code> from the standard library — and it is synchronous, because most
+              Python callers here are scripts and workers.
+            </p>
+            <Code
+              tabs={[
+                {
+                  label: "Send", lang: "python",
+                  code: `from wapi import WapiClient
+
+client = WapiClient(api_key=os.environ["WAPI_KEY"])
+
+result = client.messages.send(to="+51999888777", text="hello")
+print(result["msgId"])
+
+# Which field you set decides what is sent.
+client.messages.send(
+    to="+51999888777",
+    imageUrl="https://example.com/photo.jpg",
+    text="optional caption",
+)`,
+                },
+                {
+                  label: "Browse", lang: "python",
+                  code: `groups = client.groups.list()
+meta = client.groups.metadata(groups[0]["jid"])
+client.groups.participants.add(groups[0]["jid"], ["+51999888777"])
+
+# list() and page() are separate on purpose: ?paginated=true returns
+# a DIFFERENT shape, not the same one with metadata attached.
+page = client.contacts.page(page=1, limit=50)
+items, pagination = page["items"], page["pagination"]
+
+# LIDs and phone numbers are not derivable from one another.
+lid = client.contacts.lid.from_phone("+51999888777")
+pn = client.contacts.lid.to_phone(lid)   # None when unknown`,
+                },
+                {
+                  label: "Errors", lang: "python",
+                  code: `from wapi import WapiAuthError, WapiValidationError, WapiUnavailableError
+
+try:
+    client.sessions.list()          # needs a PAT, not a session key
+except WapiAuthError as e:
+    # 403 means the credential was the wrong KIND, not that it was bad.
+    if e.is_wrong_credential_type:
+        print("use a Personal Access Token here")
+
+try:
+    client.messages.send(to="not-a-number", text="hi")
+except WapiValidationError as e:
+    print(e.fields)                 # {"to": ["..."]}
+except WapiUnavailableError as e:
+    if e.is_ambiguous:
+        # A timeout means the REQUEST failed, not that the message did
+        # not arrive. Reconcile with messages.info() — never resend blindly.
+        pass`,
+                },
+              ]}
+            />
           </S>
 
           {/* ----------------------------------------------------------- sdk */}

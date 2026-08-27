@@ -158,7 +158,8 @@ proxy support and an account-protection mode that paces sends. Neither is a guar
 | `packages/core` | shared logic, `WhatsAppEngine` and `Storage` interfaces |
 | `packages/db` | Drizzle schema and migrations |
 | `packages/baileys-auth` | Postgres-backed `AuthenticationState` |
-| `sdk/typescript` | the TypeScript client — generated types, hand-written surface |
+| `sdk/typescript` | TypeScript client — generated types, hand-written surface |
+| `sdk/python` | Python client — stdlib only, same surface |
 | `compat/` | SDK-compatibility and live integration suites |
 
 Design decisions and their reasoning live in [`PLAN.md`](PLAN.md); repo conventions and the

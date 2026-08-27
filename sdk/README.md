@@ -5,6 +5,7 @@ Client libraries for the wapi API. One directory per language.
 | Language | Path | Status |
 | --- | --- | --- |
 | TypeScript | [`typescript/`](typescript) | usable |
+| Python | [`python/`](python) | usable |
 
 ## The shape every SDK should follow
 

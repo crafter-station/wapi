@@ -52,7 +52,8 @@ bun test compat/integration.test.ts
 | `packages/db` | — | Drizzle schema + migrations |
 | `packages/baileys-auth` | — | Postgres-backed `AuthenticationState` |
 | `compat/` | — | SDK-compat + live integration suites |
-| `sdk/typescript` | — | the TypeScript client. Types generated, surface hand-written |
+| `sdk/typescript` | — | TypeScript client. Types generated, surface hand-written |
+| `sdk/python` | — | Python client. Stdlib only, same surface, snake_case |
 | `ops/` | — | backup, restore, retention, CI guards |
 
 The gateway is Node, not Bun, because Baileys' WASM Signal bridge needs it. Everything else is
@@ -232,18 +233,24 @@ document no way to send one), and `webhook_hmac`, which is dashboard-only.
 
 ## SDKs
 
-`sdk/` holds one client per language; `sdk/typescript` is the only one so far. `sdk/README.md`
-records the shape every port should follow.
+`sdk/` holds one client per language — TypeScript and Python today. `sdk/README.md` records the
+shape every port must follow, and it is worth reading before adding one: a port should reproduce
+the *decisions* (five envelopes, three failure shapes, `list()` separate from `page()`), not just
+the endpoints. An SDK that faithfully exposes the awkwardness has not earned its place.
 
-**When you change a route or a response schema, the SDK is part of the change.** CI enforces it:
+**When you change a route or a response schema, every SDK is part of the change.** CI enforces
+it:
 
 ```bash
 bun run --cwd sdk/typescript generate   # refresh src/types.gen.ts
 # add or update the method in sdk/typescript/src/resources/
+# and the matching one in sdk/python/wapi/resources/
 bun ops/check-sdk-in-sync.mjs
 ```
 
-That guard makes two separate checks. Stale generated types would eventually surface as a type
+That guard makes three checks — generated types current, and one coverage check *per language*.
+**Extend it when you add a language**; a rule nobody enforces is a rule that drifts, and the
+coverage failure is silent in exactly the same way for every port. Stale generated types would eventually surface as a type
 error; **an endpoint with no method is silent**, and that is the one it exists for — the same
 class of drift as a hardcoded list in CI, which this repository has now hit three times.
 
@@ -253,6 +260,14 @@ mechanical path transliterations — `postApiWhatsappSessionsWhatsappSessionRege
 one would buy correct types at the cost of a surface nobody wants to call. Renaming thirty
 operations in a generator config is the same work as writing thirty methods, minus the ability to
 group them into sub-resources.
+
+**Both clients have zero runtime dependencies** — global `fetch` in TypeScript, `urllib` in
+Python. Something dropped into other people's projects should not drag a dependency tree behind
+it, and this is JSON in, JSON out, one header.
+
+The Python client is **synchronous**, unlike the TypeScript one. That is the idiom on each side:
+most Python callers here are scripts and workers, and a sync client composes with
+`asyncio.to_thread` more easily than the reverse does.
 
 The generator reads the **OpenAPI document**, not `@wapi/contracts` internals, because that is
 the artifact the Go and Python ports will also read.
