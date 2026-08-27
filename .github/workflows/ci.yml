@@ -33,6 +33,20 @@ jobs:
         # is honest; a green tick on tests that never ran would not be.
         run: bun test
 
+      - name: Web app builds
+        # Nothing else compiles the dashboard. Typecheck proves the TypeScript is sound but not
+        # that Next can build the routes, so a bad server/client boundary or an unprerenderable
+        # page used to be found by Dokploy at deploy time. This is the check that moves it here.
+        #
+        # The Clerk key is a syntactically valid dummy — the publishable key is just base64 of a
+        # domain, and Clerk validates the *shape* at build time, never the value. No secret is
+        # needed, which is the only reason this can run on a pull request from a fork.
+        env:
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZXhhbXBsZS5jbGVyay5hY2NvdW50cy5kZXYk
+          CLERK_SECRET_KEY: sk_test_placeholder
+          DATABASE_URL: postgres://placeholder/placeholder
+        run: bun run --cwd apps/web build
+
       - uses: actions/setup-go@v5
         with:
           go-version: "1.22"

@@ -111,7 +111,19 @@ export const whatsappSessions = pgTable(
     ignoreGroups: boolean("ignore_groups").notNull().default(false),
     ignoreChannels: boolean("ignore_channels").notNull().default(false),
     ignoreBroadcasts: boolean("ignore_broadcasts").notNull().default(false),
-    /** http, https or socks5. Wired but off by default (PLAN.md §5). */
+    /**
+     * http, https or socks5.
+     *
+     * **Accepted and stored, but not applied.** `PATCH /api/whatsapp-sessions/{id}` validates
+     * this (including the SSRF guard against private ranges) and writes it here, and nothing
+     * ever reads it: `BaileysEngine` builds its socket without an agent, so traffic goes out
+     * directly whatever this says.
+     *
+     * Left in place rather than rejected because the field is part of the cloned surface and a
+     * client that sends it should not break. Applying it means an agent on both the WebSocket
+     * and the media fetches in the gateway — worth doing, not yet done. Said plainly here
+     * because a silently ignored proxy is the kind of thing somebody discovers from a leaked IP.
+     */
     proxyUrl: text("proxy_url"),
 
     webhookUrl: text("webhook_url"),

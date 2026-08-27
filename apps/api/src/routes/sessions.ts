@@ -11,6 +11,7 @@ import {
   validateProxy,
   validationFailure,
 } from "@wapi/core";
+import { gateway } from "../gateway-client.ts";
 import { ok, fail } from "@wapi/contracts";
 import {
   postApiWhatsappSessionsBody,
@@ -126,8 +127,19 @@ export function sessionRoutes(db: Db) {
       .where(eq(whatsappSessions.id, row.id))
       .returning();
 
-    // TODO(phase 4): when connected, push webhook + proxy changes to the gateway. Their docs
-    // say an update "syncs webhook settings with the WhatsApp API server".
+    /**
+     * Nothing to push for webhooks — checked, not assumed.
+     *
+     * Their docs say an update "syncs webhook settings with the WhatsApp API server", which
+     * reads like it needs a call to the gateway. It does not: the worker calls `loadSession`
+     * per job with an uncached read, so a change to the URL, the enabled flag or the event list
+     * applies to the very next delivery. Pushing anything would be a second source of truth for
+     * a value that is already read fresh.
+     *
+     * `proxy_url` is a different story and is NOT applied — see the note on the column.
+     * `account_protection` likewise takes effect at the next connect, since it is passed when
+     * the socket is built.
+     */
     return c.json(ok(sessionDetailToWire(updated!)));
   });
 
@@ -136,7 +148,19 @@ export function sessionRoutes(db: Db) {
     const { accountId } = c.get("auth");
     const row = await findOwned(db, accountId, c.req.param("whatsappSession"));
     if (!row) return c.json(fail("The specified session was not found."), 404);
-    // TODO(phase 4): disconnect from the gateway first, as their docs describe.
+    /**
+     * Close the socket before dropping the row, as their docs describe.
+     *
+     * Deleting first leaves the gateway holding a live WhatsApp connection for a session that no
+     * longer exists: it keeps emitting events whose `sessionId` resolves to nothing, and the
+     * credentials rows go with the cascade while the socket stays up until the process restarts.
+     *
+     * Best-effort on purpose. If the gateway is unreachable the user still asked for this
+     * session to be gone, and refusing to delete it would leave them unable to clean up during
+     * exactly the incident where they most want to. The orphaned socket dies with the next
+     * gateway restart; a row we refused to delete would not fix itself.
+     */
+    await gateway.logout(row.id).catch(() => null);
     await db.delete(whatsappSessions).where(eq(whatsappSessions.id, row.id));
     return c.body(null, 204);
   });
