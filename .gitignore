@@ -42,3 +42,8 @@ apps/gateway/.auth-scratch/
 # indexing nul" and the commit fails silently while a deploy carries on shipping old code.
 # That has happened three times; ignoring it is cheaper than rediscovering it a fourth.
 nul
+
+# Python bytecode caches. The Python SDK ships source only; these are per-interpreter build
+# artifacts that differ between machines and would churn every diff.
+__pycache__/
+*.py[cod]
