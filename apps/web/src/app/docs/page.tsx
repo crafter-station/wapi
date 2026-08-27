@@ -43,6 +43,7 @@ export default function DocsPage() {
               ["groups", "Groups & contacts"],
               ["webhooks", "Webhooks"],
               ["errors", "Errors"],
+              ["audit", "Audit log"],
               ["sdk", "Using their SDK"],
               ["skill", "Agent skill"],
             ].map(([id, label]) => (
@@ -510,13 +511,6 @@ app.post("/hook", express.raw({ type: "*/*" }), (req, res) => {
               />
             </div>
             <p className="mt-5">
-              <strong>Every call is audited.</strong> The{" "}
-              <Link href="/audit">Audit</Link> page shows one row per request — which credential
-              acted, what came in, what went out, status and duration. Credentials are never
-              stored, only which kind was used, and request and response bodies are dropped after
-              seven days.
-            </p>
-            <p className="mt-5">
               Rate-limit headers — <code>X-RateLimit-Limit</code>,{" "}
               <code>X-RateLimit-Remaining</code>, <code>X-RateLimit-Reset</code> — are on every
               response. A <code>429</code> carries <code>retry_after</code> in seconds.
@@ -526,6 +520,91 @@ app.post("/hook", express.raw({ type: "*/*" }), (req, res) => {
               <code>403</code> wrong credential type, <code>409</code> session not connected,{" "}
               <code>422</code> validation, <code>503</code> the WhatsApp service is briefly
               unavailable — retry.
+            </p>
+          </S>
+
+          {/* --------------------------------------------------------- audit */}
+          <S id="audit" kicker="Audit log" title={<>Every call, <em>on the record.</em></>}>
+            <p>
+              Each request to the API writes one row: which credential acted, the endpoint, the
+              headers, the request and response, the status, how long it took and where it came
+              from. Read it on the <Link href="/audit">Audit</Link> page, filtered by session or
+              to errors only, and open any entry for the full record.
+            </p>
+            <Code
+              tabs={[
+                {
+                  label: "What a row holds", lang: "json",
+                  code: `{
+  "method": "POST",
+  "route": "/api/send-message",
+  "path": "/api/send-message",
+  "status": 200,
+  "durationMs": 1249,
+  "credentialKind": "session",
+  "sessionId": 3,
+  "ip": "38.187.27.123",
+  "userAgent": "curl/8.9.0",
+  "requestHeaders": { "content-type": "application/json" },
+  "requestBody": { "to": "+51999888777", "text": "hello" },
+  "responseBody": { "success": true, "data": { "msgId": 100722 } }
+}`,
+                },
+                {
+                  label: "What is never stored", lang: "json",
+                  code: `// The Authorization header is dropped, not masked — it carries a
+// credential that controls a WhatsApp account. What is kept instead
+// is which KIND of credential acted, which is the audit question.
+{
+  "credentialKind": "session",   // not the key itself
+  "requestHeaders": {
+    // "authorization" is absent entirely, at any casing
+    "content-type": "application/json",
+    "user-agent": "curl/8.9.0"
+  }
+}
+
+// Secrets inside bodies are replaced before the row is written, at any
+// depth. This is the response of GET /api/whatsapp-sessions/{id}, which
+// returns the key in plaintext:
+{
+  "data": {
+    "name": "Production",
+    "api_key": "[redacted]",
+    "webhook_secret": "[redacted]"
+  }
+}`,
+                },
+                {
+                  label: "Bounds and retention", lang: "json",
+                  code: `// Bodies are bounded so an upload cannot become an audit row,
+// and long lists are sampled rather than copied.
+{
+  "requestBody": { "base64": "[redacted] (2202800 chars)",
+                   "mimetype": "image/png" },
+  "responseBody": { "data": [ { "jid": "..." }, "…495 more" ] }
+}
+
+// Retention:
+//   request and response bodies  ->  dropped after 7 days
+//   the row itself               ->  deleted after 90 days
+//
+// Bodies carry message text and recipient numbers. A deployment that
+// would rather not keep them at all can run with AUDIT_BODIES=off and
+// retain the metadata trail only.`,
+                },
+              ]}
+            />
+            <p className="mt-5">
+              Rejected requests are recorded too — the audit middleware runs before
+              authentication, so a sweep of bad credentials shows up as a run of{" "}
+              <code>401</code>s rather than as nothing at all.
+            </p>
+            <p>
+              <strong>One honest limitation.</strong> The write is fire-and-forget so that no
+              send can fail because logging did, which means rows are best-effort: if the
+              database is unreachable the request still succeeds and nothing is written. Treat
+              this as an operational record, not a compliance ledger.
             </p>
           </S>
 

@@ -342,3 +342,14 @@ export async function listAuditLogs(
     .offset((page - 1) * perPage);
   return { rows, total: tally?.n ?? 0 };
 }
+
+/** One audit entry, account-scoped so an id from the URL cannot reach another account's row. */
+export async function getAuditLog(id: number): Promise<AuditLog | null> {
+  const accountId = await currentAccountId();
+  const [row] = await db()
+    .select()
+    .from(auditLogs)
+    .where(and(eq(auditLogs.id, id), eq(auditLogs.accountId, accountId)))
+    .limit(1);
+  return row ?? null;
+}
