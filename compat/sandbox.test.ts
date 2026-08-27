@@ -47,7 +47,16 @@ beforeAll(async () => {
   const created = await json(
     await api("/api/sandbox/sessions", { body: JSON.stringify({ name: "ci" }), method: "POST" }, PAT),
   );
-  const session = created.body["data"] as { id: number; api_key: string };
+  const session = created.body["data"] as { id: number; api_key: string } | undefined;
+  /**
+   * Say what went wrong, rather than dying on `session.id` two lines later.
+   *
+   * The first CI run failed here with "undefined is not an object", which is true and useless —
+   * the actual cause was a 500 from a malformed ENCRYPTION_KEY, and the response body said so.
+   */
+  if (!session?.api_key) {
+    throw new Error(`could not create a sandbox session (${created.status}): ${JSON.stringify(created.body)}`);
+  }
   sessionId = session.id;
   key = session.api_key;
 

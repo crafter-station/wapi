@@ -113,7 +113,10 @@ jobs:
       REDIS_URL: redis://127.0.0.1:6379
       # Both processes must agree on these; none is a real secret, and the database they protect
       # is destroyed with the runner.
-      ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000001
+      # Quoted, and it must stay quoted: YAML reads 64 unquoted digits as an integer and strips
+      # the leading zeros, so this arrived as "1", failed the 32-byte hex check, and every
+      # request that touched an encrypted column 500'd.
+      ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000001"
       GATEWAY_TOKEN: ci-gateway-token
       GATEWAY_URL: http://127.0.0.1:3102
       PUBLIC_URL: http://127.0.0.1:3101
@@ -161,7 +164,13 @@ jobs:
           echo "--- api ---"; cat /tmp/api.log; exit 1
 
       - name: Seed an account and a PAT
-        run: echo "WAPI_PAT=$(bun ops/seed-ci.ts)" >> "$GITHUB_ENV"
+        # Masked so it is not echoed into the env group of every later step. The database dies
+        # with the runner, so this is hygiene rather than a secret — but a credential in a public
+        # log should never look normal.
+        run: |
+          PAT=$(bun ops/seed-ci.ts)
+          echo "::add-mask::$PAT"
+          echo "WAPI_PAT=$PAT" >> "$GITHUB_ENV"
 
       - name: Fidelity suite against a sandbox session
         run: bun test compat/sandbox.test.ts
