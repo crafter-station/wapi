@@ -14,6 +14,8 @@ import { usePathname } from "next/navigation";
  */
 const TABS = [
   { href: "", label: "Overview" },
+  /** Sandbox only — the page 404s for a real session, so the tab must not offer it one. */
+  { href: "/sandbox", label: "Sandbox", sandboxOnly: true },
   { href: "/messages", label: "Messages" },
   { href: "/contacts", label: "Contacts" },
   { href: "/groups", label: "Groups" },
@@ -22,13 +24,13 @@ const TABS = [
   { href: "/settings", label: "Settings" },
 ] as const;
 
-export function SessionTabs({ id }: { id: number }) {
+export function SessionTabs({ id, sandbox = false }: { id: number; sandbox?: boolean }) {
   const pathname = usePathname();
   const base = `/sessions/${id}`;
 
   return (
     <nav className="scroll-slim mt-8 flex gap-1 overflow-x-auto border-b border-[var(--border)]">
-      {TABS.map((t) => {
+      {TABS.filter((t) => sandbox || !("sandboxOnly" in t && t.sandboxOnly)).map((t) => {
         const href = `${base}${t.href}`;
         // Exact match for the index, prefix for the rest, so /settings does not light up
         // Overview as well.

@@ -83,7 +83,7 @@ export default async function SessionLayout({
           </div>
         </header>
 
-        <SessionTabs id={session.id} />
+        <SessionTabs id={session.id} sandbox={session.sandbox} />
 
         {children}
       </main>

@@ -256,3 +256,25 @@ export async function runDoctorAction(
     return { error: err instanceof Error ? err.message : "The check could not be completed." };
   }
 }
+
+/**
+ * Send a message *to* the sandbox, as if a contact had written it.
+ *
+ * The reason the sandbox view is worth building: pressing this produces a real signed webhook
+ * delivery to whatever URL the session is configured with. It is the shortest path from "I have
+ * a handler" to "I have seen my handler run".
+ */
+export async function sandboxInboundAction(formData: FormData): Promise<void> {
+  const id = Number(formData.get("id"));
+  const text = String(formData.get("text") ?? "").trim();
+  const from = String(formData.get("from") ?? "").trim();
+  if (!text) return;
+
+  const session = await getSession(id);
+  // Ownership, and the guard that keeps this off a real session — the gateway refuses too, but
+  // failing here means never sending the request at all.
+  if (!session?.sandbox) return;
+
+  await gatewayRpc("/rpc/sandbox-inbound", { from: from || undefined, sessionId: id, text });
+  revalidatePath(`/sessions/${id}/sandbox`);
+}

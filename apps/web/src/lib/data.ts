@@ -399,3 +399,38 @@ export async function createSandboxSession(name: string): Promise<WhatsappSessio
     .returning();
   return session!;
 }
+
+/** One line of a sandbox conversation, as the gateway records it. */
+export type SandboxMessage = {
+  at: string;
+  fromMe: boolean;
+  id: string;
+  jid: string;
+  kind: string;
+  text: string | null;
+};
+
+/**
+ * Read the fake conversation for a sandbox session.
+ *
+ * Straight to the gateway, because this has no public endpoint and should not get one: it is a
+ * view of the fake phone's own history, and a real session has no equivalent for us to be
+ * faithful to. Returns empty rather than throwing — an unreachable gateway or a session that has
+ * never been connected should render an empty chat, not an error page.
+ */
+export async function sandboxThread(sessionId: number): Promise<SandboxMessage[]> {
+  const base = process.env["GATEWAY_URL"] ?? "http://gateway:3002";
+  const res = await fetch(`${base}/rpc/sandbox-thread`, {
+    body: JSON.stringify({ sessionId }),
+    headers: {
+      "Content-Type": "application/json",
+      "X-Gateway-Token": process.env["GATEWAY_TOKEN"] ?? "",
+    },
+    method: "POST",
+    signal: AbortSignal.timeout(10_000),
+  }).catch(() => null);
+
+  if (!res?.ok) return [];
+  const body = (await res.json().catch(() => null)) as { thread?: SandboxMessage[] } | null;
+  return body?.thread ?? [];
+}
