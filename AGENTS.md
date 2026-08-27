@@ -37,6 +37,16 @@ set -a; . ./.env; set +a
 bun test compat/integration.test.ts
 ```
 
+The fidelity suite needs no phone and no production. Boot the stack against any empty database
+and point it at a PAT — which is exactly what the `sandbox` CI job does:
+
+```bash
+bun run --cwd packages/db migrate
+PORT=3102 bun run --cwd apps/gateway start &
+PORT=3101 bun apps/api/src/index.ts &
+WAPI_PAT=$(bun ops/seed-ci.ts) WAPI_BASE_URL=http://127.0.0.1:3101 bun test compat/sandbox.test.ts
+```
+
 ---
 
 ## Layout
@@ -349,9 +359,19 @@ Each catches something the others cannot. Do not collapse them.
 2. **Contract** (`packages/contracts`) — our response schemas parse *their* documented
    examples. Catches drift from the interface being cloned. Skips without the mirror.
 3. **SDK compat** (`compat/sdk-compat.test.ts`) — their real npm client against us.
-4. **Live integration** (`compat/integration.test.ts`) — real HTTP against production,
+4. **Fidelity** (`compat/sandbox.test.ts`) — the whole stack booted against an empty database,
+   driven through a sandbox session. Envelopes, status codes, validation, pagination arithmetic
+   and auth boundaries. Runs in CI on every push, so a broken envelope fails a check instead of
+   a client.
+5. **Live integration** (`compat/integration.test.ts`) — real HTTP against production,
    including parsing live responses with the schemas `/openapi.json` publishes. This is what
    catches a handler drifting from its own documentation.
+
+The line between 4 and 5 is **what a test proves**, not what is convenient. Anything a fake can
+fail belongs in 4, where it runs before deploy. Anything only a real linked number can fail —
+Baileys pairing, a message reaching a phone, WhatsApp resolving a number or a LID, a real
+encrypted media node — belongs in 5 and must never be moved. A fake cannot catch what a fake
+does not do.
 
 Everything expensive learned in this repo was invisible to unit tests: a NOT NULL violation
 inside the auth store, middleware registered after its routes, a bind mount that never resolved.

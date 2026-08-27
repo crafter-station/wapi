@@ -66,3 +66,96 @@ jobs:
           else
             echo "mirrored spec absent; skipping regeneration check"
           fi
+
+  # ------------------------------------------------------------------------------------------
+  # The fidelity surface, checked before it ships.
+  #
+  # `compat/integration.test.ts` runs against production with a real linked number, so it can
+  # only ever report a bad deploy — never prevent one. The sandbox exists precisely so the half
+  # of that suite which asserts *our* envelopes can run here instead: no phone, no QR, no real
+  # number, just the whole stack booted against an empty database.
+  #
+  # This is the job that turns a broken envelope into a failed check rather than a broken client.
+  sandbox:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: wapi
+          POSTGRES_DB: wapi
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://postgres:wapi@127.0.0.1:5432/wapi
+      REDIS_URL: redis://127.0.0.1:6379
+      # Both processes must agree on these; none is a real secret, and the database they protect
+      # is destroyed with the runner.
+      ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000001
+      GATEWAY_TOKEN: ci-gateway-token
+      GATEWAY_URL: http://127.0.0.1:3102
+      PUBLIC_URL: http://127.0.0.1:3101
+      WAPI_BASE_URL: http://127.0.0.1:3101
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.23
+
+      - uses: actions/setup-node@v4
+        with:
+          # The gateway runs on Node, not Bun: Baileys' Signal implementation is a WASM bridge
+          # that Bun does not load. This is the one place in the repo where that matters.
+          node-version: 22
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Migrate
+        run: bun run --cwd packages/db migrate
+
+      - name: Boot the gateway
+        # Through the package script rather than a path to the tsx binary, so this keeps working
+        # if how the gateway starts ever changes.
+        run: PORT=3102 bun run --cwd apps/gateway start > /tmp/gateway.log 2>&1 &
+
+      - name: Boot the API
+        run: PORT=3101 bun apps/api/src/index.ts > /tmp/api.log 2>&1 &
+
+      - name: Wait for both to answer
+        # A fixed sleep is the thing that makes this job flaky on a slow runner and slow on a
+        # fast one. Poll instead, and fail with the logs rather than with a timeout further on.
+        run: |
+          up() { curl -fsS "http://127.0.0.1:$1/health" > /dev/null; }
+          for i in $(seq 1 60); do
+            if up 3101 && up 3102; then
+              echo "both up after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::stack did not come up"; echo "--- gateway ---"; cat /tmp/gateway.log
+          echo "--- api ---"; cat /tmp/api.log; exit 1
+
+      - name: Seed an account and a PAT
+        run: echo "WAPI_PAT=$(bun ops/seed-ci.ts)" >> "$GITHUB_ENV"
+
+      - name: Fidelity suite against a sandbox session
+        run: bun test compat/sandbox.test.ts
+
+      - name: Logs
+        # Only interesting when something above failed, and then it is the only way to find out
+        # why — the suite's own output cannot show a stack trace from another process.
+        if: failure()
+        run: |
+          echo "--- gateway ---"; cat /tmp/gateway.log
+          echo "--- api ---"; cat /tmp/api.log

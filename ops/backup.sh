@@ -158,6 +158,17 @@ UPDATE audit_logs SET request_body = NULL, response_body = NULL
    AND (request_body IS NOT NULL OR response_body IS NOT NULL);
 DELETE FROM audit_logs
  WHERE created_at < now() - interval '90 days';
+-- Idle sandbox sessions. They are free to create through a public endpoint, so without this they
+-- accumulate forever. Fourteen days of no traffic is deliberately generous: the per-account cap
+-- is what actually stops abuse, and deleting a session somebody was mid-test on would be far
+-- worse than keeping a few dead ones a week longer.
+--
+-- `last_event_at` is null until a session sees traffic, so a never-used sandbox falls back to
+-- when it was created. Real sessions are untouched by construction -- the predicate requires
+-- sandbox = true, and a real number is not something this job may ever delete.
+DELETE FROM whatsapp_sessions
+ WHERE sandbox = true
+   AND coalesce(last_event_at, created_at) < now() - interval '14 days';
 SQL
   echo "[backup] retention sweep done"
 }

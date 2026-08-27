@@ -200,7 +200,7 @@ proxy support and an account-protection mode that paces sends. Neither is a guar
 | `sdk/typescript` | TypeScript client — generated types, hand-written surface |
 | `sdk/python` | Python client — stdlib only, same surface |
 | `sdk/go` | Go client — `net/http` only, nested module |
-| `compat/` | SDK-compatibility and live integration suites |
+| `compat/` | SDK-compatibility, fidelity (sandbox) and live integration suites |
 
 Design decisions and their reasoning live in [`PLAN.md`](PLAN.md); repo conventions and the
 traps worth knowing before changing anything are in [`AGENTS.md`](AGENTS.md).

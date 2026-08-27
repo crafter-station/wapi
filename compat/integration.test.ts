@@ -16,6 +16,16 @@ import { SUCCESS_RESPONSES } from "@wapi/contracts";
  * They skip without DATABASE_URL so CI stays green, and every write targets the session's own
  * number — never a group. An earlier probe of mine posted to a real 13-person group by
  * accident, which is a mistake worth encoding as a rule rather than a memory.
+ *
+ * **What is deliberately no longer here.** Auth strings, response envelopes and the paginated
+ * directory arithmetic moved to `compat/sandbox.test.ts`, which CI runs against a booted stack
+ * on every push. Those assertions never needed a real number — they check *our* envelopes, which
+ * the route code emits whichever engine is behind it — and asserting them here meant a broken
+ * envelope could only ever be discovered after it shipped.
+ *
+ * What stays is what only a real linked number can prove: that Baileys pairs, that a message
+ * reaches a phone, that WhatsApp's own servers resolve a number and a LID, that a real encrypted
+ * media node decrypts. A fake cannot fail those tests, so a fake must not be trusted with them.
  */
 const BASE = process.env["WAPI_BASE_URL"] ?? "https://api.wapi.crafter.run";
 const WEB = process.env["WAPI_WEB_URL"] ?? "https://wapi.crafter.run";
@@ -55,73 +65,6 @@ beforeAll(async () => {
     .insert(personalAccessTokens)
     .values({ accountId, name: "integration-suite", tokenHash: hashToken(pat) });
   await close();
-});
-
-// ---------------------------------------------------------------------------------------
-d("auth", () => {
-  test("missing credential returns their exact string", async () => {
-    const r = await json(await fetch(`${BASE}/api/whatsapp-sessions`));
-    expect(r.status).toBe(401);
-    expect(r.body["message"]).toBe("API key is required");
-  });
-
-  test("invalid credential returns their exact string", async () => {
-    const r = await json(await api("/api/whatsapp-sessions", {}, "nope"));
-    expect(r.status).toBe(401);
-    expect(r.body["message"]).toBe("Invalid API key");
-  });
-
-  test("a session key is refused on account-scoped routes", async () => {
-    const r = await json(await api("/api/whatsapp-sessions"));
-    expect(r.status).toBe(403);
-  });
-
-  test("a PAT is refused on session-scoped routes", async () => {
-    const r = await json(await api("/api/status", {}, pat));
-    expect(r.status).toBe(403);
-  });
-});
-
-// ---------------------------------------------------------------------------------------
-d("envelopes", () => {
-  test("GET /api/status is a bare object with no success wrapper", async () => {
-    const r = await json(await api("/api/status"));
-    expect(r.status).toBe(200);
-    expect(Object.keys(r.body)).toEqual(["status"]);
-  });
-
-  test("controller failures use `error`, framework failures use `message`", async () => {
-    // A registered route rejecting business input: controller envelope.
-    const controller = await json(
-      await api("/api/messages/read", { method: "POST", body: JSON.stringify({ key: {} }) }),
-    );
-    expect(controller.status).toBe(422);
-    expect(typeof controller.body["error"]).toBe("string");
-    expect(controller.body["message"]).toBeUndefined();
-
-    // An unrouted path: framework envelope.
-    const framework = await json(await api("/api/definitely-not-a-route"));
-    expect(framework.status).toBe(404);
-    expect(typeof framework.body["message"]).toBe("string");
-    expect(framework.body["error"]).toBeUndefined();
-  });
-
-  test("validation errors use Laravel phrasing and per-field arrays", async () => {
-    const r = await json(
-      await api("/api/whatsapp-sessions", { method: "POST", body: JSON.stringify({ name: "x" }) }, pat),
-    );
-    expect(r.status).toBe(422);
-    expect(r.body["message"]).toBe("Validation failed");
-    const errors = r.body["errors"] as Record<string, string[]>;
-    expect(errors["phone_number"]?.[0]).toBe("The phone_number field is required.");
-  });
-
-  test("rate-limit headers are on every response", async () => {
-    const r = await api("/api/status");
-    expect(r.headers.get("x-ratelimit-limit")).toBeTruthy();
-    expect(r.headers.get("x-ratelimit-remaining")).toBeTruthy();
-    expect(r.headers.get("x-ratelimit-reset")).toBeTruthy();
-  });
 });
 
 // ---------------------------------------------------------------------------------------
@@ -468,91 +411,6 @@ d("webhook delivery", () => {
     },
     60_000,
   );
-});
-
-// ---------------------------------------------------------------------------------------
-/**
- * `?paginated=true` — the undocumented directory envelope.
- *
- * Found by reading a real consumer (`cuevaio/normal`'s `packages/wasender/src/directory.ts`)
- * rather than the published docs, which only describe the flat array. That consumer rejects
- * the whole page unless the arithmetic matches exactly, so these assertions replicate its
- * validation instead of merely checking that fields exist.
- */
-d("paginated directory envelope", () => {
-  const validate = (payload: Record<string, unknown>, expectedPage: number) => {
-    expect(payload["success"]).toBe(true);
-    const data = payload["data"] as Record<string, unknown>;
-    const items = data["items"] as unknown[];
-    const p = data["pagination"] as Record<string, number>;
-
-    expect(Array.isArray(items)).toBe(true);
-    expect(Number.isSafeInteger(p["page"])).toBe(true);
-    expect(p["page"]).toBe(expectedPage);
-    expect(p["limit"]!).toBeGreaterThanOrEqual(1);
-    expect(Number.isSafeInteger(p["total"])).toBe(true);
-    expect(p["total"]!).toBeGreaterThanOrEqual(items.length);
-    expect(items.length).toBeLessThanOrEqual(p["limit"]!);
-    // The exact check that rejects a mismatched page.
-    expect(p["totalPages"]).toBe(Math.max(1, Math.ceil(p["total"]! / p["limit"]!)));
-    expect(p["page"]!).toBeLessThanOrEqual(p["totalPages"]!);
-  };
-
-  test("contacts return items + pagination and satisfy the consumer's arithmetic", async () => {
-    const r = await json(await api("/api/contacts?paginated=true&page=1&limit=100"));
-    expect(r.status).toBe(200);
-    validate(r.body, 1);
-  });
-
-  test("groups do too", async () => {
-    const r = await json(await api("/api/groups?paginated=true&page=1&limit=100"));
-    expect(r.status).toBe(200);
-    validate(r.body, 1);
-  });
-
-  test("entries carry jid and id identically, and a name", async () => {
-    const r = await json(await api("/api/groups?paginated=true&page=1&limit=100"));
-    const items = ((r.body["data"] as Record<string, unknown>)["items"] as Record<string, unknown>[]);
-    if (!items.length) return;
-    for (const g of items) {
-      // Both keys are accepted, but a consumer rejects the entry if they differ.
-      expect(g["jid"]).toBe(g["id"]);
-      expect(String(g["jid"])).toMatch(/^[1-9]\d{1,31}(?:-[1-9]\d{1,31})?@g\.us$/);
-      // A group carrying only `subject` parses but comes back unnamed.
-      expect(typeof g["name"]).toBe("string");
-    }
-  });
-
-  test("a small limit produces a consistent multi-page shape", async () => {
-    const r = await json(await api("/api/contacts?paginated=true&page=1&limit=2"));
-    validate(r.body, 1);
-    const p = (r.body["data"] as Record<string, unknown>)["pagination"] as Record<string, number>;
-    const items = (r.body["data"] as Record<string, unknown>)["items"] as unknown[];
-    expect(items.length).toBeLessThanOrEqual(2);
-    if (p["total"]! > 2) expect(p["totalPages"]!).toBeGreaterThan(1);
-  });
-
-  test("limit defaults to their documented 20, not a number of our choosing", async () => {
-    const r = await json(await api("/api/contacts?paginated=true"));
-    const p = (r.body["data"] as Record<string, unknown>)["pagination"] as Record<string, number>;
-    expect(p["limit"]).toBe(20);
-    expect(p["page"]).toBe(1);
-  });
-
-  test("entries carry the documented keys, present even when we cannot fill them", async () => {
-    const r = await json(await api("/api/contacts?paginated=true&page=1&limit=5"));
-    const items = (r.body["data"] as Record<string, unknown>)["items"] as Record<string, unknown>[];
-    if (!items.length) return;
-    for (const key of ["jid", "name", "notify", "verifiedName", "imgUrl", "status"]) {
-      // Present-and-null is the documented shape for "not known"; an absent key breaks a typed client.
-      expect(key in items[0]!).toBe(true);
-    }
-  });
-
-  test("without the flag the flat array is unchanged", async () => {
-    const r = await json(await api("/api/contacts"));
-    expect(Array.isArray(r.body["data"])).toBe(true);
-  });
 });
 
 // ---------------------------------------------------------------------------------------
