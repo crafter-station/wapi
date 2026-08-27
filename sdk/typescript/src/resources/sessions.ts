@@ -1,4 +1,4 @@
-import { data, type Transport } from "../http.ts";
+import { data, type Transport } from "../http.js";
 import type {
   GetApiWhatsappSessionsResponse,
   GetApiWhatsappSessionsWhatsappSessionMessageLogsResponse,
@@ -12,7 +12,7 @@ import type {
   PostApiWhatsappSessionsWhatsappSessionRestartResponse,
   PutApiWhatsappSessionsWhatsappSessionBody,
   PutApiWhatsappSessionsWhatsappSessionResponse,
-} from "../types.gen.ts";
+} from "../types.gen.js";
 
 export type Session = GetApiWhatsappSessionsResponse["data"][number];
 export type SessionDetail = GetApiWhatsappSessionsWhatsappSessionResponse["data"];

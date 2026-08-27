@@ -261,6 +261,18 @@ one would buy correct types at the cost of a surface nobody wants to call. Renam
 operations in a generator config is the same work as writing thirty methods, minus the ability to
 group them into sub-resources.
 
+**Neither client is published to a registry**, and the two ecosystems differ in how well that
+works. pip installs a git subdirectory directly
+(`pip install "git+https://…#subdirectory=sdk/python"`). **npm cannot** — `npm install
+github:crafter-station/wapi` resolves the monorepo root, not `sdk/typescript` — so the
+TypeScript client is *vendored* with giget instead. Both instructions in `sdk/README.md` were
+run before being written.
+
+That is why the TypeScript sources import with **`.js` specifiers pointing at `.ts` files**.
+TypeScript resolves those under both `nodenext` and `bundler`, so a vendored copy compiles in an
+ordinary project; `.ts` specifiers would force `allowImportingTsExtensions` on the consumer,
+which in turn forces `noEmit` and breaks anyone who builds. Do not "simplify" them back.
+
 **Both clients have zero runtime dependencies** — global `fetch` in TypeScript, `urllib` in
 Python. Something dropped into other people's projects should not drag a dependency tree behind
 it, and this is JSON in, JSON out, one header.

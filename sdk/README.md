@@ -7,6 +7,54 @@ Client libraries for the wapi API. One directory per language.
 | TypeScript | [`typescript/`](typescript) | usable |
 | Python | [`python/`](python) | usable |
 
+## Installing
+
+Neither client is published to a registry — they live in this repository, so installation pulls
+from GitHub. The two ecosystems differ in how well they support that, and the instructions below
+are the ones that were actually run rather than the ones that look plausible.
+
+### Python
+
+pip understands git subdirectories, so this is a normal install:
+
+```bash
+pip install "git+https://github.com/crafter-station/wapi.git#subdirectory=sdk/python"
+```
+
+Pin to a commit or tag for anything you deploy — `main` moves:
+
+```bash
+pip install "git+https://github.com/crafter-station/wapi.git@v0.1.0#subdirectory=sdk/python"
+```
+
+### TypeScript
+
+**npm cannot install a subdirectory of a git repository.** `npm install github:crafter-station/wapi`
+resolves the *root* package — this monorepo, which is private and not the SDK. That is a
+limitation of the package manager, not something the repository can work around.
+
+So vendor the source. It is dependency-free TypeScript, which makes copying it a reasonable
+distribution channel rather than a workaround:
+
+```bash
+npx giget@latest gh:crafter-station/wapi/sdk/typescript/src src/wapi
+```
+
+Then import it as local code:
+
+```ts
+import { WapiClient } from "./wapi/index.js";
+```
+
+Copy `sdk/typescript/src` and nothing else. `scripts/` next to it is a build tool for this
+repository — it imports `@wapi/contracts` and Node types a consumer does not have, and pulling
+it in is the difference between a clean compile and eight errors.
+
+The `.js` extensions in those imports are deliberate and point at `.ts` sources. TypeScript
+resolves them under both `nodenext` and `bundler`, so a vendored copy compiles in an ordinary
+project. `.ts` specifiers would need `allowImportingTsExtensions`, which forces `noEmit` on
+whoever consumes it — verified by trying it.
+
 ## The shape every SDK should follow
 
 These exist so a caller does not have to know the API's quirks. Ports to other languages should

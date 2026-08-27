@@ -1,4 +1,4 @@
-import { data, type Transport } from "../http.ts";
+import { data, type Transport } from "../http.js";
 import type {
   GetApiMessagesMsgIdInfoResponse,
   PostApiDecryptMediaResponse,
@@ -8,7 +8,7 @@ import type {
   PostApiSendMessageBody,
   PostApiSendMessageResponse,
   PostApiUploadResponse,
-} from "../types.gen.ts";
+} from "../types.gen.js";
 
 /**
  * A WhatsApp message key, as it arrives in a webhook payload under `data.key`.

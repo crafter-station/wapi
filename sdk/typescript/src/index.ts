@@ -1,15 +1,15 @@
-import { Transport, type WapiClientOptions } from "./http.ts";
-import { ContactsResource, GroupsResource } from "./resources/directory.ts";
-import { MessagesResource } from "./resources/messages.ts";
-import { SessionsResource } from "./resources/sessions.ts";
-import type { GetApiStatusResponse, GetApiUserResponse } from "./types.gen.ts";
+import { Transport, type WapiClientOptions } from "./http.js";
+import { ContactsResource, GroupsResource } from "./resources/directory.js";
+import { MessagesResource } from "./resources/messages.js";
+import { SessionsResource } from "./resources/sessions.js";
+import type { GetApiStatusResponse, GetApiUserResponse } from "./types.gen.js";
 
-export * from "./errors.ts";
-export type { WapiClientOptions, RequestOptions } from "./http.ts";
-export type { MessageKey, SendMessageInput } from "./resources/messages.ts";
-export type { Page } from "./resources/directory.ts";
-export type { Session, SessionDetail } from "./resources/sessions.ts";
-export type * from "./types.gen.ts";
+export * from "./errors.js";
+export type { WapiClientOptions, RequestOptions } from "./http.js";
+export type { MessageKey, SendMessageInput } from "./resources/messages.js";
+export type { Page } from "./resources/directory.js";
+export type { Session, SessionDetail } from "./resources/sessions.js";
+export type * from "./types.gen.js";
 
 /**
  * The wapi client.

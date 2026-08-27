@@ -1,4 +1,4 @@
-import { errorFor, WapiUnavailableError } from "./errors.ts";
+import { errorFor, WapiUnavailableError } from "./errors.js";
 
 /**
  * Transport.

@@ -1,4 +1,4 @@
-import { data, type Transport } from "../http.ts";
+import { data, type Transport } from "../http.js";
 import type {
   GetApiContactsContactPhoneNumberResponse,
   GetApiContactsResponse,
@@ -11,7 +11,7 @@ import type {
   PostApiGroupsBody,
   PostApiGroupsGroupJidParticipantsAddResponse,
   PostApiGroupsResponse,
-} from "../types.gen.ts";
+} from "../types.gen.js";
 
 /**
  * `?paginated=true` returns a different shape from the default flat array, so the two are

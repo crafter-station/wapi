@@ -617,6 +617,27 @@ app.post("/hook", express.raw({ type: "*/*" }), (req, res) => {
               uses global <code>fetch</code>, so Node 18+, Bun and Deno all work. It exists so you
               do not have to remember which of the five success envelopes an endpoint uses.
             </p>
+            <p className="mt-4">
+              <strong>Vendor it rather than installing it.</strong> npm cannot install a
+              subdirectory of a git repository, and this client lives inside a monorepo — so{" "}
+              <code>npm install github:crafter-station/wapi</code> would fetch the root package,
+              not the SDK. Since the client is dependency-free source, copying it in is a real
+              channel rather than a workaround:
+            </p>
+            <Code
+              tabs={[
+                {
+                  label: "Install", lang: "bash",
+                  code: `npx giget@latest gh:crafter-station/wapi/sdk/typescript/src src/wapi
+
+# Then import it as local code:
+#   import { WapiClient } from "./wapi/index.js";
+#
+# Copy src/ and nothing else — scripts/ beside it is a build tool for
+# the wapi repository and imports packages you will not have.`,
+                },
+              ]}
+            />
             <Code
               tabs={[
                 {
@@ -710,6 +731,18 @@ const newKey = await admin.sessions.keys.regenerate(session.id);`,
               <code>urllib</code> from the standard library — and it is synchronous, because most
               Python callers here are scripts and workers.
             </p>
+            <Code
+              tabs={[
+                {
+                  label: "Install", lang: "bash",
+                  code: `# pip understands git subdirectories, so this is an ordinary install.
+pip install "git+https://github.com/crafter-station/wapi.git#subdirectory=sdk/python"
+
+# Pin a tag for anything you deploy — main moves.
+pip install "git+https://github.com/crafter-station/wapi.git@v0.1.0#subdirectory=sdk/python"`,
+                },
+              ]}
+            />
             <Code
               tabs={[
                 {

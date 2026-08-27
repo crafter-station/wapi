@@ -3,8 +3,34 @@
 TypeScript client for the [wapi](https://wapi.crafter.run) WhatsApp REST API.
 Zero runtime dependencies — global `fetch`, so Node 18+, Bun and Deno.
 
+## Install
+
+**Vendor it.** npm cannot install a subdirectory of a git repository, and this package lives at
+`sdk/typescript` in a monorepo — `npm install github:crafter-station/wapi` resolves the root
+package, which is private and not this. That is a package-manager limitation, not something the
+repository can route around.
+
+Since the client is dependency-free source, copying it in is a reasonable channel rather than a
+workaround:
+
+```bash
+npx giget@latest gh:crafter-station/wapi/sdk/typescript/src src/wapi
+```
+
 ```ts
-import { WapiClient } from "@wapi/sdk";
+import { WapiClient } from "./wapi/index.js";
+```
+
+Copy `src` and nothing else — `scripts/` beside it is a build tool for this repository and
+imports `@wapi/contracts`, which you will not have.
+
+The `.js` extensions resolve to the `.ts` sources under both `nodenext` and `bundler`, so a
+vendored copy compiles in an ordinary project with no special compiler flags.
+
+## Usage
+
+```ts
+import { WapiClient } from "./wapi/index.js";
 
 const wapi = new WapiClient({ apiKey: process.env.WAPI_KEY! });
 

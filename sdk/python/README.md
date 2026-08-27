@@ -2,6 +2,20 @@
 
 Zero runtime dependencies. Python 3.10+.
 
+## Install
+
+Not on PyPI — it lives in the repository, and pip handles git subdirectories:
+
+```bash
+pip install "git+https://github.com/crafter-station/wapi.git#subdirectory=sdk/python"
+```
+
+Pin a tag for anything you deploy; `main` moves:
+
+```bash
+pip install "git+https://github.com/crafter-station/wapi.git@v0.1.0#subdirectory=sdk/python"
+```
+
 ```python
 from wapi import WapiClient
 
