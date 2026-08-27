@@ -454,6 +454,103 @@ d("group mutations", () => {
   });
 });
 
+/**
+ * A webhook delivery, end to end.
+ *
+ * `integration.test.ts` has always had a version of this behind `COMPAT_WEBHOOK=1`, opt-in
+ * because it reconfigures a **live** session's webhook URL and then sends to a real number. The
+ * sandbox removes both objections: fabricating an inbound message costs nothing and reaches
+ * nobody, so the delivery path can be exercised on every push instead of by hand.
+ *
+ * This is the assertion the whole feature exists for. A developer's actual question is not
+ * "does the API return 200" but "does my handler receive something it can verify", and nothing
+ * else in either suite answers it.
+ *
+ * Runs only against a local stack that has Redis, and both halves of that matter:
+ *
+ *   - The sink lives inside this process, so the API has to be able to reach it. Against a
+ *     deployment it cannot, and the failure would be about network topology rather than wapi.
+ *   - The delivery path is gateway → Redis → worker → HTTP. Without Redis there is no worker and
+ *     no delivery, so running this would report a missing dependency as a broken feature — the
+ *     same mistake the upload envelope check made before it learned to ask.
+ */
+const CAN_DELIVER =
+  (BASE.startsWith("http://127.0.0.1") || BASE.startsWith("http://localhost")) &&
+  Boolean(process.env["REDIS_URL"]);
+
+d("webhook delivery", () => {
+  test.skipIf(!CAN_DELIVER)("an inbound message produces a signed delivery", async () => {
+    const received: { body: string; signature: string | null }[] = [];
+    const sink = Bun.serve({
+      port: 0,
+      async fetch(req) {
+        received.push({ body: await req.text(), signature: req.headers.get("X-Webhook-Signature") });
+        return new Response("ok");
+      },
+    });
+
+    try {
+      await json(
+        await api(
+          `/api/whatsapp-sessions/${sessionId}`,
+          {
+            body: JSON.stringify({
+              webhook_enabled: true,
+              webhook_events: ["messages.received"],
+              webhook_url: `http://127.0.0.1:${sink.port}/sink`,
+            }),
+            method: "PUT",
+          },
+          PAT,
+        ),
+      );
+
+      // The detail endpoint is the only place the secret is returned, and a handler cannot verify
+      // a delivery without it.
+      const detail = await json(await api(`/api/whatsapp-sessions/${sessionId}`, {}, PAT));
+      const secret = (detail.body["data"] as { webhook_secret?: string }).webhook_secret;
+      expect(typeof secret).toBe("string");
+
+      await json(
+        await api("/api/sandbox/inbound", {
+          body: JSON.stringify({ text: "does my handler run?" }),
+          method: "POST",
+        }),
+      );
+
+      // Gateway → Redis → worker → HTTP. Several hops, none of them instant.
+      for (let i = 0; i < 60 && received.length === 0; i++) {
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      expect(received.length).toBeGreaterThan(0);
+
+      const delivery = received[0]!;
+      /**
+       * The default is their plain shared-secret compare, not an HMAC — `webhook_hmac` is a wapi
+       * extension and off by default, for compatibility. Asserting the default is what proves a
+       * client written against the original still verifies our deliveries.
+       */
+      expect(delivery.signature).toBe(secret ?? null);
+
+      const payload = JSON.parse(delivery.body) as Record<string, unknown>;
+      expect(payload["event"]).toBe("messages.received");
+      expect(payload["sessionId"]).toBe(sessionId);
+      expect(typeof payload["timestamp"]).toBe("number");
+      expect(payload["data"]).toBeTruthy();
+    } finally {
+      sink.stop(true);
+      // Leave the session as it was found; later tests should not inherit a dead webhook URL.
+      await api(
+        `/api/whatsapp-sessions/${sessionId}`,
+        { body: JSON.stringify({ webhook_enabled: false, webhook_url: "" }), method: "PUT" },
+        PAT,
+      ).catch(() => null);
+    }
+    // Bun's default is five seconds, and four hops with a retrying queue behind them is not a
+    // five-second proposition on a loaded CI runner.
+  }, 30_000);
+});
+
 d("sandbox controls refuse where they should", () => {
   test("a PAT cannot drive a session-scoped control", async () => {
     const r = await json(

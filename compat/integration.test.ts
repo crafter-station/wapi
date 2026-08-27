@@ -349,11 +349,17 @@ d("media", () => {
 
 // ---------------------------------------------------------------------------------------
 /**
- * The last unproven path: an actual HTTP webhook delivery.
+ * An actual HTTP webhook delivery, against production.
  *
- * Enabled with COMPAT_WEBHOOK=1 because it reconfigures a live session's webhook URL and then
- * restores it. The sink is ours (`/api/webhook-sink` on the dashboard) rather than a
- * third-party inspector, because these payloads carry real message content.
+ * No longer the last unproven path: `compat/sandbox.test.ts` now proves the delivery mechanism on
+ * every push — inbound message, Redis, worker, signed POST — against a stack booted in CI. What
+ * only this one can prove is that the *deployed* worker reaches a *real* URL, which is a claim
+ * about the deployment rather than about the code.
+ *
+ * Still opt-in behind COMPAT_WEBHOOK=1, and still should be: it reconfigures a live session's
+ * webhook URL and then restores it. The sandbox version needs no such thing, which is why it is
+ * the one that runs unattended. The sink is ours (`/api/webhook-sink` on the dashboard) rather
+ * than a third-party inspector, because these payloads carry real message content.
  */
 d("webhook delivery", () => {
   test.if(process.env["COMPAT_WEBHOOK"] === "1")(

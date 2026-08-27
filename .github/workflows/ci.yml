@@ -149,6 +149,13 @@ jobs:
       - name: Boot the API
         run: PORT=3101 bun apps/api/src/index.ts > /tmp/api.log 2>&1 &
 
+      - name: Boot the webhook worker
+        # Without it the delivery test has nothing to deliver: the gateway publishes to Redis and
+        # the worker is what turns that into an HTTP POST. It has no health endpoint, so the wait
+        # below does not cover it — a delivery simply never arrives if it failed to start, which
+        # is why its log is printed on failure.
+        run: bun apps/webhook-worker/src/index.ts > /tmp/worker.log 2>&1 &
+
       - name: Wait for both to answer
         # A fixed sleep is the thing that makes this job flaky on a slow runner and slow on a
         # fast one. Poll instead, and fail with the logs rather than with a timeout further on.
@@ -161,7 +168,7 @@ jobs:
             sleep 1
           done
           echo "::error::stack did not come up"; echo "--- gateway ---"; cat /tmp/gateway.log
-          echo "--- api ---"; cat /tmp/api.log; exit 1
+          echo "--- api ---"; cat /tmp/api.log; echo "--- worker ---"; cat /tmp/worker.log; exit 1
 
       - name: Seed an account and a PAT
         # Masked so it is not echoed into the env group of every later step. The database dies
@@ -182,6 +189,7 @@ jobs:
         run: |
           echo "--- gateway ---"; cat /tmp/gateway.log
           echo "--- api ---"; cat /tmp/api.log
+          echo "--- worker ---"; cat /tmp/worker.log
 
   # ------------------------------------------------------------------------------------------
   # Browser tests: the real dashboard, in a real browser.
