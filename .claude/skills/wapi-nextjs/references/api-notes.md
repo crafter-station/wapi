@@ -95,6 +95,17 @@ Addressed by WhatsApp `key`, not `msgId`, for the same reason as `/messages/read
 react to messages someone *else* sent, and those have no `msgId`. Take the key straight from the
 webhook payload. An empty `emoji` removes an existing reaction.
 
+## The sandbox is a wapi extension too
+
+`POST /api/sandbox/sessions`, `/api/sandbox/inbound` and `/api/sandbox/scan` are ours — nothing
+like them exists in WasenderAPI. A sandbox session is a fake number that pairs itself and can be
+made to receive messages, which is the only way to exercise a webhook handler without a real
+conversation.
+
+It is the *same* API otherwise: same routes, same envelopes, same code. Two divergences to know
+before tuning anything against it — `account_protection` pacing is ignored, so sends return
+instantly where production waits five seconds, and `decrypt-media` returns a fixed PNG.
+
 ## Rate limiting
 
 `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset` are on every response. A

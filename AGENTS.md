@@ -153,6 +153,41 @@ Webhook *triggers* are not duplicated here — they are in `webhook_dispatches` 
 
 ---
 
+## The sandbox
+
+A second implementation of `WhatsAppEngine` — `SandboxEngine` in `apps/gateway` — so a fake
+number and a fake WhatsApp go through the same routes and the same code as a real one. It exists
+because linking a real number is the highest-friction step in this product and the one carrying
+the ban risk.
+
+`DispatchingEngine` **also implements the port**, which is what keeps this small: `resume.ts` and
+every RPC route already type against `WhatsAppEngine`, so they are untouched and cannot tell there
+are two engines. If you add a method to the port, all three of these must implement it.
+
+Routing is the `sandbox` column, and then **each engine asserts its own precondition** — the fake
+refuses a session not marked sandbox, Baileys refuses one that is. That is not redundancy. A
+sandbox session reaching Baileys fails loudly; a **real session reaching the fake does not** — it
+would return a `msgId`, show as sent in the dashboard and the audit log, and never leave the
+building. One `if` in a dispatcher is exactly what a later refactor inverts.
+
+**Stateless by construction.** Identity, contacts and groups are pure functions of the session id,
+so a restart is invisible and fixtures are assertable. Do not add durable state here; the absence
+of it is the design.
+
+Numbers use ITU country code **999**, which is unassigned and cannot route. A plausible-looking
+number would eventually be generated in a live range and belong to a real person.
+
+Two deliberate divergences from production, both documented to callers and both worth preserving:
+`account_protection` pacing is ignored (it protects an asset the sandbox does not have, and a
+five-second wait per send is how a suite stops being run), and `downloadMedia` returns a fixed
+PNG so the decrypt-then-fetch path stays whole.
+
+Controls live on the dispatcher, **not the port**: `WhatsAppEngine` describes what a WhatsApp
+engine can do, and "fabricate an inbound message" is not that. Putting it there would oblige the
+Baileys engine to implement something it can never honour.
+
+---
+
 ## Webhook records
 
 Two tables that are easy to confuse:
@@ -228,7 +263,9 @@ claims to clone. Extending an *existing documented route* is worse and stays off
 that changes behaviour a client already knows.
 
 Current extensions: `POST /api/messages/react` (they emit `messages.reaction` as a webhook but
-document no way to send one), and `webhook_hmac`, which is dashboard-only.
+document no way to send one), the three `/api/sandbox/*` controls, and `webhook_hmac`, which is
+dashboard-only. `/health` reports the cloned count and the extension count separately, so "29
+routes" stays a true claim about fidelity.
 
 ---
 

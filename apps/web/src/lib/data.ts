@@ -353,3 +353,49 @@ export async function getAuditLog(id: number): Promise<AuditLog | null> {
     .limit(1);
   return row ?? null;
 }
+
+
+/** How many sandbox sessions one account may hold. Mirrors the API's own cap. */
+export const MAX_SANDBOX_SESSIONS = 25;
+
+/**
+ * Create a sandbox session — a fake number on a fake WhatsApp.
+ *
+ * Written here rather than through `POST /api/sandbox/sessions` for the same reason every other
+ * account-scoped write is: going through the public API would mean the web app holding a Personal
+ * Access Token to reach its own rows. The number is derived from the id, exactly as the API does
+ * it, so a session created from either side is indistinguishable.
+ */
+export async function createSandboxSession(name: string): Promise<WhatsappSession> {
+  const accountId = await currentAccountId();
+  const [tally] = await db()
+    .select({ n: count() })
+    .from(whatsappSessions)
+    .where(and(eq(whatsappSessions.accountId, accountId), eq(whatsappSessions.sandbox, true)));
+  if ((tally?.n ?? 0) >= MAX_SANDBOX_SESSIONS) {
+    throw new Error(`You already have ${MAX_SANDBOX_SESSIONS} sandbox sessions.`);
+  }
+
+  const apiKey = generateApiKey();
+  const [row] = await db()
+    .insert(whatsappSessions)
+    .values({
+      accountId,
+      apiKeyEncrypted: encryptSecret(apiKey),
+      apiKeyHash: hashToken(apiKey),
+      name,
+      // Replaced below once the id exists; already unassigned, so never mistakable for a real one.
+      phoneNumber: "+999",
+      sandbox: true,
+      status: "disconnected",
+      webhookSecret: generateWebhookSecret(),
+    })
+    .returning();
+
+  const [session] = await db()
+    .update(whatsappSessions)
+    .set({ phoneNumber: `+999${String(row!.id).padStart(8, "0")}` })
+    .where(eq(whatsappSessions.id, row!.id))
+    .returning();
+  return session!;
+}

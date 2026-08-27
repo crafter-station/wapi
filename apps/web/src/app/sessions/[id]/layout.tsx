@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppNav } from "@/components/app-nav";
+import { SandboxBadge } from "@/components/sandbox-badge";
 import { SessionTabs } from "@/components/session-tabs";
 import { connectAction, deleteSessionAction, disconnectAction, restartAction } from "@/lib/actions";
 import { getSession } from "@/lib/data";
@@ -43,7 +44,10 @@ export default async function SessionLayout({
 
         <header className="mt-4 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="title">{session.name}</h1>
+            <h1 className="title flex flex-wrap items-center gap-3">
+              {session.name}
+              {session.sandbox ? <SandboxBadge className="!text-[0.65rem]" /> : null}
+            </h1>
             <p className="code mt-2 text-[var(--muted-foreground)]">
               {session.phoneNumber} · session #{session.id}
               {session.lid ? ` · ${session.lid}` : ""}

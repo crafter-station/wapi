@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { runDoctor, type DoctorResult } from "./doctor";
 import {
+  createSandboxSession,
   createSession,
   currentAccountId,
   createToken,
@@ -33,6 +34,20 @@ export async function createSessionAction(formData: FormData): Promise<void> {
     phoneNumber,
     accountProtection: formData.get("account_protection") === "on",
   });
+  revalidatePath("/sessions");
+  redirect(`/sessions/${session.id}`);
+}
+
+/**
+ * Create a sandbox session.
+ *
+ * Separate action from `createSessionAction` rather than a checkbox on it, mirroring the API: a
+ * sandbox session takes no phone number, because one is derived. A shared form would have to
+ * disable half its own fields.
+ */
+export async function createSandboxAction(formData: FormData): Promise<void> {
+  const name = String(formData.get("name") ?? "").trim() || "Sandbox";
+  const session = await createSandboxSession(name);
   revalidatePath("/sessions");
   redirect(`/sessions/${session.id}`);
 }

@@ -42,6 +42,7 @@ export default function DocsPage() {
               ["media", "Media"],
               ["groups", "Groups & contacts"],
               ["webhooks", "Webhooks"],
+              ["sandbox", "Sandbox"],
               ["errors", "Errors"],
               ["audit", "Audit log"],
               ["typescript", "TypeScript SDK"],
@@ -489,6 +490,89 @@ app.post("/hook", express.raw({ type: "*/*" }), (req, res) => {
               <code>messages-newsletter</code> variants are filtered views of{" "}
               <code>messages.received</code>, so subscribe to those if you only care about one
               chat kind.
+            </p>
+          </S>
+
+          {/* ------------------------------------------------------- sandbox */}
+          <S id="sandbox" kicker="Sandbox" title={<>A fake number, <em>a fake WhatsApp.</em></>}>
+            <p>
+              Linking a real number is the hardest step here and the one that carries the risk —
+              you need a phone, a QR scan, and a number you are willing to have banned. A sandbox
+              session removes all three. It pairs itself, comes with a small directory, accepts
+              sends, and can be made to <em>receive</em> messages so you can watch your webhook
+              handler run.
+            </p>
+            <p className="mt-4">
+              It is not a separate API. A sandbox session goes through the same routes and the
+              same code as a real one, so what you build against it is what runs in production.
+              Its number lives under country code <code>+999</code>, which is unassigned and
+              cannot route anywhere.
+            </p>
+            <Code
+              tabs={[
+                {
+                  label: "Create and connect", lang: "bash",
+                  code: `# A wapi extension — WasenderAPI has nothing like this.
+# Needs a PAT, like any session creation.
+curl -X POST ${API}/api/sandbox/sessions \
+  -H "Authorization: Bearer $PAT" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"my sandbox"}'
+
+# → { "success": true, "data": { "id": 42,
+#     "phone_number": "+99900000042", "api_key": "..." } }
+
+# Connect it. No QR to scan: it shows a fake one, then pairs itself
+# after about four seconds — the same need_scan -> connected transition
+# a real session makes, so your status webhook fires too.
+curl -X POST ${API}/api/whatsapp-sessions/42/connect \
+  -H "Authorization: Bearer $PAT"`,
+                },
+                {
+                  label: "Receive a message", lang: "bash",
+                  code: `# The reason the sandbox exists. This fabricates a message TO your
+# number and sends it down the ordinary pipeline, so the webhook that
+# reaches your handler is signed exactly like a real one.
+curl -X POST ${API}/api/sandbox/inbound \
+  -H "Authorization: Bearer $SANDBOX_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"hello from a fake human"}'
+
+# → { "success": true, "data": { "key": { "id": "SANDBOX0000000001",
+#     "remoteJid": "99900000042001@s.whatsapp.net", "fromMe": false } } }
+#
+# Your endpoint then receives messages.received, exactly as it would in
+# production. Pass "from" to choose which contact it appears to be from.`,
+                },
+                {
+                  label: "From an SDK", lang: "javascript",
+                  code: `const admin = new WapiClient({ apiKey: process.env.WAPI_PAT });
+const session = await admin.sandbox.createSession("my sandbox");
+
+const wapi = new WapiClient({ apiKey: session.api_key });
+await admin.sessions.connection.connect(session.id);
+
+// It pairs itself; poll until it is ready.
+while ((await wapi.status()) !== "connected") await sleep(1000);
+
+const contacts = await wapi.contacts.list();   // 5, deterministic
+await wapi.messages.send({ to: contacts[0].jid, text: "hi" });
+await wapi.sandbox.inbound("and a reply");      // fires your webhook`,
+                },
+              ]}
+            />
+            <p className="mt-5">
+              <strong>Two things behave differently on purpose.</strong>{" "}
+              <code>account_protection</code> pacing is ignored, so sends return immediately where
+              production waits five seconds — it protects a phone number from being banned, and a
+              fake number cannot be. And <code>decrypt-media</code> returns a fixed PNG rather
+              than real media. Both matter if you tune retry or timing logic against a sandbox:
+              production is slower.
+            </p>
+            <p>
+              Sandbox sessions are capped at 25 per account and carry a{" "}
+              <strong>sandbox</strong> badge everywhere they appear in the dashboard, so a fake
+              number is never mistaken for a live one.
             </p>
           </S>
 

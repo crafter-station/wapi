@@ -15,7 +15,39 @@ wapi exposes WhatsApp over a plain REST API and is wire-compatible with Wasender
 Fetch the OpenAPI spec if you need a field this skill does not cover — it is generated from the
 contract the server validates against, so it cannot drift from the implementation.
 
+**If you are an agent building this without a human at the keyboard, read step 0 first.** You
+cannot scan a QR code, and every real session begins with one.
+
 Work in this order. Steps 1–3 are always required; 4 and 5 are per-feature.
+
+## 0. Use a sandbox session while you build
+
+A sandbox session is a fake number on a fake WhatsApp. It pairs itself — no QR, no phone, nothing
+to ban — and goes through the same routes and the same code as a real one, so what you build
+against it is what runs in production.
+
+```bash
+# Create one. Needs a PAT.
+curl -X POST "$WAPI_BASE_URL/api/sandbox/sessions"   -H "Authorization: Bearer $WAPI_PAT" -H 'Content-Type: application/json'   -d '{"name":"agent sandbox"}'
+# → data.api_key is what your app should use as WAPI_API_KEY while developing.
+
+# Connect it, then poll: it pairs itself after ~4s.
+curl -X POST "$WAPI_BASE_URL/api/whatsapp-sessions/<id>/connect"   -H "Authorization: Bearer $WAPI_PAT"
+```
+
+Then, once your webhook handler exists, **make it receive a real delivery**:
+
+```ts
+await wapi.sandbox.inbound("hello from a fake human");
+```
+
+That fabricates an inbound message and sends it down the ordinary pipeline, so your endpoint gets
+a genuine, signed `messages.received`. It is the only way to verify a webhook handler without a
+real conversation, and it is the single most useful thing here for an agent.
+
+**Swap in a real session before shipping.** Two behaviours differ deliberately:
+`account_protection` pacing is ignored (production waits five seconds per send) and
+`decrypt-media` returns a fixed PNG. Do not tune retry or timing logic against a sandbox.
 
 ## 1. Decide which credential each call needs
 
@@ -141,6 +173,9 @@ An empty `webhook_events` array means *send everything*.
   with `wapi.messages.info(msgId)` rather than sending again.
 - `src/wapi/` is vendored, so it does not update itself. Re-run the giget command after the API
   gains endpoints you need.
+- If you built against a sandbox, the app is pointed at a fake number. Swapping to a real session
+  is a credential change, but re-read the timing caveats in step 0 before assuming behaviour
+  carries over.
 
 ## Migrating from WasenderAPI
 

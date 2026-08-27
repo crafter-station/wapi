@@ -84,6 +84,19 @@ sequenceDiagram
     K-->>C: POST your webhook_url
 ```
 
+## No phone? Use a sandbox
+
+Linking a real number needs a phone, a QR scan, and a number you are willing to have banned. A
+sandbox session needs none of them — a fake number on a fake WhatsApp that pairs itself, and goes
+through the same routes and the same code as a real session.
+
+```bash
+curl -X POST https://api.wapi.crafter.run/api/sandbox/sessions   -H "Authorization: Bearer $PAT" -d '{"name":"my sandbox"}'
+```
+
+It has a small directory, accepts sends, and — the point — can be made to *receive* messages, so
+your webhook handler gets a genuine signed delivery to prove itself against.
+
 ## Run it
 
 ```bash
