@@ -31,11 +31,23 @@ export function AppNav({
 
   return (
     <nav className="rule">
-      <div className="shell flex items-center gap-8 py-4">
-        <Link href="/" className="wordmark">
+      {/*
+        The destinations scroll rather than wrap or overflow.
+
+        This nav is on every dashboard page and used to be one non-wrapping row: at 390px its
+        content measured 740px, so every page dragged sideways and the account button sat off
+        screen. Found by the first browser test ever run against this app — typecheck and
+        `next build` are both perfectly happy with a layout nobody can use on a phone.
+
+        Scrolling, not wrapping, and the same `scroll-slim` treatment as the session tabs: the
+        wordmark and the account button must stay put, and a nav that changes height as links
+        wrap moves the page content under the reader's finger.
+      */}
+      <div className="shell flex items-center gap-4 py-4 sm:gap-8">
+        <Link href="/" className="wordmark shrink-0">
           wapi<span>.</span>
         </Link>
-        <div className="flex items-center gap-6 text-[0.875rem]">
+        <div className="scroll-slim flex min-w-0 flex-1 items-center gap-5 overflow-x-auto whitespace-nowrap text-[0.875rem] sm:gap-6">
           {link("/sessions", "sessions", "Sessions")}
           {link("/tokens", "tokens", "Tokens")}
           {link("/audit", "audit", "Audit")}
@@ -47,7 +59,7 @@ export function AppNav({
             API reference
           </a>
         </div>
-        <div className="ml-auto flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <GithubLink />
           <UserButton />
         </div>

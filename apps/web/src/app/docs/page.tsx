@@ -30,7 +30,15 @@ export default function DocsPage() {
   return (
     <>
       <AppNav active="docs" />
-      <main className="shell grid gap-14 py-12 lg:grid-cols-[200px_minmax(0,1fr)]">
+      {/*
+        `minmax(0,1fr)` at every width, not only at `lg`.
+
+        The two-column rule already had it; the single-column mobile track did not, and a grid
+        item defaults to `min-width: auto` — so a wide `<pre>` set its own minimum and stretched
+        the track past the viewport. The code block has `overflow-x: auto` and was ready to
+        scroll inside itself; nothing was letting it. At 390px the page measured 740.
+      */}
+      <main className="shell grid grid-cols-[minmax(0,1fr)] gap-14 py-12 lg:grid-cols-[200px_minmax(0,1fr)]">
         {/* ------------------------------------------------------------- toc */}
         <aside className="hidden lg:block">
           <nav className="sticky top-10 space-y-2 text-[0.85rem]">

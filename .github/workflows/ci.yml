@@ -182,3 +182,53 @@ jobs:
         run: |
           echo "--- gateway ---"; cat /tmp/gateway.log
           echo "--- api ---"; cat /tmp/api.log
+
+  # ------------------------------------------------------------------------------------------
+  # Browser tests for the two public pages.
+  #
+  # Runs only when a Clerk secret key is available. `clerkMiddleware` contacts Clerk at runtime,
+  # so a fabricated key returns 400 for every page — a suite that ran without one would assert
+  # against an error page and pass, which is worse than not running. See apps/web/e2e/README.md.
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.23
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Are Clerk credentials available?
+        id: clerk
+        # Secrets cannot be read in a job-level `if`, so the gate is a step output. A fork's pull
+        # request has no secrets and skips rather than fails.
+        env:
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+        run: |
+          if [ -n "$CLERK_SECRET_KEY" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping browser tests — no CLERK_SECRET_KEY secret. See apps/web/e2e/README.md."
+          fi
+
+      - name: Install Chromium
+        if: steps.clerk.outputs.available == 'true'
+        run: bunx playwright install --with-deps chromium
+
+      - name: Browser tests
+        if: steps.clerk.outputs.available == 'true'
+        env:
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
+        run: bun run --cwd apps/web e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7
