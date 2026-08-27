@@ -15,8 +15,11 @@ import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import pino from "pino";
 import { createClient } from "redis";
-import { createDb } from "@wapi/db";
+import { createDb, whatsappSessions } from "@wapi/db";
+import { eq } from "drizzle-orm";
 import { BaileysEngine, SessionNotConnectedError } from "./engine/baileys-engine.js";
+import { DispatchingEngine } from "./engine/dispatching-engine.js";
+import { SandboxEngine } from "./engine/sandbox-engine.js";
 import { quietSignal } from "./quiet-signal.js";
 import { resumeSessions } from "./resume.js";
 
@@ -36,7 +39,31 @@ const logger = pino({ level: process.env["LOG_LEVEL"] ?? "info" });
 quietSignal(logger);
 
 const { db } = createDb(DATABASE_URL);
-const engine = new BaileysEngine(db, logger);
+
+/**
+ * Two engines behind one port.
+ *
+ * `engine` is a `DispatchingEngine`, which itself implements `WhatsAppEngine` — so `resumeSessions`
+ * and every RPC route below are unchanged and cannot tell there are two. Routing is on the
+ * `sandbox` column, and each engine additionally asserts its own precondition: the fake refuses a
+ * session that is not marked sandbox, Baileys refuses one that is.
+ *
+ * That belt-and-braces is not ceremony. A sandbox session reaching Baileys fails loudly. A *real*
+ * session reaching the fake does not — it would return a msgId, show as sent everywhere, and
+ * never leave the building.
+ */
+const baileys = new BaileysEngine(db, logger);
+const sandbox = new SandboxEngine(logger, async (sessionId) => {
+  const [row] = await db
+    .select({ sandbox: whatsappSessions.sandbox })
+    .from(whatsappSessions)
+    .where(eq(whatsappSessions.id, sessionId))
+    .limit(1);
+  if (!row?.sandbox) {
+    throw new Error(`session ${sessionId} is not a sandbox session and must not reach the fake`);
+  }
+});
+const engine = new DispatchingEngine(db, baileys, sandbox, logger);
 
 /** Redis is optional at boot so the gateway still starts if it is briefly unavailable. */
 const redis = REDIS_URL ? createClient({ url: REDIS_URL }) : null;

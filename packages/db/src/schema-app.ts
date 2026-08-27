@@ -94,6 +94,15 @@ export const whatsappSessions = pgTable(
     apiKeyHash: text("api_key_hash"),
     apiKeyEncrypted: text("api_key_encrypted"),
 
+    /**
+     * Routes this session to the fake engine instead of Baileys.
+     *
+     * A column rather than a phone-number convention: `phone_number` is unvalidated free text,
+     * so any prefix convention would eventually match a real number. Set only by
+     * `POST /api/sandbox/sessions`; the documented create route cannot reach it, because
+     * extending a cloned route is a line this project does not cross.
+     */
+    sandbox: boolean("sandbox").notNull().default(false),
     accountProtection: boolean("account_protection").notNull().default(false),
     logMessages: boolean("log_messages").notNull().default(true),
     readIncomingMessages: boolean("read_incoming_messages").notNull().default(false),

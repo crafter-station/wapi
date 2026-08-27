@@ -273,6 +273,11 @@ const statements: [label: string, ddl: string][] = [
     "audit_logs_age_idx",
     `CREATE INDEX IF NOT EXISTS audit_logs_age_idx ON audit_logs (created_at)`,
   ],
+  [
+    "whatsapp_sessions.sandbox",
+    // Additive and idempotent like everything else here; existing rows default to real.
+    `ALTER TABLE whatsapp_sessions ADD COLUMN IF NOT EXISTS sandbox boolean NOT NULL DEFAULT false`,
+  ],
 ];
 
 for (const [label, ddl] of statements) {

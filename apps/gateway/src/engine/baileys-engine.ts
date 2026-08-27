@@ -19,7 +19,7 @@ import type { ConnectionState, WASocket } from "baileys";
 import type { Boom } from "@hapi/boom";
 import type { Logger } from "pino";
 import { usePostgresAuthState } from "@wapi/baileys-auth";
-import { contacts, type Db } from "@wapi/db";
+import { contacts, whatsappSessions, type Db } from "@wapi/db";
 import { and, eq } from "drizzle-orm";
 import type {
   WhatsAppEngine,
@@ -118,7 +118,27 @@ export class BaileysEngine implements WhatsAppEngine {
    * That is also precisely the hazard PLAN.md §2 says escalates to a WhatsApp restriction, so
    * this guard is a safety property, not a nicety. Use `restart` to force a fresh socket.
    */
+  /**
+   * Refuse a session marked sandbox.
+   *
+   * The dispatcher already routes on that flag, so arriving here means the routing was wrong.
+   * This is the direction that fails loudly anyway — a sandbox session has no stored credentials,
+   * so it would sit at a QR prompt forever — but asserting turns that confusion into a clear
+   * message, and the rule survives someone inverting the dispatcher's condition later.
+   */
+  private async refuseSandbox(sessionId: number) {
+    const [row] = await this.db
+      .select({ sandbox: whatsappSessions.sandbox })
+      .from(whatsappSessions)
+      .where(eq(whatsappSessions.id, sessionId))
+      .limit(1);
+    if (row?.sandbox) {
+      throw new Error(`session ${sessionId} is a sandbox session and must not reach Baileys`);
+    }
+  }
+
   async connect(sessionId: number, opts: { accountProtection?: boolean } = {}) {
+    await this.refuseSandbox(sessionId);
     const existing = this.sessions.get(sessionId);
     if (existing) {
       return { status: existing.status, qr: existing.qr ?? undefined };
