@@ -13,16 +13,18 @@
     "dev": "tsx --watch src/server.ts"
   },
   "dependencies": {
+    "@hono/node-server": "^1.13.0",
+    "@wapi/baileys-auth": "workspace:*",
+    "@wapi/core": "workspace:*",
+    "@wapi/db": "workspace:*",
     "baileys": "7.0.0-rc14",
+    "drizzle-orm": "^0.38.0",
+    "hono": "^4.6.0",
+    "https-proxy-agent": "^9.1.0",
     "pino": "^9.6.0",
     "qrcode-terminal": "^0.12.0",
-    "@wapi/db": "workspace:*",
-    "@wapi/baileys-auth": "workspace:*",
-    "drizzle-orm": "^0.38.0",
-    "@wapi/core": "workspace:*",
-    "hono": "^4.6.0",
-    "@hono/node-server": "^1.13.0",
-    "redis": "^4.7.0"
+    "redis": "^4.7.0",
+    "socks-proxy-agent": "^10.1.0"
   },
   "devDependencies": {
     "@hapi/boom": "^10.0.1",

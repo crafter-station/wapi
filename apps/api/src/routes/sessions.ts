@@ -136,9 +136,9 @@ export function sessionRoutes(db: Db) {
      * applies to the very next delivery. Pushing anything would be a second source of truth for
      * a value that is already read fresh.
      *
-     * `proxy_url` is a different story and is NOT applied — see the note on the column.
-     * `account_protection` likewise takes effect at the next connect, since it is passed when
-     * the socket is built.
+     * `proxy_url` and `account_protection` are different: both are read when the socket is
+     * built, so both take effect at the next connect. Pushing them to a live socket is not
+     * possible without rebuilding it, which is a disconnect by another name.
      */
     return c.json(ok(sessionDetailToWire(updated!)));
   });

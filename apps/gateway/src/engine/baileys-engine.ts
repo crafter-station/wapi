@@ -19,6 +19,7 @@ import type { ConnectionState, WASocket } from "baileys";
 import type { Boom } from "@hapi/boom";
 import type { Logger } from "pino";
 import { usePostgresAuthState } from "@wapi/baileys-auth";
+import { proxyAgentFor } from "./proxy-agent.js";
 import { contacts, whatsappSessions, type Db } from "@wapi/db";
 import { and, eq } from "drizzle-orm";
 import type {
@@ -174,8 +175,40 @@ export class BaileysEngine implements WhatsAppEngine {
     const auth = await usePostgresAuthState(this.db, String(sessionId));
     const { version } = await fetchLatestBaileysVersion();
 
+    /**
+     * Egress through the session's proxy, if it has one.
+     *
+     * Read at connect rather than cached, so changing `proxy_url` takes effect on the next
+     * connect — the same point at which `account_protection` takes effect, and the only honest
+     * one: a live socket cannot be re-pointed at a different exit without rebuilding it.
+     *
+     * `agent` covers the WebSocket, `fetchAgent` the media transfers. Setting only the first is
+     * the subtle version of this bug: control traffic is proxied, media is not, and the egress IP
+     * leaks on exactly the requests carrying the content.
+     */
+    const [row] = await this.db
+      .select({ proxyUrl: whatsappSessions.proxyUrl })
+      .from(whatsappSessions)
+      .where(eq(whatsappSessions.id, sessionId))
+      .limit(1);
+
+    let agent;
+    if (row?.proxyUrl) {
+      try {
+        agent = proxyAgentFor(row.proxyUrl);
+        this.logger.info({ sessionId }, "connecting through proxy");
+      } catch (err) {
+        // Refuse rather than fall back to a direct connection. Somebody who set a proxy needs
+        // their traffic to leave from somewhere else; quietly going direct is the failure they
+        // would least want and least likely notice.
+        this.logger.error({ err, sessionId }, "proxy_url is unusable");
+        throw new Error("The configured proxy_url could not be used.");
+      }
+    }
+
     const sock = makeWASocket({
       version,
+      ...(agent ? { agent, fetchAgent: agent } : {}),
       auth: {
         creds: auth.state.creds,
         // Auth reads sit inside Baileys' per-socket ordering mutexes, so a slow round-trip
