@@ -273,6 +273,12 @@ TypeScript resolves those under both `nodenext` and `bundler`, so a vendored cop
 ordinary project; `.ts` specifiers would force `allowImportingTsExtensions` on the consumer,
 which in turn forces `noEmit` and breaks anyone who builds. Do not "simplify" them back.
 
+**The `wapi-nextjs` skill does not ship its own client.** It vendors this SDK and adds a
+`server-only` wrapper, which is the one thing an SDK cannot express because it is a Next.js
+concern rather than an API one. It used to carry a hand-written client covering thirteen of the
+thirty operations with no drift guard on it — if you find yourself adding a second client
+anywhere, that is the failure mode to remember.
+
 **Both clients have zero runtime dependencies** — global `fetch` in TypeScript, `urllib` in
 Python. Something dropped into other people's projects should not drag a dependency tree behind
 it, and this is JSON in, JSON out, one header.

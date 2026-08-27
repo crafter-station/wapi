@@ -111,21 +111,36 @@ const wa = createWasender(process.env.WAPI_KEY, undefined, "https://api.wapi.cra
 That claim is a test suite, not an aspiration: response schemas are checked against the
 provider's own documented examples, and again against live responses.
 
-## TypeScript client
+## Clients
+
+Zero runtime dependencies either side. Types are generated from the OpenAPI document so they
+cannot drift from the server; method names are hand-written, because generated ones read
+`postApiWhatsappSessionsWhatsappSessionRegenerateKey`.
+
+Neither is published to a registry — they live in [`sdk/`](sdk), so installation comes from here.
+
+**Python** — pip understands git subdirectories:
 
 ```bash
-npm install @wapi/sdk
+pip install "git+https://github.com/crafter-station/wapi.git#subdirectory=sdk/python"
+```
+
+```python
+client = WapiClient(api_key=os.environ["WAPI_KEY"])
+client.messages.send(to="+51999888777", text="hello")
+```
+
+**TypeScript** — vendored, because npm cannot install a subdirectory of a git repository and
+this one sits in a monorepo:
+
+```bash
+npx giget@latest gh:crafter-station/wapi/sdk/typescript/src src/wapi
 ```
 
 ```ts
 const wapi = new WapiClient({ apiKey: process.env.WAPI_KEY! });
 await wapi.messages.send({ to: "+51999888777", text: "hello" });
 ```
-
-Zero runtime dependencies. Types are generated from the OpenAPI document so they cannot drift
-from the server; the method names are hand-written, because generated ones read
-`postApiWhatsappSessionsWhatsappSessionRegenerateKey`. See [`sdk/`](sdk) — ports to other
-languages go there and follow the same shape.
 
 ## Building with an agent
 

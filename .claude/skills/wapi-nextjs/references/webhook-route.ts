@@ -93,13 +93,13 @@ async function handle({ event, data }: WebhookBody) {
        * `key` here is exactly what `wapi.react()` wants — this is the normal way to get one,
        * since a message someone else sent has no msgId.
        *
-       *   await wapi.react(data.key as MessageKey, "👍");
+       *   await wapi.messages.react(data.key as MessageKey, "👍");
        */
 
       /**
        * Inbound media arrives encrypted: the payload carries a CDN URL and a `mediaKey`, and
        * the bytes are useless without decryption. Pass the message node to
-       * `wapi.decryptMedia(message)` to get a URL valid for one hour.
+       * `wapi.messages.media.decrypt(message)` to get a URL valid for one hour.
        */
       break;
     }

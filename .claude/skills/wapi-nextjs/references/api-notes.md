@@ -1,5 +1,8 @@
 # wapi API notes
 
+The SDK handles most of what follows — this is here so you know *why* it is shaped that way, and
+what to watch for if you call the API directly.
+
 Behaviours that are not guessable from the endpoint names. Each of these has cost someone real
 debugging time; several are inherited from the interface wapi clones and are deliberate rather
 than accidental.

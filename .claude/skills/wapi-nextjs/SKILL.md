@@ -48,10 +48,27 @@ the moment it ships.
 
 ## 3. Add the client
 
-Copy `references/wapi-client.ts` into the project (suggested `src/lib/wapi.ts`) and mark it
-server-only. It is dependency-free and handles the parts of this API that surprise people; read
-`references/api-notes.md` before hand-rolling anything, because several of these are not
-guessable from the endpoint names.
+Vendor the official SDK, then add the server-only wrapper:
+
+```bash
+npx giget@latest gh:crafter-station/wapi/sdk/typescript/src src/wapi
+```
+
+Copy `references/wapi-server.ts` to `src/lib/wapi.ts`. It is deliberately thin — the SDK does the
+work, and the wrapper adds the one thing the SDK cannot express because it is a Next.js concern
+rather than an API one: `server-only`, which turns importing it from a client component into a
+build error rather than a leaked WhatsApp credential.
+
+**Vendored rather than installed** because npm cannot install a subdirectory of a git repository
+and the SDK lives inside a monorepo; `npm install github:crafter-station/wapi` fetches the root
+package instead. Copy `src` and nothing else.
+
+Earlier versions of this skill shipped their own client. That was a second implementation of the
+same API covering thirteen of its thirty operations, with nothing keeping it in step — the SDK is
+checked against the OpenAPI document in CI, so use that instead.
+
+Read `references/api-notes.md` before hand-rolling anything: several behaviours are not guessable
+from the endpoint names.
 
 ## 4. Send a message
 
@@ -64,7 +81,7 @@ an error rather than a silent preference.
 import { wapi } from "@/lib/wapi";
 
 export async function notify(phone: string, text: string) {
-  const { msgId } = await wapi.sendMessage({ to: phone, text });
+  const { msgId } = await wapi.messages.send({ to: phone, text });
   return msgId;
 }
 ```
@@ -75,8 +92,8 @@ Sending to a group is the same call with a group JID (`…@g.us`) as `to`.
 webhooks but has no endpoint to send one, so feature-detect if you target both:
 
 ```ts
-await wapi.react(data.key, "👍");   // data.key comes straight from the webhook
-await wapi.unreact(data.key);        // empty emoji clears it
+await wapi.messages.react(data.key, "👍");  // data.key comes straight from the webhook
+await wapi.messages.unreact(data.key);      // empty emoji clears it
 ```
 
 It takes the WhatsApp `key`, not a `msgId`, because you mostly react to messages someone *else*
@@ -118,9 +135,12 @@ An empty `webhook_events` array means *send everything*.
 - No token reaches the client bundle. Grep the build output for the key's prefix.
 - The webhook handler rejects a request with a wrong or missing signature.
 - A `403` is handled distinctly from `401` — they mean different things here.
-- Pagination, if used, sends `?paginated=true` and reads `data.items`, not `data`.
+- Pagination uses `contacts.page()` / `groups.page()`, not `list()`. They are separate methods
+  because `?paginated=true` returns a different shape, and mixing them up yields `undefined`.
 - Sends are not retried blindly. A timeout does not mean the message was not sent; reconcile
-  with `GET /api/messages/{msgId}/info` rather than sending again.
+  with `wapi.messages.info(msgId)` rather than sending again.
+- `src/wapi/` is vendored, so it does not update itself. Re-run the giget command after the API
+  gains endpoints you need.
 
 ## Migrating from WasenderAPI
 
