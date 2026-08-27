@@ -28,6 +28,7 @@ import { join } from "node:path";
 const SDK = "sdk/typescript";
 const GENERATED = join(SDK, "src/types.gen.ts");
 const PYTHON_SDK = "sdk/python/wapi";
+const GO_SDK = "sdk/go";
 
 let failures = 0;
 const fail = (message) => {
@@ -130,6 +131,74 @@ if (pyMissing.length) {
   );
 } else {
   console.log(`  ok    the Python SDK covers all ${pyCalled.size} operations`);
+}
+
+// ------------------------------------------------------------------ 4. and the Go client
+/**
+ * Go paths are concatenations rather than interpolations — `"/api/groups/"+escape(jid)+"/metadata"`
+ * — so the normaliser cannot be reused directly. The literal fragments are stitched back
+ * together first, with every non-literal span collapsed to the same `{}` placeholder the OpenAPI
+ * side uses.
+ */
+const goSources = readdirSync(GO_SDK)
+  .filter((f) => f.endsWith(".go"))
+  .map((f) => readFileSync(join(GO_SDK, f), "utf8"))
+  .join("NEWLINE");
+
+const goCalled = new Set();
+/**
+ * Scan rather than regex the path argument.
+ *
+ * A regex that stops at the first comma is wrong the moment a path contains a call with
+ * arguments — `strconv.FormatInt(msgID, 10)` truncates mid-expression, which this check found by
+ * reporting a method that plainly exists. Balancing parentheses is the only way to find the
+ * argument boundary, so the argument is walked character by character.
+ */
+for (const m of goSources.matchAll(/do\(ctx,\s*"(\w+)",\s*/g)) {
+  const verb = m[1];
+  let depth = 0;
+  let inString = false;
+  let expr = "";
+  for (let i = m.index + m[0].length; i < goSources.length; i++) {
+    const ch = goSources[i];
+    if (inString) {
+      if (ch === '"') inString = false;
+      expr += ch;
+      continue;
+    }
+    if (ch === '"') { inString = true; expr += ch; continue; }
+    if (ch === "(") depth++;
+    if (ch === ")") depth--;
+    // A comma at depth zero ends the path argument.
+    if (ch === "," && depth === 0) break;
+    expr += ch;
+  }
+  // Rebuild from literal pieces: "/a/" + x + "/b" -> /a/{}/b
+  const path = expr
+    .split("+")
+    .map((part) => {
+      const literal = part.trim().match(/^"([^"]*)"$/);
+      return literal ? literal[1] : "{}";
+    })
+    .join("");
+  goCalled.add(`${verb} ${normalise(path)}`);
+}
+
+const goMissing = [];
+for (const [path, methods] of Object.entries(doc.paths)) {
+  for (const method of Object.keys(methods)) {
+    const key = `${method.toUpperCase()} ${normalise(path)}`;
+    if (!goCalled.has(key)) goMissing.push(`${key}  (${methods[method].operationId})`);
+  }
+}
+
+if (goMissing.length) {
+  fail(
+    `the Go SDK does not implement ${goMissing.length} operation(s):\n` +
+      goMissing.map((m) => `          ${m}`).join("\n"),
+  );
+} else {
+  console.log(`  ok    the Go SDK covers all ${goCalled.size} operations`);
 }
 
 if (failures) {

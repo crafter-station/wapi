@@ -33,6 +33,20 @@ jobs:
         # is honest; a green tick on tests that never ran would not be.
         run: bun test
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Go SDK compiles
+        # The drift guard proves every operation has a method; it says nothing about whether the
+        # package still builds. Nothing else in CI is a Go toolchain, so this is the only thing
+        # that would catch a Go-side break.
+        run: |
+          cd sdk/go
+          test -z "$(gofmt -l .)" || { echo "gofmt: files need formatting"; gofmt -l .; exit 1; }
+          go vet ./...
+          go build ./...
+
       - name: SDK is in sync with the API
         # Two ways to drift: stale generated types, or an endpoint with no method. The second is
         # silent, which is why it is checked rather than left to review.

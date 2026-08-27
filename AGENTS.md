@@ -54,6 +54,7 @@ bun test compat/integration.test.ts
 | `compat/` | — | SDK-compat + live integration suites |
 | `sdk/typescript` | — | TypeScript client. Types generated, surface hand-written |
 | `sdk/python` | — | Python client. Stdlib only, same surface, snake_case |
+| `sdk/go` | — | Go client. `net/http` only, nested module |
 | `ops/` | — | backup, restore, retention, CI guards |
 
 The gateway is Node, not Bun, because Baileys' WASM Signal bridge needs it. Everything else is
@@ -248,7 +249,7 @@ bun run --cwd sdk/typescript generate   # refresh src/types.gen.ts
 bun ops/check-sdk-in-sync.mjs
 ```
 
-That guard makes three checks — generated types current, and one coverage check *per language*.
+That guard makes four checks — generated types current, and one coverage check *per language*.
 **Extend it when you add a language**; a rule nobody enforces is a rule that drifts, and the
 coverage failure is silent in exactly the same way for every port. Stale generated types would eventually surface as a type
 error; **an endpoint with no method is silent**, and that is the one it exists for — the same
@@ -261,12 +262,18 @@ one would buy correct types at the cost of a surface nobody wants to call. Renam
 operations in a generator config is the same work as writing thirty methods, minus the ability to
 group them into sub-resources.
 
-**Neither client is published to a registry**, and the two ecosystems differ in how well that
-works. pip installs a git subdirectory directly
-(`pip install "git+https://…#subdirectory=sdk/python"`). **npm cannot** — `npm install
-github:crafter-station/wapi` resolves the monorepo root, not `sdk/typescript` — so the
-TypeScript client is *vendored* with giget instead. Both instructions in `sdk/README.md` were
-run before being written.
+**No client is published to a registry**, and the three ecosystems differ sharply in how well
+that works — each instruction in `sdk/README.md` was run before it was written:
+
+| | Install | |
+| --- | --- | --- |
+| Go | `go get github.com/crafter-station/wapi/sdk/go@main` | resolves subdirectory modules natively |
+| Python | `pip install "git+https://…#subdirectory=sdk/python"` | pip understands `#subdirectory` |
+| TypeScript | `npx giget@latest gh:…/sdk/typescript/src src/wapi` | **npm cannot install a subdirectory**, so it is vendored |
+
+`npm install github:crafter-station/wapi` resolves the monorepo *root* package, which is private
+and not the SDK. That is a package-manager limitation, not something the repository can route
+around.
 
 That is why the TypeScript sources import with **`.js` specifiers pointing at `.ts` files**.
 TypeScript resolves those under both `nodenext` and `bundler`, so a vendored copy compiles in an
@@ -279,9 +286,14 @@ concern rather than an API one. It used to carry a hand-written client covering 
 thirty operations with no drift guard on it — if you find yourself adding a second client
 anywhere, that is the failure mode to remember.
 
-**Both clients have zero runtime dependencies** — global `fetch` in TypeScript, `urllib` in
-Python. Something dropped into other people's projects should not drag a dependency tree behind
+**Every client has zero runtime dependencies** — global `fetch` in TypeScript, `urllib` in
+Python, `net/http` in Go. Something dropped into other people's projects should not drag a dependency tree behind
 it, and this is JSON in, JSON out, one header.
+
+**Only TypeScript has generated types.** Python returns dicts and Go has hand-written structs,
+because there is no emitter for either and several responses are deliberately loose — `/info`
+returns WhatsApp's own record. The guard proves every *operation* has a method in every language;
+it cannot prove Go's structs still match a changed response. Keep those in step by hand.
 
 The Python client is **synchronous**, unlike the TypeScript one. That is the idiom on each side:
 most Python callers here are scripts and workers, and a sync client composes with

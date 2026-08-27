@@ -6,6 +6,7 @@ Client libraries for the wapi API. One directory per language.
 | --- | --- | --- |
 | TypeScript | [`typescript/`](typescript) | usable |
 | Python | [`python/`](python) | usable |
+| Go | [`go/`](go) | usable |
 
 ## Installing
 
@@ -26,6 +27,16 @@ Pin to a commit or tag for anything you deploy — `main` moves:
 ```bash
 pip install "git+https://github.com/crafter-station/wapi.git@v0.1.0#subdirectory=sdk/python"
 ```
+
+### Go
+
+Go resolves subdirectory modules natively, so this is an ordinary install:
+
+```bash
+go get github.com/crafter-station/wapi/sdk/go@main
+```
+
+Pin a commit for anything you deploy.
 
 ### TypeScript
 

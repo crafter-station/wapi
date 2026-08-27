@@ -46,6 +46,7 @@ export default function DocsPage() {
               ["audit", "Audit log"],
               ["typescript", "TypeScript SDK"],
               ["python", "Python SDK"],
+              ["go", "Go SDK"],
               ["sdk", "Using their SDK"],
               ["skill", "Agent skill"],
             ].map(([id, label]) => (
@@ -796,6 +797,56 @@ except WapiUnavailableError as e:
         # A timeout means the REQUEST failed, not that the message did
         # not arrive. Reconcile with messages.info() — never resend blindly.
         pass`,
+                },
+              ]}
+            />
+          </S>
+
+          {/* ------------------------------------------------------------ go */}
+          <S id="go" kicker="Go SDK" title={<>And <em>in Go.</em></>}>
+            <p>
+              Same surface again, zero dependencies, <code>net/http</code> only. Go resolves
+              subdirectory modules natively, so unlike the TypeScript client this is an ordinary
+              install rather than a vendoring step.
+            </p>
+            <Code
+              tabs={[
+                {
+                  label: "Install", lang: "bash",
+                  code: `go get github.com/crafter-station/wapi/sdk/go@main
+
+# Pin a commit for anything you deploy — @main moves.`,
+                },
+                {
+                  label: "Send", lang: "javascript",
+                  code: `import wapi "github.com/crafter-station/wapi/sdk/go"
+
+client := wapi.New(os.Getenv("WAPI_KEY"))
+
+res, err := client.Messages.Send(ctx, "+51999888777", wapi.Text("hello"))
+fmt.Println(res.MsgID)
+
+// Send options are functional, so setting two content fields is
+// visible at the call site rather than buried in a struct.
+client.Messages.Send(ctx, to,
+    wapi.ImageURL("https://example.com/photo.jpg"),
+    wapi.Text("optional caption"),
+)`,
+                },
+                {
+                  label: "Errors", lang: "javascript",
+                  code: `_, err := client.Sessions.List(ctx)   // needs a PAT, not a session key
+
+var authErr *wapi.AuthError
+if errors.As(err, &authErr) && authErr.WrongCredentialType() {
+    // 403: the credential was the wrong KIND, not a bad secret.
+}
+
+var unavailable *wapi.UnavailableError
+if errors.As(err, &unavailable) && unavailable.Ambiguous() {
+    // A timeout means the REQUEST failed, not that the message did not
+    // arrive. Reconcile with Messages.Info — never resend blindly.
+}`,
                 },
               ]}
             />

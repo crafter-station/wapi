@@ -119,6 +119,17 @@ cannot drift from the server; method names are hand-written, because generated o
 
 Neither is published to a registry — they live in [`sdk/`](sdk), so installation comes from here.
 
+**Go** — resolves subdirectory modules natively:
+
+```bash
+go get github.com/crafter-station/wapi/sdk/go@main
+```
+
+```go
+client := wapi.New(os.Getenv("WAPI_KEY"))
+res, err := client.Messages.Send(ctx, "+51999888777", wapi.Text("hello"))
+```
+
 **Python** — pip understands git subdirectories:
 
 ```bash
@@ -175,6 +186,7 @@ proxy support and an account-protection mode that paces sends. Neither is a guar
 | `packages/baileys-auth` | Postgres-backed `AuthenticationState` |
 | `sdk/typescript` | TypeScript client — generated types, hand-written surface |
 | `sdk/python` | Python client — stdlib only, same surface |
+| `sdk/go` | Go client — `net/http` only, nested module |
 | `compat/` | SDK-compatibility and live integration suites |
 
 Design decisions and their reasoning live in [`PLAN.md`](PLAN.md); repo conventions and the
