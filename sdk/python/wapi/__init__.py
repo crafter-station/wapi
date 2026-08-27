@@ -25,6 +25,7 @@ from .errors import (
 )
 from .resources.directory import ContactsResource, GroupsResource
 from .resources.messages import MessagesResource
+from .resources.sandbox import SandboxResource
 from .resources.sessions import SessionsResource
 
 __all__ = [
@@ -57,6 +58,8 @@ class WapiClient:
         self.messages = MessagesResource(self._http)
         self.contacts = ContactsResource(self._http)
         self.groups = GroupsResource(self._http)
+        # wapi extension: a fake number on a fake WhatsApp. See SandboxResource.
+        self.sandbox = SandboxResource(self._http)
 
     def status(self) -> str:
         """Connection state of the session this key belongs to.

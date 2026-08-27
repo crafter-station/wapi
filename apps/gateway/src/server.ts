@@ -181,6 +181,26 @@ app.post("/rpc/react", async (c) => {
   return rpc(() => engine.reactToMessage(Number(sessionId), key, String(emoji ?? "")))(c);
 });
 
+/**
+ * Sandbox controls.
+ *
+ * On the dispatcher rather than the port: `WhatsAppEngine` describes what a WhatsApp engine can
+ * do, and "fabricate an inbound message" is not that. Adding it to the port would oblige the
+ * Baileys engine to implement something it can never honour.
+ *
+ * Both refuse a session that is not marked sandbox, so a mis-addressed control cannot poke a
+ * real session.
+ */
+app.post("/rpc/sandbox-inbound", async (c) => {
+  const { sessionId, from, text } = await c.req.json();
+  return rpc(() => engine.sandboxInbound(Number(sessionId), from, String(text ?? "")))(c);
+});
+
+app.post("/rpc/sandbox-scan", async (c) => {
+  const { sessionId } = await c.req.json();
+  return rpc(() => engine.sandboxScan(Number(sessionId)).then(() => ({ ok: true })))(c);
+});
+
 app.post("/rpc/on-whatsapp", async (c) => {
   const { sessionId, identifier } = await c.req.json();
   return rpc(() => engine.onWhatsApp(Number(sessionId), String(identifier)))(c);

@@ -307,6 +307,15 @@ export const SUCCESS_RESPONSES: Record<string, SuccessResponse> = {
     schema: z.object({ success: z.literal(true), publicUrl: z.string() }),
   },
 
+  // -- sandbox extensions; see `extensions.ts` for why these exist at all
+  postApiSandboxSessions: { status: 201, schema: ok(sessionDetail) },
+  postApiSandboxInbound: {
+    status: 200,
+    // The fabricated message's key, so a caller can react to or mark read what it just created.
+    schema: ok(z.object({ key: unknownJson })),
+  },
+  postApiSandboxScan: { status: 200, schema: ok(z.object({ status: z.string() })) },
+
   // -- contacts
   getApiContacts: {
     status: 200,

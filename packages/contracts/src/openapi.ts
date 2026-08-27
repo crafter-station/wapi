@@ -60,6 +60,9 @@ const SUMMARIES: Record<string, string> = {
   getApiGroupsGroupJidMetadata: "Group subject, description, owner and participants",
   getApiGroupsGroupJidParticipants: "Participants of a group",
   postApiMessagesReact: "React to a message, or clear a reaction with an empty emoji",
+  postApiSandboxSessions: "Create a sandbox session — a fake number on a fake WhatsApp",
+  postApiSandboxInbound: "Fabricate an inbound message on a sandbox session",
+  postApiSandboxScan: "Complete pairing on a sandbox session awaiting its fake QR",
   postApiGroupsGroupJidParticipantsAdd: "Add participants to a group",
   postApiGroupsGroupJidParticipantsRemove: "Remove participants from a group",
 };

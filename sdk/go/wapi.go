@@ -30,6 +30,8 @@ type Client struct {
 	Messages *Messages
 	Contacts *Contacts
 	Groups   *Groups
+	// Sandbox is a wapi extension: a fake number on a fake WhatsApp.
+	Sandbox *Sandbox
 }
 
 // Option configures a Client.
@@ -73,6 +75,7 @@ func New(apiKey string, opts ...Option) *Client {
 		Messages: &Messages{t: t, Media: &Media{t}},
 		Contacts: &Contacts{t: t, LID: &LIDResolver{t}},
 		Groups:   &Groups{t: t, Participants: &GroupParticipants{t}},
+		Sandbox:  &Sandbox{t},
 	}
 }
 

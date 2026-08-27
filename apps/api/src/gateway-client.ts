@@ -122,6 +122,13 @@ export const gateway = {
   reactToMessage: (sessionId: number, key: Record<string, unknown>, emoji: string) =>
     post<{ id: string | null }>("/rpc/react", { sessionId, key, emoji }),
 
+  /** Sandbox-only; the gateway refuses a session that is not marked sandbox. */
+  sandboxInbound: (sessionId: number, from: string | undefined, text: string) =>
+    post<{ key: Record<string, unknown> }>("/rpc/sandbox-inbound", { sessionId, from, text }),
+
+  sandboxScan: (sessionId: number) =>
+    post<{ ok: true }>("/rpc/sandbox-scan", { sessionId }),
+
   onWhatsApp: (sessionId: number, identifier: string) =>
     post<{ exists: boolean; jid: string | null }>("/rpc/on-whatsapp", { sessionId, identifier }),
 

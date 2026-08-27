@@ -41,12 +41,62 @@ export const postApiMessagesReactBody = z.object({
   emoji: z.string().max(16),
 });
 
+/**
+ * Sandbox controls.
+ *
+ * A fake WhatsApp needs a way to be created and driven, and none of it exists upstream — there
+ * is nothing to be faithful to. Three endpoints, each earning its place against the bar above:
+ *
+ *   - **create** is separate rather than a `sandbox: true` flag on `POST /api/whatsapp-sessions`,
+ *     because extending a documented route changes behaviour a client already knows. A route
+ *     they never call cannot.
+ *   - **inbound** is the sandbox's actual payload. What nobody can test today is whether their
+ *     webhook handler works, and that needs a real delivery with a real signature.
+ *   - **scan** exists because pairing is simulated, not skipped. The fake pairs itself after a
+ *     few seconds; this is for anyone testing the waiting state deliberately.
+ */
+export const postApiSandboxSessionsBody = z.object({
+  name: z.string().min(1).max(120),
+});
+
+export const postApiSandboxInboundBody = z.object({
+  /**
+   * Sender JID. Defaults to the session's first derived contact, so the common case needs no
+   * argument and the message is still attributable to somebody.
+   */
+  from: z.string().min(1).optional(),
+  text: z.string().min(1).max(4096),
+});
+
+export const postApiSandboxScanBody = z.object({});
+
 export const EXTENSION_ROUTES = [
   {
     body: postApiMessagesReactBody,
     method: "POST",
     operationId: "postApiMessagesReact",
     path: "/api/messages/react",
+    pathParams: [] as string[],
+  },
+  {
+    body: postApiSandboxSessionsBody,
+    method: "POST",
+    operationId: "postApiSandboxSessions",
+    path: "/api/sandbox/sessions",
+    pathParams: [] as string[],
+  },
+  {
+    body: postApiSandboxInboundBody,
+    method: "POST",
+    operationId: "postApiSandboxInbound",
+    path: "/api/sandbox/inbound",
+    pathParams: [] as string[],
+  },
+  {
+    body: postApiSandboxScanBody,
+    method: "POST",
+    operationId: "postApiSandboxScan",
+    path: "/api/sandbox/scan",
     pathParams: [] as string[],
   },
 ] as const;

@@ -16,6 +16,7 @@ import { createDb } from "@wapi/db";
 import { auditRequests } from "./middleware/audit.ts";
 import { rateLimitHeaders } from "./middleware/rate-limit.ts";
 import { authenticate, requirePat } from "./middleware/auth.ts";
+import { sandboxRoutes } from "./routes/sandbox.ts";
 import { sessionRoutes } from "./routes/sessions.ts";
 import { connectionRoutes } from "./routes/connection.ts";
 import { messageRoutes } from "./routes/messages.ts";
@@ -154,10 +155,14 @@ app.use("/api/groups", authenticate(db));
 app.use("/api/groups/*", authenticate(db));
 app.use("/api/upload", authenticate(db));
 app.use("/api/decrypt-media", authenticate(db));
+// Sandbox controls. `/sessions` is account-scoped and checks for a PAT itself; the other two are
+// session-scoped. Both kinds authenticate here, and each handler asserts which it needs.
+app.use("/api/sandbox/*", authenticate(db));
 // /media/* is deliberately unauthenticated: it is the public link `upload` hands out, and
 // it only ever redirects to a short-lived signed URL.
 
 app.route("/api", sessionRoutes(db));
+app.route("/api", sandboxRoutes(db));
 app.route("/api", connectionRoutes(db));
 app.route("/api", messageRoutes(db));
 app.route("/api", messageReadRoutes(db));

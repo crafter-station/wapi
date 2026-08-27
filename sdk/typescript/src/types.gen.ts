@@ -572,6 +572,56 @@ export type PostApiMessagesReactResponse = {
   };
 };
 
+/** Request body for `POST /api/sandbox/sessions`. */
+export type PostApiSandboxSessionsBody = {
+  name: string;
+};
+
+/** Create a sandbox session — a fake number on a fake WhatsApp. */
+export type PostApiSandboxSessionsResponse = {
+  success: true;
+  data: {
+    id: number;
+    name: string;
+    phone_number: string;
+    status: string;
+    account_protection: boolean;
+    log_messages: boolean;
+    webhook_url: string | null;
+    webhook_enabled: boolean;
+    webhook_events: string[] | null;
+    created_at: string;
+    updated_at: string;
+    api_key: string | null;
+    webhook_secret: string | null;
+  };
+};
+
+/** Request body for `POST /api/sandbox/inbound`. */
+export type PostApiSandboxInboundBody = {
+  from?: string;
+  text: string;
+};
+
+/** Fabricate an inbound message on a sandbox session. */
+export type PostApiSandboxInboundResponse = {
+  success: true;
+  data: {
+    key: unknown;
+  };
+};
+
+/** Request body for `POST /api/sandbox/scan`. */
+export type PostApiSandboxScanBody = Record<string, unknown>;
+
+/** Complete pairing on a sandbox session awaiting its fake QR. */
+export type PostApiSandboxScanResponse = {
+  success: true;
+  data: {
+    status: string;
+  };
+};
+
 /**
  * Every operation, its verb, its path template and the status it answers with.
  *
@@ -601,6 +651,9 @@ export type Operations = {
   postApiGroupsGroupJidParticipantsRemove: { method: "POST"; path: "/api/groups/{groupJid}/participants/remove"; status: 200 };
   postApiMessagesReact: { method: "POST"; path: "/api/messages/react"; status: 200 };
   postApiMessagesRead: { method: "POST"; path: "/api/messages/read"; status: 200 };
+  postApiSandboxInbound: { method: "POST"; path: "/api/sandbox/inbound"; status: 200 };
+  postApiSandboxScan: { method: "POST"; path: "/api/sandbox/scan"; status: 200 };
+  postApiSandboxSessions: { method: "POST"; path: "/api/sandbox/sessions"; status: 201 };
   postApiSendMessage: { method: "POST"; path: "/api/send-message"; status: 200 };
   postApiUpload: { method: "POST"; path: "/api/upload"; status: 200 };
   postApiWhatsappSessions: { method: "POST"; path: "/api/whatsapp-sessions"; status: 201 };

@@ -1,6 +1,7 @@
 import { Transport, type WapiClientOptions } from "./http.js";
 import { ContactsResource, GroupsResource } from "./resources/directory.js";
 import { MessagesResource } from "./resources/messages.js";
+import { SandboxResource } from "./resources/sandbox.js";
 import { SessionsResource } from "./resources/sessions.js";
 import type { GetApiStatusResponse, GetApiUserResponse } from "./types.gen.js";
 
@@ -44,6 +45,8 @@ export class WapiClient {
   readonly messages: MessagesResource;
   readonly contacts: ContactsResource;
   readonly groups: GroupsResource;
+  /** wapi extension: a fake number on a fake WhatsApp. See `SandboxResource`. */
+  readonly sandbox: SandboxResource;
 
   constructor(options: WapiClientOptions) {
     this.http = new Transport(options);
@@ -51,6 +54,7 @@ export class WapiClient {
     this.messages = new MessagesResource(this.http);
     this.contacts = new ContactsResource(this.http);
     this.groups = new GroupsResource(this.http);
+    this.sandbox = new SandboxResource(this.http);
   }
 
   /**
