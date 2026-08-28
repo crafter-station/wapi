@@ -122,14 +122,20 @@ see [`docker-compose.yaml`](docker-compose.yaml). Deployment targets a
 
 ## Compatibility
 
-29 endpoints reproduced from the WasenderAPI interface, down to the parts nobody would design
-on purpose: **five** distinct success envelopes, **three** failure envelopes, and **two**
-unrelated pagination shapes. Their published npm client runs against wapi unmodified — only
-the base URL changes:
+46 endpoints reproduced from the WasenderAPI interface, down to the parts nobody would design
+on purpose: **six** distinct success envelopes, **three** failure envelopes, and **two**
+unrelated pagination shapes. Two neighbouring group endpoints even report participant changes in
+two different shapes — reproduced, not tidied. Their published npm client runs against wapi
+unmodified — only the base URL changes:
 
 ```ts
 const wa = createWasender(process.env.WAPI_KEY, undefined, "https://api.wapi.crafter.run/api");
 ```
+
+That is every endpoint they document except the four **Passkey** ones, which cannot be cloned:
+they broker a WhatsApp WebAuthn ceremony through WasenderAPI's own service and a browser
+extension, and Baileys has no equivalent. Those answer `501`, which is honest — a stubbed `200`
+would not be.
 
 That claim is a test suite, not an aspiration: response schemas are checked against the
 provider's own documented examples, and again against live responses.
@@ -200,7 +206,7 @@ an account-protection mode paces sends. Neither is a guarantee.
 
 | Path | |
 | --- | --- |
-| `apps/api` | Hono on Bun — the 29 routes, stateless |
+| `apps/api` | Hono on Bun — the 46 cloned routes, stateless |
 | `apps/gateway` | Node 22 — Baileys sockets, internal RPC only |
 | `apps/webhook-worker` | BullMQ — delivery with retry and backoff |
 | `apps/web` | Next.js 16 — dashboard, guide, Clerk auth |

@@ -111,7 +111,7 @@ d("credentials", () => {
   });
 });
 
-d("the five success envelopes", () => {
+d("the six success envelopes", () => {
   test("GET /api/status is a bare object with no success wrapper", async () => {
     const r = await json(await api("/api/status"));
     expect(r.status).toBe(200);

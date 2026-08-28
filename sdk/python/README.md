@@ -69,7 +69,7 @@ client.groups.participants.add(jid, ["+51..."])
 `{items, pagination}` rather than a bare list. One method with a flag would let you read the
 wrong thing and get `None`.
 
-**Nothing unwraps `data` centrally.** There are five success envelopes; `status()` returns a bare
+**Nothing unwraps `data` centrally.** There are six success envelopes; `status()` returns a bare
 `{"status": ...}`, uploads put `publicUrl` at the top level, delete returns `204` with no body.
 A single unwrap helper is wrong for four of them, so each method handles its own.
 

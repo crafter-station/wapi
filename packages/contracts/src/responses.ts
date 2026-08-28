@@ -7,7 +7,7 @@ import { z } from "zod";
  * commit or fails CI. That promise only ever covered *requests*: every operation published the
  * same `{success, data}` stub where `data` was the empty schema. An empty schema is not "any
  * object" to a reader or to a client generator — Scalar renders it as `null`, so the published
- * reference showed all 29 endpoints returning nothing. That is worse than having no schema at
+ * reference showed every endpoint returning nothing. That is worse than having no schema at
  * all, because it looks authoritative.
  *
  * These are derived from the mirrored spec's response examples, and `responses.test.ts`
@@ -207,7 +207,7 @@ export type SuccessResponse =
  * Success bodies keyed by operationId.
  *
  * Not every entry is `{success, data}`, and that is the point of the project rather than an
- * inconsistency to tidy: five distinct success envelopes appear across these 29 routes.
+ * inconsistency to tidy: six distinct success envelopes appear across these 46 routes.
  * `getApiStatus` is a bare `{status}` with no wrapper, regenerate-key puts `api_key` at the top
  * level, upload and decrypt-media put `publicUrl` there, restart returns `message`, and delete
  * returns no body at all.

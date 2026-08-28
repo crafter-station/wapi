@@ -408,6 +408,29 @@ curl ${API}/api/pn-from-lid/46274715893950@lid -H "Authorization: Bearer $KEY"`,
               ]}
             />
             <p className="mt-5">
+              <strong>Writing, not just reading.</strong> Groups can be left, renamed and
+              re-described; participants promoted and demoted; invite links read, inspected before
+              joining, and accepted. Contacts can be blocked, unblocked, given a saved name, and
+              asked for a picture. Messages you sent can be edited or deleted for everyone, within
+              the short window WhatsApp allows — there is no way to ask how long is left, so a
+              refusal there is ordinary rather than a bug.
+            </p>
+            <p>
+              Two of these disagree with each other, and wapi reproduces that rather than tidying
+              it: <code>participants/add</code> and <code>/remove</code> return a per-participant
+              array of <code>{"{status, jid, message}"}</code>, while{" "}
+              <code>participants/update</code> — the promote/demote route — returns{" "}
+              <code>{"{participants: [jid]}"}</code> with no status at all. On the latter, compare
+              what you sent against what comes back to spot a partial failure. And{" "}
+              <code>invite-link</code> puts <code>inviteLink</code> beside{" "}
+              <code>success</code> rather than under <code>data</code> — the sixth success
+              envelope.
+            </p>
+            <p>
+              <strong>Group changes are the highest ban risk in the research</strong>, above send
+              volume. Rehearse them on a sandbox, where the participants are invented.
+            </p>
+            <p className="mt-5">
               <strong>On LIDs.</strong> Group participants and inbound senders often appear as{" "}
               <code>…@lid</code> rather than a phone number. That is WhatsApp&rsquo;s newer
               identity format, not an error. <code>pn-from-lid</code> resolves it where a mapping
@@ -723,7 +746,7 @@ await wapi.sandbox.inbound("and a reply");      // fires your webhook`,
             <p>
               <code>@wapi/sdk</code> wraps the whole surface with no runtime dependencies — it
               uses global <code>fetch</code>, so Node 18+, Bun and Deno all work. It exists so you
-              do not have to remember which of the five success envelopes an endpoint uses.
+              do not have to remember which of the six success envelopes an endpoint uses.
             </p>
             <p className="mt-4">
               <strong>Vendor it rather than installing it.</strong> npm cannot install a
@@ -1020,7 +1043,7 @@ const groups = await wa.getGroups();`,
  when an order ships, and receive replies via webhook."
 
 # The skill supplies the client, the route handler, and the
-# gotchas -- five success envelopes, two failure envelopes,
+# gotchas -- six success envelopes, two failure envelopes,
 # and why a failed send must not simply be retried.`,
                 },
               ]}

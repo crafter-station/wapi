@@ -85,7 +85,7 @@ class WapiClient:
     def status(self) -> str:
         """Connection state of the session this key belongs to.
 
-        A bare ``{"status": ...}`` with **no ``success`` wrapper** — one of five success
+        A bare ``{"status": ...}`` with **no ``success`` wrapper** — one of six success
         envelopes, and the reason this client does not unwrap ``data`` centrally.
         """
         return self._http.request("GET", "/api/status")["status"]

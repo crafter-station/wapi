@@ -50,7 +50,7 @@ app.get("/health", (c) =>
   c.json({
     status: "ok",
     service: "wapi-api",
-    // The cloned surface and our own additions are counted separately: "29 routes" is a claim
+    // The cloned surface and our own additions are counted separately: "46 routes" is a claim
     // about fidelity, and folding extensions into it would quietly make that claim false.
     routes: ROUTES.length,
     extensions: EXTENSION_ROUTES.length,

@@ -171,7 +171,7 @@ export function messageReadRoutes(db: Db) {
    * WasenderAPI emits `messages.reaction` as a webhook but documents no way to send one; none of
    * the 51 endpoints in the mirrored spec does. This is therefore ours, and lives in
    * `packages/contracts/src/extensions.ts` rather than the generated route table so the cloned
-   * surface stays exactly the 29 endpoints being reproduced.
+   * surface stays exactly the 46 endpoints being reproduced.
    *
    * Keyed the same way as `/messages/read`, for the same reason: the useful case is reacting to
    * a message someone *else* sent, and inbound messages have no row in our table. `msgId` only

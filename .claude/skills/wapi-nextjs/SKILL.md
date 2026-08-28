@@ -45,10 +45,13 @@ That fabricates an inbound message and sends it down the ordinary pipeline, so y
 a genuine, signed `messages.received`. It is the only way to verify a webhook handler without a
 real conversation, and it is the single most useful thing here for an agent.
 
-**Group mutations belong here specifically.** Creating a group and adding participants is the one
-part of the API you should not rehearse on a real number — it makes a real group and adds real
-people. On a sandbox the participants are invented, and a created group is listed by
-`GET /api/groups` afterwards, so the create-then-read flow behaves as it does in production.
+**Group and contact writes belong here specifically.** Creating a group, adding or promoting
+participants, leaving, blocking somebody — these are the parts of the API you should not rehearse
+on a real number, because they make a real group, add real people, and block a real contact. On a
+sandbox all of it is invented, and the read-back works: a created group is listed by
+`GET /api/groups`, an invite code from `GET /invite-link` is accepted by
+`POST /api/groups/invite/accept`, and a name saved with `PUT /api/contacts` shows up in the
+directory.
 
 If you have a browser, the dashboard gives a sandbox its own **Sandbox** tab: the invented
 contacts, the conversation as it happens, and a box to write a message *as* one of those contacts.

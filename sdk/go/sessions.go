@@ -108,7 +108,7 @@ func (c *SessionConnection) Disconnect(ctx context.Context, sessionID int) (json
 
 // Restart reconnects a live session using its stored credentials.
 //
-// "message" at the top level — one of the five success envelopes, which is why nothing is
+// "message" at the top level — one of the six success envelopes, which is why nothing is
 // unwrapped centrally.
 func (c *SessionConnection) Restart(ctx context.Context, sessionID int) (string, error) {
 	raw, err := c.t.do(ctx, "POST", "/api/whatsapp-sessions/"+strconv.Itoa(sessionID)+"/restart", nil, nil)

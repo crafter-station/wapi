@@ -55,7 +55,7 @@ class SessionConnection {
 
   /** Reconnect a live session using its stored credentials. */
   async restart(sessionId: number): Promise<string> {
-    // `message` at the top level, not under `data` — one of five success envelopes.
+    // `message` at the top level, not under `data` — one of six success envelopes.
     const body = await this.http.request<PostApiWhatsappSessionsWhatsappSessionRestartResponse>(
       "POST",
       `/api/whatsapp-sessions/${sessionId}/restart`,

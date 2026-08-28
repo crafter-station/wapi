@@ -82,7 +82,7 @@ them. The ergonomic surface is worth writing by hand.
 **Group by resource, nest sub-resources.** `sessions.keys.regenerate(id)` reads better than
 thirty flat functions, and `sessions.connection.` lists exactly what you can do to a live socket.
 
-**Do not unwrap `data` centrally.** There are five success envelopes:
+**Do not unwrap `data` centrally.** There are six success envelopes:
 
 | Shape | Where |
 | --- | --- |
@@ -90,9 +90,11 @@ thirty flat functions, and `sessions.connection.` lists exactly what you can do 
 | `{status}` — *no `success` key* | `GET /api/status` |
 | `{success, api_key}` — top level | `POST …/regenerate-key` |
 | `{success, publicUrl}` — top level | `POST /api/upload`, `/api/decrypt-media` |
+| `{success, message}` — top level | `…/restart`, `DELETE /api/messages/{id}`, `…/resend` |
+| `{success, inviteLink}` — top level | `GET /api/groups/{jid}/invite-link` |
 | `204`, no body | `DELETE /api/whatsapp-sessions/{id}` |
 
-A single `unwrap(res.data)` is wrong for four of them.
+A single `unwrap(res.data)` is wrong for five of them.
 
 **Map all three failure envelopes.** Which one arrives says *where* it failed — a route handler
 sets `error`, middleware sets `message`, and the throttler emits `{message, retry_after}` with no

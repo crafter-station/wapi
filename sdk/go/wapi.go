@@ -109,7 +109,7 @@ func (c *Client) FetchUsername(ctx context.Context, identifier string) (json.Raw
 
 // Status returns the connection state of the session this key belongs to.
 //
-// A bare {"status": ...} with no "success" wrapper — one of five success envelopes, and the
+// A bare {"status": ...} with no "success" wrapper — one of six success envelopes, and the
 // reason this client does not unwrap "data" centrally.
 func (c *Client) Status(ctx context.Context) (string, error) {
 	raw, err := c.t.do(ctx, "GET", "/api/status", nil, nil)

@@ -7,7 +7,7 @@ Behaviours that are not guessable from the endpoint names. Each of these has cos
 debugging time; several are inherited from the interface wapi clones and are deliberate rather
 than accidental.
 
-## There are five success envelopes, not one
+## There are six success envelopes, not one
 
 Do not write a single `unwrap(res.data)` helper and assume it applies everywhere.
 
@@ -17,7 +17,8 @@ Do not write a single `unwrap(res.data)` helper and assume it applies everywhere
 | `{status}` — **no `success` key at all** | `GET /api/status` |
 | `{success, api_key}` — at the top level | `POST .../regenerate-key` |
 | `{success, publicUrl}` — at the top level | `POST /api/upload`, `POST /api/decrypt-media` |
-| `{success, message}` | `POST .../restart` |
+| `{success, message}` | `POST .../restart`, `DELETE /api/messages/{id}`, `POST .../resend` |
+| `{success, inviteLink}` — at the top level | `GET /api/groups/{jid}/invite-link` |
 | no body at all (`204`) | `DELETE /api/whatsapp-sessions/{id}` |
 
 ## There are two failure envelopes, and which one you get tells you where it failed
@@ -106,7 +107,8 @@ It is the *same* API otherwise: same routes, same envelopes, same code — the f
 same interface the real engine does, rather than being a separate path that could drift.
 
 Group mutations work and persist: create a group and `GET /api/groups` lists it, add a participant
-and the membership changes. Per-participant status is reported the way WhatsApp reports it, so
+and the membership changes, leave one and it disappears. Invite codes round-trip — the code from
+`GET /invite-link` is accepted by `POST /api/groups/invite/accept`. Per-participant status is reported the way WhatsApp reports it, so
 adding somebody already in the group is a `409` **for that participant** inside a `200` response —
 write the branch that handles it.
 

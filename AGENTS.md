@@ -68,7 +68,7 @@ like success, and is worth reading before changing anything there.
 
 | Path | Runtime | Notes |
 | --- | --- | --- |
-| `apps/api` | Bun + Hono | the 29 routes. **Stateless** |
+| `apps/api` | Bun + Hono | the 46 cloned routes. **Stateless** |
 | `apps/gateway` | **Node 22** | Baileys sockets. **Stateful**, internal RPC only, no public port |
 | `apps/webhook-worker` | Node + BullMQ | delivery, retry, backoff, DLQ |
 | `apps/web` | Next.js 16 | dashboard, guide, Clerk |
@@ -306,13 +306,24 @@ the *WhatsApp* record, so `messageTimestamp` is a **string** (protobuf int64) an
 
 Anything of ours goes in `packages/contracts/src/extensions.ts`, never in `generated/routes.ts`
 — that file is rewritten wholesale by `contracts:generate`, and folding an addition into
-`ROUTES` would falsify the "29 routes" claim that a test asserts and `/health` reports. The two
+`ROUTES` would falsify the "46 routes" claim that a test asserts and `/health` reports. The two
 counts are reported separately for that reason.
 
 The bar is high. Fidelity means their SDK runs unmodified, and an endpoint they never call
 cannot break that — but each addition is one more thing true of wapi and not of the interface it
 claims to clone. Extending an *existing documented route* is worse and stays off the table:
 that changes behaviour a client already knows.
+
+**The four Passkey endpoints are the one part of the interface not cloned, and cannot be.**
+`/api/passkey/{pending,confirm,response}` and `…/passkey-token` broker a WhatsApp WebAuthn
+ceremony through WasenderAPI's own service plus a "Device Link Helper" Chrome extension. Baileys
+has no such API — its only mention of the word is a telemetry constant in `WAM/constants.js` —
+so cloning them would mean inventing behaviour and reporting it as fidelity. They answer 501,
+which is honest, and `/health` counts 46 cloned routes rather than 50.
+
+Baileys *does* expose `requestPairingCode(phoneNumber)`, which solves the same problem — linking
+without scanning a QR — by a different route. That would be a wapi extension, not a clone, and is
+an open decision rather than an oversight.
 
 Current extensions: `POST /api/messages/react` (they emit `messages.reaction` as a webhook but
 document no way to send one), the three `/api/sandbox/*` controls, and `webhook_hmac`, which is
@@ -325,7 +336,7 @@ routes" stays a true claim about fidelity.
 
 `sdk/` holds one client per language — TypeScript and Python today. `sdk/README.md` records the
 shape every port must follow, and it is worth reading before adding one: a port should reproduce
-the *decisions* (five envelopes, three failure shapes, `list()` separate from `page()`), not just
+the *decisions* (six envelopes, three failure shapes, `list()` separate from `page()`), not just
 the endpoints. An SDK that faithfully exposes the awkwardness has not earned its place.
 
 **When you change a route or a response schema, every SDK is part of the change.** CI enforces

@@ -5,7 +5,7 @@ import { z } from "zod";
  *
  * `generated/routes.ts` is rewritten wholesale by `bun run contracts:generate`, so anything
  * hand-added there is destroyed on the next run. Extensions live here instead, which also keeps
- * the cloned surface countable: `ROUTES` stays exactly the 29 endpoints being reproduced, and
+ * the cloned surface countable: `ROUTES` stays exactly the 46 endpoints being reproduced, and
  * anything in this file is visibly an addition.
  *
  * The bar for adding to this file is high. Strict fidelity means their published SDK runs

@@ -68,7 +68,7 @@ export class WapiClient {
   /**
    * Connection state of the session this key belongs to.
    *
-   * A bare `{ status }` with **no `success` wrapper** — one of five success envelopes in this
+   * A bare `{ status }` with **no `success` wrapper** — one of six success envelopes in this
    * API, and the reason this client does not unwrap `data` centrally.
    */
   async status(): Promise<string> {

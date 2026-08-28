@@ -36,7 +36,7 @@ class SessionConnection:
     def restart(self, session_id: int) -> str:
         """Reconnect a live session using its stored credentials.
 
-        ``message`` at the top level — one of the five success envelopes, which is why nothing is
+        ``message`` at the top level — one of the six success envelopes, which is why nothing is
         unwrapped centrally.
         """
         return self._http.request("POST", f"/api/whatsapp-sessions/{session_id}/restart")["message"]
