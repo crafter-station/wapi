@@ -352,7 +352,13 @@ export const SUCCESS_RESPONSES: Record<string, SuccessResponse> = {
   postApiGroupsGroupIdLeave: { status: 200, schema: ok(z.object({})) },
   putApiGroupsGroupIdParticipantsUpdate: {
     status: 200,
-    schema: ok(z.array(z.object({ jid: z.string(), status: z.string() }))),
+    /**
+     * **Not** the `[{status, jid, message}]` array that add and remove return — this one is
+     * `{participants: [jid]}`. Two neighbouring endpoints that do the same kind of work report it
+     * in two different shapes, which is exactly the sort of thing a clone exists to reproduce
+     * rather than tidy. Caught by the fixture test after being written the obvious way.
+     */
+    schema: ok(z.object({ participants: z.array(z.string()) })),
   },
   getApiGroupsGroupJidInviteLink: {
     status: 200,
@@ -368,7 +374,40 @@ export const SUCCESS_RESPONSES: Record<string, SuccessResponse> = {
     schema: ok(z.object({ description: z.string().nullable().optional(), subject: z.string().optional() })),
   },
   postApiGroupsInviteAccept: { status: 200, schema: ok(z.object({ id: z.string() })) },
-  getApiGroupsInviteInviteCode: { status: 200, schema: ok(groupMetadata) },
+  getApiGroupsInviteInviteCode: {
+    status: 200,
+    /**
+     * Their own two group payloads disagree with each other.
+     *
+     * The metadata body is `{jid, subject, participants: [{jid, isAdmin, isSuperAdmin}]}`; this
+     * invite body is `{id, subject, size, participants: [{id, admin}]}` — the same data under
+     * different keys, on neighbouring endpoints. `groupToWire` and `participantToWire` already
+     * emit both spellings, so what we return satisfies either reader; this schema requires the
+     * invite spelling and leaves the metadata one optional. `size` appears here and nowhere else.
+     */
+    schema: ok(
+      z.object({
+        creation: z.number().int().nullable().optional(),
+        desc: z.string().nullable().optional(),
+        id: z.string(),
+        imgUrl: z.string().nullable().optional(),
+        jid: z.string().optional(),
+        name: z.string().optional(),
+        owner: z.string().nullable().optional(),
+        participants: z.array(
+          z.object({
+            admin: z.string().nullable().optional(),
+            id: z.string(),
+            isAdmin: z.boolean().optional(),
+            isSuperAdmin: z.boolean().optional(),
+            jid: z.string().optional(),
+          }),
+        ),
+        size: z.number().int().optional(),
+        subject: z.string(),
+      }),
+    ),
+  },
 
   // -- groups
   getApiGroups: {

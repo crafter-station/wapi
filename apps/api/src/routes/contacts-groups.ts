@@ -343,7 +343,8 @@ export function contactGroupRoutes(_db: Db) {
     guard(c, async (sessionId) => {
       const { group } = await gateway.groupByInvite(sessionId, c.req.param("inviteCode"));
       if (!group) return c.json(fail("Failed to get group invite info: Invalid or expired invite code"), 422);
-      return c.json(ok(groupToWire(group)));
+      // `size` appears on this payload and no other group response of theirs.
+      return c.json(ok({ ...groupToWire(group), size: group.participants.length }));
     }),
   );
 
@@ -372,7 +373,16 @@ export function contactGroupRoutes(_db: Db) {
         jids.jids,
         action,
       );
-      return c.json(ok(results.results));
+      /**
+       * `{participants: [jid]}`, not the `[{status, jid, message}]` array `add` and `remove`
+       * return. Two neighbouring endpoints, two shapes — theirs, reproduced rather than tidied.
+       *
+       * Only the ones that actually changed are listed. The shape carries no per-participant
+       * status, so comparing what was sent against what comes back is the caller's only way to
+       * detect a partial failure; echoing the request would take that away.
+       */
+      const changed = results.results.filter((r) => r.status === "200").map((r) => r.jid);
+      return c.json(ok({ participants: changed }));
     }),
   );
 

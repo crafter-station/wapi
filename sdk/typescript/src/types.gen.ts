@@ -311,21 +311,22 @@ export type GetApiGroupsGroupJidPictureResponse = {
 export type GetApiGroupsInviteInviteCodeResponse = {
   success: true;
   data: {
-    jid: string;
-    id?: string;
-    name?: string;
-    subject: string;
-    imgUrl?: string | null;
-    owner?: string | null;
     creation?: number | null;
     desc?: string | null;
+    id: string;
+    imgUrl?: string | null;
+    jid?: string;
+    name?: string;
+    owner?: string | null;
     participants: {
-      jid: string;
-      isAdmin: boolean;
-      isSuperAdmin: boolean;
-      id?: string;
       admin?: string | null;
+      id: string;
+      isAdmin?: boolean;
+      isSuperAdmin?: boolean;
+      jid?: string;
     }[];
+    size?: number;
+    subject: string;
   };
 };
 
@@ -657,9 +658,8 @@ export type PutApiGroupsGroupIdParticipantsUpdateBody = {
 export type PutApiGroupsGroupIdParticipantsUpdateResponse = {
   success: true;
   data: {
-    jid: string;
-    status: string;
-  }[];
+    participants: string[];
+  };
 };
 
 /** Request body for `PUT /api/groups/{groupJid}/settings`. */

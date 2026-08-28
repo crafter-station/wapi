@@ -634,7 +634,13 @@ d("group membership", () => {
       }),
     );
     expect(promoted.status).toBe(200);
-    expect(promoted.body["data"]).toEqual([{ jid: member, status: "200" }]);
+    /**
+     * `{participants: [jid]}`, and deliberately not the `[{status, jid, message}]` array that
+     * `add` and `remove` return — theirs, two shapes for the same kind of work on neighbouring
+     * endpoints. Only the participants that actually changed are listed, which is a caller's
+     * only way to spot a partial failure in a payload that carries no status.
+     */
+    expect(promoted.body["data"]).toEqual({ participants: [member] });
 
     const after = (await json(await api(`/api/groups/${groups[0]!.id}/participants`))).body["data"] as {
       admin: string | null;
