@@ -83,6 +83,22 @@ class SessionLogs:
             )
         )
 
+    def activity(self, session_id: int, page: int = 1, per_page: int = 15) -> Any:
+        """One page of a session's *lifecycle* events — status changes, restarts.
+
+        A different question from ``messages`` above, and from the audit log: that records HTTP
+        calls, this records what happened to the connection, which is what you want when a
+        session misbehaves. Same Laravel paginator. PAT-scoped.
+        """
+        return data(
+            self._http.request(
+                "GET",
+                f"/api/whatsapp-sessions/{session_id}/session-logs",
+                query={"page": page, "per_page": per_page},
+            )
+        )
+
+
 
 class SessionsResource:
     def __init__(self, http: Transport) -> None:
@@ -128,24 +144,3 @@ class SessionsResource:
         with no body, which is why this returns ``None`` rather than a parsed envelope.
         """
         self._http.request("DELETE", f"/api/whatsapp-sessions/{session_id}")
-
-
-class SessionLogsResource:
-    """Session activity — what happened to the connection, not what was called."""
-
-    def __init__(self, http: Transport) -> None:
-        self._http = http
-
-    def page(self, session_id: int, page: int = 1, per_page: int = 15) -> Any:
-        """One page of a session's lifecycle events.
-
-        Distinct from the audit log, which records HTTP calls: this records status changes and
-        restarts, which is what you want when a session misbehaves. PAT-scoped.
-        """
-        return data(
-            self._http.request(
-                "GET",
-                f"/api/whatsapp-sessions/{session_id}/session-logs",
-                query={"page": page, "per_page": per_page},
-            )
-        )

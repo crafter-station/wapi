@@ -79,25 +79,35 @@ message was undelivered — retrying sends twice. Reconcile with `messages.info(
 ## Surface
 
 ```
-wapi.status()                            wapi.user()
+wapi.status() user() sendPresence() fetchUsername()
 
 wapi.sessions.list() get() create() update() delete()
 wapi.sessions.connection.connect() disconnect() restart() qrCode()
 wapi.sessions.keys.regenerate()
-wapi.sessions.logs.messages()
+wapi.sessions.logs.messages() activity()
 
-wapi.messages.send() info() markRead() react() unreact()
+wapi.messages.send() info() edit() delete() resend() markRead() react() unreact()
 wapi.messages.media.upload() decrypt()
 
-wapi.contacts.list() page() get() onWhatsApp()
+wapi.contacts.list() page() get() onWhatsApp() save() block() unblock() picture()
 wapi.contacts.lid.fromPhone() toPhone()
 
-wapi.groups.list() page() create() metadata()
-wapi.groups.participants.list() add() remove()
+wapi.groups.list() page() create() metadata() leave() picture()
+wapi.groups.inviteLink() byInvite() acceptInvite() updateSettings()
+wapi.groups.participants.list() add() remove() update()
+
+wapi.sandbox.createSession() inbound() scan()
 ```
 
 `list()` and `page()` are separate because `?paginated=true` returns a *different shape*, not the
 same one with metadata. Keeping them apart means a caller cannot read `data` and get `undefined`.
+
+Three methods deliberately do **not** unwrap `data`, because the API does not put it there:
+`groups.inviteLink()` returns the link string, and `messages.delete()` and `messages.resend()`
+return their confirmation string. Each reads a top-level key beside `success`.
+
+`sessions.logs.messages()` and `.activity()` answer different questions — what was *sent*, versus
+what happened to the *connection*. Neither is the audit log, which records HTTP calls.
 
 ## Changing the API
 

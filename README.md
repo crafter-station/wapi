@@ -95,8 +95,12 @@ curl -X POST https://api.wapi.crafter.run/api/sandbox/sessions   -H "Authorizati
 ```
 
 It has a small directory, accepts sends, and — the point — can be made to *receive* messages, so
-your webhook handler gets a genuine signed delivery to prove itself against. Group mutations work
-too, which is the one part of the surface nobody should rehearse on a real number.
+your webhook handler gets a genuine signed delivery to prove itself against.
+
+It is also the only safe place to rehearse the **writes**: creating a group, promoting or removing
+participants, leaving, blocking a contact. Each of those touches real people on a real number.
+Here the participants are invented, and the read-back works — a created group is listed, an invite
+code is accepted, a saved name shows up in the directory.
 
 The dashboard gives a sandbox its own **Sandbox** tab: the invented contacts, the conversation as
 it happens, and a box to write a message *as* one of those contacts — the shortest path from "I

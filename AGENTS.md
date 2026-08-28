@@ -225,8 +225,9 @@ sending already has an API, and what has no other affordance is making a message
 is the half that fires the webhook somebody is trying to debug. The tab is hidden and the page
 404s for a real session.
 
-**Group mutations are only testable here.** Exercising them against a real number means creating
-a real group and adding real people to it. Covered in `sandbox-engine.test.ts` and
+**The write half of the surface is only testable here.** Group creation, participant changes,
+leaving, blocking a contact — exercising any of them against a real number creates a real group,
+adds or removes real people, or blocks somebody. Covered in `sandbox-engine.test.ts` and
 `compat/sandbox.test.ts`; do not move them to the live suite.
 
 **`proxy_url` is applied at connect, not pushed.** `BaileysEngine` builds a tunnelling agent from
@@ -240,9 +241,22 @@ likely notice.
 
 ---
 
-## Webhook records
+## Logs and records
 
-Two tables that are easy to confuse:
+**Three** tables that are easy to confuse, answering three different questions:
+
+- **`audit_logs`** — what was *called*. HTTP requests, written before authentication so a sweep of
+  bad credentials shows as 401s rather than as nothing.
+- **`session_logs`** — what happened to the *connection*. Status changes and restarts, written by
+  the **webhook worker**, which is the only place a transition WhatsApp initiated is observed —
+  the API would miss most of them. Best-effort: a diagnostic row must never cost the status update
+  it accompanies. Serves `GET /api/whatsapp-sessions/{id}/session-logs`.
+- **`messages`** — what was *sent*. Also the source for edit, delete and resend, which address a
+  message by its integer `msgId` and look up the stored WhatsApp key. Scoped by session as well as
+  id, so a valid `msgId` from another session is a 404 rather than a way to touch somebody else's
+  message.
+
+And two more, easy to confuse with each other:
 
 - **`webhook_deliveries`** — what our own test *sink* received. Only ever populated for a
   session deliberately pointed at `/api/webhook-sink`.
@@ -253,6 +267,29 @@ Two tables that are easy to confuse:
 
 Recording must never throw. A failed insert after a successful POST would fail the job, BullMQ
 would retry it, and a bookkeeping error would become a duplicate webhook.
+
+---
+
+## The engine port
+
+`WhatsAppEngine` in `packages/core/src/engine.ts` is 34 methods, and **three** classes implement
+it: `BaileysEngine`, `SandboxEngine`, and `DispatchingEngine` — which implements the port itself
+so `resume.ts` and every RPC route stay unaware there are two engines. Adding a method means
+adding it in all three, and TypeScript will say so.
+
+Two rules have paid for themselves repeatedly:
+
+**If a write has a matching read, the fake must reflect it.** `createGroup` once returned a
+correctly-shaped group that `groups()` never listed, so "create then list" worked against Baileys
+and silently did nothing against the sandbox — teaching the wrong thing about the real endpoint.
+The same trap was avoided for `saveContact` by putting it on the port rather than writing the
+contacts table from the API: each engine owns where its contacts come from, so a direct DB write
+would have been invisible to a sandbox.
+
+**Absence is a value, not an error.** `profilePicture` and a contact's `username` return `null`
+far more often than not, because most accounts have neither and WhatsApp offers no way to ask.
+Those are `200`s with nothing in them. Raising would turn the ordinary case into an error path and
+make it indistinguishable from a JID that does not exist.
 
 `dispatchStatus` in `apps/webhook-worker/src/events.ts` is a pure function *because* it cannot
 be exercised live — the only paired session answers 200, so every production row is a

@@ -108,6 +108,16 @@ not a bad secret.
 **Say that sends are not safely retryable.** A timeout means the request failed, not that the
 message was undelivered. Retrying blindly sends twice.
 
+**Surface per-participant results, and do not normalise the two shapes into one.**
+`participants/add` and `/remove` return `[{status, jid, message}]`; `participants/update` — the
+promote/demote route — returns `{participants: [jid]}` with no status at all. Flattening them
+into a common type would hide the fact that on `update` the only way to notice a partial failure
+is to compare what was sent against what came back.
+
+**Return `null` results as successes.** `contacts/{n}/picture` and `fetch-username` answer with
+`null` far more often than not, inside a `200`. An SDK that raises on those turns the ordinary
+case into an error path.
+
 ## Keeping an SDK current
 
 `ops/check-sdk-in-sync.mjs` runs in CI and fails when generated types are stale or an operation

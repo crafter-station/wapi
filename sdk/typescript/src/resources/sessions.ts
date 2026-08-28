@@ -117,6 +117,23 @@ class SessionLogs {
       ),
     );
   }
+
+  /**
+   * One page of a session's *lifecycle* events — status changes, restarts.
+   *
+   * A different question from `messages()` above, and from the audit log: that records HTTP
+   * calls, this records what happened to the connection, which is what you want when a session
+   * misbehaves. Same Laravel paginator. PAT-scoped.
+   */
+  async activity(sessionId: number, options: { page?: number; perPage?: number } = {}) {
+    return data(
+      await this.http.request<GetApiWhatsappSessionsWhatsappSessionSessionLogsResponse>(
+        "GET",
+        `/api/whatsapp-sessions/${sessionId}/session-logs`,
+        { query: { page: options.page, per_page: options.perPage } },
+      ),
+    );
+  }
 }
 
 /**
@@ -191,23 +208,3 @@ export class SessionsResource {
   }
 }
 
-/** Session activity — what happened to the connection, not what was called. */
-export class SessionLogsResource {
-  constructor(private readonly http: Transport) {}
-
-  /**
-   * One page of a session's lifecycle events.
-   *
-   * Distinct from the audit log, which records HTTP calls: this records status changes and
-   * restarts, which is what you want when a session misbehaves. PAT-scoped.
-   */
-  async page(sessionId: number, options: { page?: number; perPage?: number } = {}) {
-    return data(
-      await this.http.request<GetApiWhatsappSessionsWhatsappSessionSessionLogsResponse>(
-        "GET",
-        `/api/whatsapp-sessions/${sessionId}/session-logs`,
-        { query: { page: options.page, per_page: options.perPage } },
-      ),
-    );
-  }
-}

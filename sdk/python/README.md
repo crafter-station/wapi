@@ -44,23 +44,39 @@ except WapiAuthError as e:
 ```python
 client.status()                                  # bare {"status": ...}, no envelope
 client.user()
+client.send_presence(jid, "composing")           # typing indicator
+client.fetch_username(jid)                       # usually {"username": None}
 
 client.sessions.list()                           # PAT
 client.sessions.connection.connect(3)
 client.sessions.keys.regenerate(3)               # old key dies immediately
-client.sessions.logs.messages(3, page=1)
+client.sessions.logs.messages(3, page=1)         # what was sent
+client.sessions.logs.activity(3, page=1)         # what happened to the connection
 
 client.messages.send(to="+51...", text="hi")
 client.messages.info(100024)
+client.messages.edit(100024, "corrected")        # short window only
+client.messages.delete(100024)                   # returns a string, not a dict
+client.messages.resend(100024)                   # failed messages only
 client.messages.react(key, "👍")                 # wapi extension
 client.messages.media.upload(b"...", "image/png")
 
 client.contacts.list()                           # flat list
 client.contacts.page(page=1, limit=50)           # different shape — see below
+client.contacts.save(jid, "Ada")                 # stored by wapi, not on the phone
+client.contacts.block(number) / unblock(number)
+client.contacts.picture(number)                  # {"imgUrl": None} is normal
 client.contacts.lid.to_phone(lid)                # None on 404
 
 client.groups.metadata(jid)
+client.groups.leave(jid)
+client.groups.invite_link(jid)                   # returns a string, not a dict
+client.groups.by_invite(code) / accept_invite(code)
+client.groups.update_settings(jid, subject="New name")
 client.groups.participants.add(jid, ["+51..."])
+client.groups.participants.update(jid, ["+51..."], "promote")
+
+client.sandbox.create_session("dev")             # wapi extension
 ```
 
 ## Things that will surprise you
@@ -70,14 +86,29 @@ client.groups.participants.add(jid, ["+51..."])
 wrong thing and get `None`.
 
 **Nothing unwraps `data` centrally.** There are six success envelopes; `status()` returns a bare
-`{"status": ...}`, uploads put `publicUrl` at the top level, delete returns `204` with no body.
-A single unwrap helper is wrong for four of them, so each method handles its own.
+`{"status": ...}`, uploads put `publicUrl` at the top level, `groups.invite_link` puts
+`inviteLink` there, `messages.delete` and `.resend` put `message` there, and session delete
+returns `204` with no body. A single unwrap helper is wrong for five of them, so each method
+handles its own — which is why a few return a plain `str` rather than a dict.
 
 **A timeout on a send is ambiguous.** It means the request failed, not that the message went
 undelivered. Retrying blindly sends twice — reconcile with `messages.info(msg_id)`.
 
-**Reactions are a wapi extension.** WasenderAPI reports them over webhooks but has no endpoint to
-send one. Feature-detect if you target both.
+**Reactions and the sandbox are wapi extensions.** WasenderAPI reports reactions over webhooks
+but has no endpoint to send one, and has nothing like a sandbox session. Feature-detect if you
+target both.
+
+**Promote/demote reports differently from add/remove.** `participants.add` and `.remove` return a
+per-participant list of `{status, jid, message}`; `participants.update` returns
+`{"participants": [jid]}` with no status at all. On the latter, compare what you sent against
+what comes back to notice a partial failure. Theirs, not ours.
+
+**`fetch_username` almost always returns `None`.** WhatsApp volunteers a username only for
+accounts that have set one and offers no way to ask, so `None` means "not told us" and "has none"
+alike. Same for `contacts.picture`: `{"imgUrl": None}` is the ordinary answer, inside a `200`.
+
+**Editing and deleting only work briefly.** WhatsApp allows both for a short window after sending
+and gives no way to ask how long is left, so a refusal is expected rather than a bug.
 
 ## Errors
 

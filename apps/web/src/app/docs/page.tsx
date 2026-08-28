@@ -49,6 +49,7 @@ export default function DocsPage() {
               ["sending", "Sending messages"],
               ["media", "Media"],
               ["groups", "Groups & contacts"],
+              ["session", "Session activity"],
               ["webhooks", "Webhooks"],
               ["sandbox", "Sandbox"],
               ["errors", "Errors"],
@@ -287,6 +288,24 @@ curl -X POST ${API}/api/messages/react \
               ending <code>@g.us</code>, or a channel JID ending <code>@newsletter</code>.
               Sending to a group is the same call with a group JID.
             </p>
+            <p>
+              <strong>After sending</strong>, a message can be edited or deleted for everyone —{" "}
+              <code>PUT /api/messages/{"{msgId}"}</code> and{" "}
+              <code>DELETE /api/messages/{"{msgId}"}</code>, both addressed by the integer{" "}
+              <code>msgId</code> a send returns. WhatsApp allows each only for a short window
+              afterwards and gives no way to ask how long is left, so a refusal there is ordinary
+              rather than a bug. An edit is a *new* message that supersedes the old one, so it
+              comes back with a fresh key while keeping the original <code>msgId</code>.
+            </p>
+            <p>
+              <code>POST /api/messages/{"{msgId}"}/resend</code> retries, and only for messages
+              whose status is <code>failed</code>. That restriction is worth understanding rather
+              than working around: a send that timed out is recorded as{" "}
+              <code>in_progress</code> precisely because nobody knows whether it arrived, and
+              resending one of those is how somebody receives the same message twice. It also
+              needs <code>log_messages</code> to have been on, since otherwise there is no stored
+              content to send again.
+            </p>
           </S>
 
           {/* --------------------------------------------------------- media */}
@@ -440,6 +459,57 @@ curl ${API}/api/pn-from-lid/46274715893950@lid -H "Authorization: Bearer $KEY"`,
           </S>
 
           {/* ------------------------------------------------------ webhooks */}
+          {/* ------------------------------------------------------- session */}
+          <S id="session" kicker="Session activity" title={<>Presence, usernames, <em>and a paper trail.</em></>}>
+            <Code
+              tabs={[
+                {
+                  label: "Typing indicator", lang: "bash",
+                  code: `curl -X POST ${API}/api/send-presence-update   -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json'   -d '{"jid":"+51999888777","type":"composing"}'
+
+# type is one of: unavailable, available, composing, recording, paused
+# → { "success": true, "data": { "jid": "+51999888777", "type": "composing" } }`,
+                },
+                {
+                  label: "Session logs", lang: "bash",
+                  code: `# PAT-scoped, Laravel paginator — what happened to the *connection*.
+curl "${API}/api/whatsapp-sessions/3/session-logs?page=1"   -H "Authorization: Bearer $PAT"
+
+# → { "success": true, "data": { "current_page": 1, "total": 12, "data": [
+#     { "id": 201, "whatsapp_session_id": 3,
+#       "event_type": "status_change", "status": "connected",
+#       "occurred_at": "2025-09-23T12:00:00.000Z" } ] } }`,
+                },
+                {
+                  label: "Username", lang: "bash",
+                  code: `curl ${API}/api/fetch-username/+51999888777   -H "Authorization: Bearer $KEY"
+
+# → { "success": true, "data": { "jid": "...@s.whatsapp.net", "username": null } }`,
+                },
+              ]}
+            />
+            <p className="mt-5">
+              <strong>Presence is fire-and-forget.</strong> WhatsApp acknowledges nothing, so a{" "}
+              <code>200</code> means the frame left, not that anybody saw it. The documented{" "}
+              <code>delayMs</code> field is accepted and ignored — holding a request open to sleep
+              server-side would occupy a connection to simulate something you can do better
+              yourself.
+            </p>
+            <p>
+              <strong>Session logs are not the audit log.</strong> The audit log records HTTP
+              calls; this records what happened to the connection — status changes and restarts.
+              When a session misbehaves, this is the one that answers the question. Rows are
+              written by the webhook worker, which is the only place a transition WhatsApp
+              initiated is observed.
+            </p>
+            <p>
+              <strong><code>username</code> is almost always <code>null</code>.</strong> WhatsApp
+              volunteers one only for accounts that have set it and offers no way to ask, so null
+              means &ldquo;not told us&rdquo; and &ldquo;has none&rdquo; alike. It is a{" "}
+              <code>200</code> either way, never a <code>404</code>.
+            </p>
+          </S>
+
           <S id="webhooks" kicker="Webhooks" title={<>Receiving <em>as it happens.</em></>}>
             <p>
               Set a webhook URL on the session and we POST events to it, retrying up to five

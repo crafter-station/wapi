@@ -2,7 +2,7 @@ import { Transport, type WapiClientOptions } from "./http.js";
 import { ContactsResource, GroupsResource } from "./resources/directory.js";
 import { MessagesResource } from "./resources/messages.js";
 import { SandboxResource } from "./resources/sandbox.js";
-import { SessionLogsResource, SessionsResource } from "./resources/sessions.js";
+import { SessionsResource } from "./resources/sessions.js";
 import type {
   GetApiFetchUsernameContactIdentifierResponse,
   GetApiStatusResponse,
@@ -47,8 +47,6 @@ export class WapiClient {
   private readonly http: Transport;
 
   readonly sessions: SessionsResource;
-  /** Session lifecycle events — status changes and restarts. PAT-scoped. */
-  readonly sessionLogs: SessionLogsResource;
   readonly messages: MessagesResource;
   readonly contacts: ContactsResource;
   readonly groups: GroupsResource;
@@ -62,7 +60,6 @@ export class WapiClient {
     this.contacts = new ContactsResource(this.http);
     this.groups = new GroupsResource(this.http);
     this.sandbox = new SandboxResource(this.http);
-    this.sessionLogs = new SessionLogsResource(this.http);
   }
 
   /**
