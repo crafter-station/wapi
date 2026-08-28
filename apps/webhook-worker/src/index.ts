@@ -21,7 +21,7 @@ import {
   contacts,
   webhookDispatches,
   whatsappSessions,
-  type WhatsappSession,
+  type WhatsappSession, sessionLogs,
 } from "@wapi/db";
 import {
   dispatchStatus,
@@ -114,6 +114,19 @@ await sub.subscribe("wapi:events", async (raw) => {
    * whether or not anyone subscribed to webhooks.
    */
   if (engineEvent.type === "status" && engineEvent.status && engineEvent.status !== session.status) {
+    /**
+     * The one place a status transition is observed, so the one place `session_logs` can be
+     * written from. Recording it in the API instead would miss every transition WhatsApp
+     * initiates — which is most of them, and exactly the ones an operator is asking about.
+     *
+     * Best-effort: a session log is diagnostic, and losing one must never cost the status update
+     * that follows it.
+     */
+    void db
+      .insert(sessionLogs)
+      .values({ eventType: "status_change", sessionId, status: engineEvent.status })
+      .catch((err) => logger.error({ err }, "session log write failed"));
+
     await db
       .update(whatsappSessions)
       .set({ status: engineEvent.status, updatedAt: new Date() })

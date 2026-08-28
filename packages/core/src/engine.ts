@@ -63,6 +63,9 @@ export type EngineIdentity = { id: string; name: string | null; lid: string | nu
  * engine takes one object and the adapter fans it out. Undefined means "leave alone" — distinct
  * from `false`, which is a real setting.
  */
+/** WhatsApp's presence vocabulary, which is Baileys' `WAPresence` verbatim. */
+export type PresenceType = "unavailable" | "available" | "composing" | "recording" | "paused";
+
 export type GroupSettings = {
   subject?: string;
   description?: string;
@@ -165,6 +168,13 @@ export interface WhatsAppEngine {
    * pair would invite them drifting apart.
    */
   blockContact(sessionId: number, jid: string, action: "block" | "unblock"): Promise<void>;
+  /**
+   * Send a presence update — typing, recording, online — to a chat.
+   *
+   * Fire-and-forget by nature: WhatsApp acknowledges nothing, so a resolved promise means the
+   * frame left, not that anybody saw it.
+   */
+  sendPresence(sessionId: number, jid: string, type: PresenceType): Promise<void>;
   /**
    * Save a display name for a contact.
    *

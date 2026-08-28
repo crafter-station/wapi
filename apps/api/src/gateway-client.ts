@@ -11,6 +11,7 @@ import type {
   ContactRecord,
   GroupRecord,
   GroupSettings,
+  PresenceType,
   SendContent,
   SendResult,
   SendOptions,
@@ -170,6 +171,9 @@ export const gateway = {
 
   saveContact: (sessionId: number, jid: string, fullName: string | null) =>
     post<{ ok: true }>("/rpc/save-contact", { sessionId, jid, fullName }),
+
+  sendPresence: (sessionId: number, jid: string, type: PresenceType) =>
+    post<{ ok: true }>("/rpc/send-presence", { sessionId, jid, type }),
 
   blockContact: (sessionId: number, jid: string, action: "block" | "unblock") =>
     post<{ ok: true }>("/rpc/block-contact", { sessionId, jid, action }),

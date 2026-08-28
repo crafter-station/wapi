@@ -409,6 +409,32 @@ export const SUCCESS_RESPONSES: Record<string, SuccessResponse> = {
     ),
   },
 
+  postApiSendPresenceUpdate: {
+    status: 200,
+    schema: ok(z.object({ jid: z.string(), type: z.string() })),
+  },
+  getApiFetchUsernameContactIdentifier: {
+    status: 200,
+    /**
+     * `username` is null far more often than not — WhatsApp volunteers one only for accounts
+     * that have set it, and there is no way to ask. A success with nothing in it, not a 404.
+     */
+    schema: ok(z.object({ jid: z.string(), username: z.string().nullable() })),
+  },
+  getApiWhatsappSessionsWhatsappSessionSessionLogs: {
+    status: 200,
+    schema: ok(
+      laravelPage(
+        z.object({
+          event_type: z.string(),
+          id: z.number().int(),
+          occurred_at: z.string(),
+          status: z.string().nullable(),
+          whatsapp_session_id: z.number().int(),
+        }),
+      ),
+    ),
+  },
   putApiMessagesMsgId: {
     status: 200,
     /**

@@ -31,6 +31,7 @@ import type {
   ContactRecord,
   GroupRecord,
   GroupSettings,
+  PresenceType,
   SendContent,
   SendOptions,
 } from "@wapi/core";
@@ -426,6 +427,10 @@ export class BaileysEngine implements WhatsAppEngine {
         target: [contacts.sessionId, contacts.jid],
         set: { name: sql`coalesce(excluded.name, contacts.name)`, updatedAt: new Date() } as never,
       });
+  }
+
+  async sendPresence(sessionId: number, jid: string, type: PresenceType) {
+    await this.live(sessionId).sock.sendPresenceUpdate(type, jid);
   }
 
   async blockContact(sessionId: number, jid: string, action: "block" | "unblock") {

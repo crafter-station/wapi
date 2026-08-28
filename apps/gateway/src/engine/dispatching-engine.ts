@@ -33,6 +33,7 @@ import type {
   EngineIdentity,
   GroupRecord,
   GroupSettings,
+  PresenceType,
   SendContent,
   SendOptions,
   SendResult,
@@ -179,6 +180,10 @@ export class DispatchingEngine implements WhatsAppEngine {
 
   async saveContact(sessionId: number, jid: string, fullName: string | null) {
     return (await this.pick(sessionId)).saveContact(sessionId, jid, fullName);
+  }
+
+  async sendPresence(sessionId: number, jid: string, type: PresenceType) {
+    return (await this.pick(sessionId)).sendPresence(sessionId, jid, type);
   }
 
   async blockContact(sessionId: number, jid: string, action: "block" | "unblock") {

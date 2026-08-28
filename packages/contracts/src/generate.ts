@@ -18,7 +18,7 @@ const OUT = resolve(HERE, "generated/routes.ts");
 
 /** The Tier-1 operations, by `METHOD /path`. See PLAN.md §1. */
 const TIER1 = new Set([
-  // Sessions (12)
+  // Sessions (15)
   "POST /api/whatsapp-sessions",
   "GET /api/whatsapp-sessions",
   "GET /api/whatsapp-sessions/{whatsappSession}",
@@ -29,6 +29,9 @@ const TIER1 = new Set([
   "POST /api/whatsapp-sessions/{whatsappSession}/restart",
   "POST /api/whatsapp-sessions/{whatsappSession}/regenerate-key",
   "GET /api/whatsapp-sessions/{whatsappSession}/qrcode",
+  "GET /api/whatsapp-sessions/{whatsappSession}/session-logs",
+  "GET /api/fetch-username/{contact_identifier}",
+  "POST /api/send-presence-update",
   "GET /api/status",
   "GET /api/user",
   // Messages (9)

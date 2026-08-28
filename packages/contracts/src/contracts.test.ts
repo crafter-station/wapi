@@ -8,8 +8,8 @@ describe("Tier-1 surface", () => {
    * should be to deliberately widen the cloned surface in `generate.ts`. A route appearing here
    * by accident — or one of ours leaking out of `extensions.ts` — is exactly what this catches.
    */
-  test("exposes exactly 43 routes", () => {
-    expect(ROUTES.length).toBe(43);
+  test("exposes exactly 46 routes", () => {
+    expect(ROUTES.length).toBe(46);
   });
 
   test("every route path is namespaced under /api", () => {

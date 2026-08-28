@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { eq, and } from "drizzle-orm";
-import { whatsappSessions, type Db } from "@wapi/db";
-import { ok, fail } from "@wapi/contracts";
-import { userToWire } from "@wapi/core";
-import { gateway, GatewayUnavailableError } from "../gateway-client.ts";
+import { contacts, whatsappSessions, type Db } from "@wapi/db";
+import { ok, fail, postApiSendPresenceUpdateBody } from "@wapi/contracts";
+import { resolveRecipient, userToWire, validationFailure } from "@wapi/core";
+import { gateway, GatewayUnavailableError, SessionNotConnectedError } from "../gateway-client.ts";
 
 /**
  * Connection lifecycle and identity — PLAN.md §8 phase 3.
@@ -125,6 +125,64 @@ export function connectionRoutes(db: Db) {
     } catch (err) {
       return gatewayError(c, err);
     }
+  });
+
+  /**
+   * POST /api/send-presence-update — "typing…", "recording…", online.
+   *
+   * Fire-and-forget by nature: WhatsApp acknowledges nothing, so a 200 means the frame left, not
+   * that anybody saw it. `delayMs` is accepted and ignored — holding a request open to sleep
+   * server-side would occupy a connection to simulate something the caller can do better itself.
+   */
+  app.post("/send-presence-update", async (c) => {
+    const auth = c.get("auth");
+    if (auth.kind !== "session") return c.json(fail("This endpoint requires a session API key."), 403);
+
+    const parsed = postApiSendPresenceUpdateBody.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) return c.json(validationFailure(parsed.error), 422);
+
+    const allowed = ["unavailable", "available", "composing", "recording", "paused"] as const;
+    const type = parsed.data.type as (typeof allowed)[number];
+    if (!allowed.includes(type)) {
+      return c.json(fail(`The type field must be one of: ${allowed.join(", ")}.`), 422);
+    }
+    const r = resolveRecipient(parsed.data.jid);
+    if (!r.ok) return c.json(fail("Error sending presence update: Invalid JID provided."), 422);
+
+    try {
+      await gateway.sendPresence(auth.sessionId, r.jid, type);
+      return c.json(ok({ jid: parsed.data.jid, type }));
+    } catch (err) {
+      if (err instanceof SessionNotConnectedError) return c.json(fail(err.message), 409);
+      if (err instanceof GatewayUnavailableError) {
+        return c.json(fail("The WhatsApp service is temporarily unavailable. Please retry."), 503);
+      }
+      throw err;
+    }
+  });
+
+  /**
+   * GET /api/fetch-username/{identifier}.
+   *
+   * Read from the contact cache rather than asked for: WhatsApp volunteers a username on contact
+   * events for accounts that have set one, and offers no way to request it. So `null` here means
+   * "WhatsApp has not told us", which is indistinguishable from "they have none" — and is the
+   * ordinary answer either way.
+   */
+  app.get("/fetch-username/:contact_identifier", async (c) => {
+    const auth = c.get("auth");
+    if (auth.kind !== "session") return c.json(fail("This endpoint requires a session API key."), 403);
+
+    const r = resolveRecipient(c.req.param("contact_identifier"));
+    if (!r.ok) return c.json(fail(r.reason), 422);
+
+    const [row] = await db
+      .select({ username: contacts.username })
+      .from(contacts)
+      .where(and(eq(contacts.sessionId, auth.sessionId), eq(contacts.jid, r.jid)))
+      .limit(1);
+
+    return c.json(ok({ jid: r.jid, username: row?.username ?? null }));
   });
 
   return app;

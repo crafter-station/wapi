@@ -20,6 +20,8 @@ export const getApiContactsContactPhoneNumberParams = z.object({ "contactPhoneNu
 
 export const getApiContactsContactPhoneNumberPictureParams = z.object({ "contactPhoneNumber": z.string() });
 
+export const getApiFetchUsernameContactIdentifierParams = z.object({ "contact_identifier": z.string() });
+
 export const getApiGroupsBody = z.object({
   "paginated": z.boolean().optional(),
   "page": z.number().int().optional(),
@@ -56,6 +58,12 @@ export const getApiWhatsappSessionsWhatsappSessionMessageLogsBody = z.object({
 });
 
 export const getApiWhatsappSessionsWhatsappSessionQrcodeParams = z.object({ "whatsappSession": z.string() });
+
+export const getApiWhatsappSessionsWhatsappSessionSessionLogsParams = z.object({ "whatsappSession": z.string() });
+export const getApiWhatsappSessionsWhatsappSessionSessionLogsBody = z.object({
+  "page": z.number().int().optional(),
+  "per_page": z.number().int().optional(),
+});
 
 export const postApiContactsContactPhoneNumberBlockParams = z.object({ "contactPhoneNumber": z.string() });
 
@@ -113,6 +121,12 @@ export const postApiSendMessageBody = z
     message: "The text field is required when no media is present.",
     path: ["text"],
   });
+
+export const postApiSendPresenceUpdateBody = z.object({
+  "jid": z.string(),
+  "type": z.string(),
+  "delayMs": z.number().int().optional(),
+});
 
 export const postApiUploadBody = z.object({
   "base64": z.string().optional(),
@@ -231,6 +245,13 @@ export const ROUTES = [
     body: undefined,
   },
   {
+    operationId: "getApiFetchUsernameContactIdentifier",
+    method: "GET",
+    path: "/api/fetch-username/{contact_identifier}",
+    pathParams: ["contact_identifier"],
+    body: undefined,
+  },
+  {
     operationId: "getApiGroups",
     method: "GET",
     path: "/api/groups",
@@ -343,6 +364,13 @@ export const ROUTES = [
     body: undefined,
   },
   {
+    operationId: "getApiWhatsappSessionsWhatsappSessionSessionLogs",
+    method: "GET",
+    path: "/api/whatsapp-sessions/{whatsappSession}/session-logs",
+    pathParams: ["whatsappSession"],
+    body: getApiWhatsappSessionsWhatsappSessionSessionLogsBody,
+  },
+  {
     operationId: "postApiContactsContactPhoneNumberBlock",
     method: "POST",
     path: "/api/contacts/{contactPhoneNumber}/block",
@@ -418,6 +446,13 @@ export const ROUTES = [
     path: "/api/send-message",
     pathParams: [],
     body: postApiSendMessageBody,
+  },
+  {
+    operationId: "postApiSendPresenceUpdate",
+    method: "POST",
+    path: "/api/send-presence-update",
+    pathParams: [],
+    body: postApiSendPresenceUpdateBody,
   },
   {
     operationId: "postApiUpload",

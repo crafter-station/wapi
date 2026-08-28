@@ -619,6 +619,70 @@ d("webhook delivery", () => {
   }, 30_000);
 });
 
+d("presence, usernames and session logs", () => {
+  test("a presence update echoes what was sent", async () => {
+    const r = await json(
+      await api("/api/send-presence-update", {
+        body: JSON.stringify({ jid: `+999${String(sessionId).padStart(8, "0")}001`, type: "composing" }),
+        method: "POST",
+      }),
+    );
+    expect(r.status).toBe(200);
+    expect(r.body["data"]).toMatchObject({ type: "composing" });
+  });
+
+  test("an unknown presence type is refused rather than sent", async () => {
+    const r = await json(
+      await api("/api/send-presence-update", {
+        body: JSON.stringify({ jid: `+999${String(sessionId).padStart(8, "0")}001`, type: "dancing" }),
+        method: "POST",
+      }),
+    );
+    expect(r.status).toBe(422);
+    expect(String(r.body["error"])).toContain("composing");
+  });
+
+  test("a username is a success with null in it", async () => {
+    const r = await json(
+      await api(`/api/fetch-username/${encodeURIComponent(`+999${String(sessionId).padStart(8, "0")}001`)}`),
+    );
+    expect(r.status).toBe(200);
+    const body = r.body["data"] as { jid: string; username: string | null };
+    expect(body.jid).toContain("@s.whatsapp.net");
+    /**
+     * WhatsApp volunteers a username only for accounts that have set one and offers no way to
+     * ask, so null is the ordinary answer — and the branch a caller must handle.
+     */
+    expect(body.username).toBeNull();
+  });
+
+  test("session logs use the Laravel paginator and record the pairing", async () => {
+    const r = await json(await api(`/api/whatsapp-sessions/${sessionId}/session-logs`, {}, PAT));
+    expect(r.status).toBe(200);
+
+    const page = r.body["data"] as { current_page: number; data: Record<string, unknown>[]; total: number };
+    expect(page.current_page).toBe(1);
+    expect(Array.isArray(page.data)).toBe(true);
+    // Connecting a sandbox goes need_scan → connected, so both transitions were recorded.
+    expect(page.total).toBeGreaterThan(0);
+
+    const row = page.data[0]!;
+    for (const key of ["id", "whatsapp_session_id", "event_type", "status", "occurred_at"]) {
+      expect(key in row).toBe(true);
+    }
+    expect(row["whatsapp_session_id"]).toBe(sessionId);
+    expect(row["event_type"]).toBe("status_change");
+  });
+
+  test("session logs need a PAT and belong to their account", async () => {
+    const withKey = await json(await api(`/api/whatsapp-sessions/${sessionId}/session-logs`));
+    expect(withKey.status).toBe(403);
+
+    const missing = await json(await api("/api/whatsapp-sessions/99999999/session-logs", {}, PAT));
+    expect(missing.status).toBe(404);
+  });
+});
+
 d("editing and deleting", () => {
   const sendOne = async (text: string) => {
     const r = await json(

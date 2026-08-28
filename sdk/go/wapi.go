@@ -79,6 +79,34 @@ func New(apiKey string, opts ...Option) *Client {
 	}
 }
 
+// SendPresence tells a chat you are typing, recording, or online.
+//
+// One of "unavailable", "available", "composing", "recording", "paused". Fire-and-forget by
+// nature: WhatsApp acknowledges nothing, so a nil error means the frame left, not that anybody
+// saw it.
+func (c *Client) SendPresence(ctx context.Context, jid, presenceType string) (json.RawMessage, error) {
+	raw, err := c.t.do(ctx, "POST", "/api/send-presence-update", nil,
+		map[string]any{"jid": jid, "type": presenceType})
+	if err != nil {
+		return nil, err
+	}
+	var out json.RawMessage
+	return out, unwrap(raw, &out)
+}
+
+// FetchUsername returns a contact's WhatsApp @username, when there is one.
+//
+// Null far more often than not: WhatsApp volunteers a username only for accounts that have set
+// one, and offers no way to ask.
+func (c *Client) FetchUsername(ctx context.Context, identifier string) (json.RawMessage, error) {
+	raw, err := c.t.do(ctx, "GET", "/api/fetch-username/"+escape(identifier), nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	var out json.RawMessage
+	return out, unwrap(raw, &out)
+}
+
 // Status returns the connection state of the session this key belongs to.
 //
 // A bare {"status": ...} with no "success" wrapper — one of five success envelopes, and the

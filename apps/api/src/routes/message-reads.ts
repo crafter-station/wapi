@@ -13,7 +13,7 @@ const WA_ACK: Record<string, number> = {
   read: 4,
 };
 import { eq, and, desc, count } from "drizzle-orm";
-import { messages, whatsappSessions, type Db } from "@wapi/db";
+import { messages, sessionLogs, whatsappSessions, type Db } from "@wapi/db";
 import { ok, fail, paginate } from "@wapi/contracts";
 import { gateway, GatewayUnavailableError, SessionNotConnectedError } from "../gateway-client.ts";
 
@@ -214,6 +214,62 @@ export function messageReadRoutes(db: Db) {
       }
       throw err;
     }
+  });
+
+  /**
+   * GET /api/whatsapp-sessions/{id}/session-logs — PAT-scoped, same Laravel paginator as
+   * `message-logs`.
+   *
+   * Distinct from `audit_logs`, which records HTTP *calls*. This records what happened to the
+   * *connection* — the question an operator actually has when a session misbehaves. Rows are
+   * written by the webhook worker, the only place a status transition is observed.
+   */
+  app.get("/whatsapp-sessions/:whatsappSession/session-logs", async (c) => {
+    const { accountId } = c.get("auth");
+    const sessionId = Number(c.req.param("whatsappSession"));
+    if (!Number.isInteger(sessionId)) return c.json(fail("The specified session was not found."), 404);
+
+    const [session] = await db
+      .select({ id: whatsappSessions.id })
+      .from(whatsappSessions)
+      .where(and(eq(whatsappSessions.id, sessionId), eq(whatsappSessions.accountId, accountId)))
+      .limit(1);
+    if (!session) return c.json(fail("The specified session was not found."), 404);
+
+    const page = Math.max(1, Number(c.req.query("page") ?? 1) || 1);
+    const perPage = Math.min(100, Math.max(1, Number(c.req.query("per_page") ?? 15) || 15));
+
+    const [totals] = await db
+      .select({ total: count() })
+      .from(sessionLogs)
+      .where(eq(sessionLogs.sessionId, sessionId));
+
+    const rows = await db
+      .select()
+      .from(sessionLogs)
+      .where(eq(sessionLogs.sessionId, sessionId))
+      .orderBy(desc(sessionLogs.occurredAt))
+      .limit(perPage)
+      .offset((page - 1) * perPage);
+
+    return c.json(
+      ok(
+        paginate({
+          items: rows.map((r) => ({
+            event_type: r.eventType,
+            id: r.id,
+            // ISO-8601 here, unlike message-logs' space-separated datetime. Their example, kept.
+            occurred_at: r.occurredAt.toISOString(),
+            status: r.status,
+            whatsapp_session_id: r.sessionId,
+          })),
+          page,
+          perPage,
+          path: `/api/whatsapp-sessions/${sessionId}/session-logs`,
+          total: totals?.total ?? 0,
+        }),
+      ),
+    );
   });
 
   return app;

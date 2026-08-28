@@ -32,6 +32,7 @@ import type {
   EngineIdentity,
   GroupRecord,
   GroupSettings,
+  PresenceType,
   SendContent,
   SendOptions,
   SendResult,
@@ -393,6 +394,14 @@ export class SandboxEngine implements WhatsAppEngine {
   async downloadMedia(sessionId: number, _message: Record<string, unknown>) {
     this.require(sessionId);
     return { data: FAKE_PNG, fileName: "sandbox.png", mimetype: "image/png" };
+  }
+
+  /**
+   * Accepted and discarded. Presence has no observable effect even in production — WhatsApp
+   * acknowledges nothing — so remembering it would invent a behaviour the real engine lacks.
+   */
+  async sendPresence(sessionId: number, _jid: string, _type: PresenceType) {
+    this.require(sessionId);
   }
 
   /**

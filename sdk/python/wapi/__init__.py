@@ -61,6 +61,27 @@ class WapiClient:
         # wapi extension: a fake number on a fake WhatsApp. See SandboxResource.
         self.sandbox = SandboxResource(self._http)
 
+    def send_presence(self, jid: str, type: str) -> Any:
+        """Tell a chat you are typing, recording, or online.
+
+        One of ``unavailable``, ``available``, ``composing``, ``recording``, ``paused``.
+        Fire-and-forget by nature: WhatsApp acknowledges nothing, so returning means the frame
+        left, not that anybody saw it.
+        """
+        return self._http.request(
+            "POST", "/api/send-presence-update", body={"jid": jid, "type": type}
+        )["data"]
+
+    def fetch_username(self, identifier: str) -> Any:
+        """A contact's WhatsApp @username, when there is one.
+
+        ``None`` far more often than not: WhatsApp volunteers a username only for accounts that
+        have set one, and offers no way to ask.
+        """
+        from urllib.parse import quote
+
+        return self._http.request("GET", f"/api/fetch-username/{quote(identifier)}")["data"]
+
     def status(self) -> str:
         """Connection state of the session this key belongs to.
 

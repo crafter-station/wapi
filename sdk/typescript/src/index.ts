@@ -2,8 +2,13 @@ import { Transport, type WapiClientOptions } from "./http.js";
 import { ContactsResource, GroupsResource } from "./resources/directory.js";
 import { MessagesResource } from "./resources/messages.js";
 import { SandboxResource } from "./resources/sandbox.js";
-import { SessionsResource } from "./resources/sessions.js";
-import type { GetApiStatusResponse, GetApiUserResponse } from "./types.gen.js";
+import { SessionLogsResource, SessionsResource } from "./resources/sessions.js";
+import type {
+  GetApiFetchUsernameContactIdentifierResponse,
+  GetApiStatusResponse,
+  GetApiUserResponse,
+  PostApiSendPresenceUpdateResponse,
+} from "./types.gen.js";
 
 export * from "./errors.js";
 export type { WapiClientOptions, RequestOptions } from "./http.js";
@@ -42,6 +47,8 @@ export class WapiClient {
   private readonly http: Transport;
 
   readonly sessions: SessionsResource;
+  /** Session lifecycle events — status changes and restarts. PAT-scoped. */
+  readonly sessionLogs: SessionLogsResource;
   readonly messages: MessagesResource;
   readonly contacts: ContactsResource;
   readonly groups: GroupsResource;
@@ -55,6 +62,7 @@ export class WapiClient {
     this.contacts = new ContactsResource(this.http);
     this.groups = new GroupsResource(this.http);
     this.sandbox = new SandboxResource(this.http);
+    this.sessionLogs = new SessionLogsResource(this.http);
   }
 
   /**
@@ -66,6 +74,37 @@ export class WapiClient {
   async status(): Promise<string> {
     const body = await this.http.request<GetApiStatusResponse>("GET", "/api/status");
     return body.status;
+  }
+
+  /**
+   * Tell a chat you are typing, recording, or online.
+   *
+   * Fire-and-forget by nature: WhatsApp acknowledges nothing, so resolving means the frame left,
+   * not that anybody saw it. `delayMs` in the documented body is accepted server-side and
+   * ignored — sleep on your own side rather than holding a request open.
+   */
+  async sendPresence(jid: string, type: "unavailable" | "available" | "composing" | "recording" | "paused") {
+    const body = await this.http.request<PostApiSendPresenceUpdateResponse>(
+      "POST",
+      "/api/send-presence-update",
+      { body: { jid, type } },
+    );
+    return body.data;
+  }
+
+  /**
+   * A contact's WhatsApp @username, when there is one.
+   *
+   * `null` far more often than not: WhatsApp volunteers a username only for accounts that have
+   * set one, and offers no way to ask. That makes null indistinguishable from "not told us" —
+   * and the ordinary answer either way.
+   */
+  async fetchUsername(identifier: string) {
+    const body = await this.http.request<GetApiFetchUsernameContactIdentifierResponse>(
+      "GET",
+      `/api/fetch-username/${encodeURIComponent(identifier)}`,
+    );
+    return body.data;
   }
 
   /** The WhatsApp identity behind the session key, including its LID. */

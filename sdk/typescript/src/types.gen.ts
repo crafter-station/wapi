@@ -196,6 +196,15 @@ export type GetApiContactsContactPhoneNumberPictureResponse = {
   };
 };
 
+/** getApiFetchUsernameContactIdentifier. */
+export type GetApiFetchUsernameContactIdentifierResponse = {
+  success: true;
+  data: {
+    jid: string;
+    username: string | null;
+  };
+};
+
 /** Query parameters for `GET /api/groups`. */
 export type GetApiGroupsQuery = {
   paginated?: boolean;
@@ -505,6 +514,37 @@ export type GetApiWhatsappSessionsWhatsappSessionQrcodeResponse = {
   };
 };
 
+/** Query parameters for `GET /api/whatsapp-sessions/{whatsappSession}/session-logs`. */
+export type GetApiWhatsappSessionsWhatsappSessionSessionLogsQuery = {
+  page?: number;
+  per_page?: number;
+};
+
+/** getApiWhatsappSessionsWhatsappSessionSessionLogs. */
+export type GetApiWhatsappSessionsWhatsappSessionSessionLogsResponse = {
+  success: true;
+  data: {
+    current_page: number;
+    data: {
+      event_type: string;
+      id: number;
+      occurred_at: string;
+      status: string | null;
+      whatsapp_session_id: number;
+    }[];
+    first_page_url: string;
+    from: number | null;
+    last_page: number;
+    last_page_url: string;
+    next_page_url: string | null;
+    path: string;
+    per_page: number;
+    prev_page_url: string | null;
+    to: number | null;
+    total: number;
+  };
+};
+
 /** postApiContactsContactPhoneNumberBlock. */
 export type PostApiContactsContactPhoneNumberBlockResponse = {
   success: true;
@@ -625,6 +665,22 @@ export type PostApiSendMessageResponse = {
     msgId: number;
     jid: string;
     status: string;
+  };
+};
+
+/** Request body for `POST /api/send-presence-update`. */
+export type PostApiSendPresenceUpdateBody = {
+  jid: string;
+  type: string;
+  delayMs?: number;
+};
+
+/** postApiSendPresenceUpdate. */
+export type PostApiSendPresenceUpdateResponse = {
+  success: true;
+  data: {
+    jid: string;
+    type: string;
   };
 };
 
@@ -793,6 +849,7 @@ export type Operations = {
   getApiContacts: { method: "GET"; path: "/api/contacts"; status: 200 };
   getApiContactsContactPhoneNumber: { method: "GET"; path: "/api/contacts/{contactPhoneNumber}"; status: 200 };
   getApiContactsContactPhoneNumberPicture: { method: "GET"; path: "/api/contacts/{contactPhoneNumber}/picture"; status: 200 };
+  getApiFetchUsernameContactIdentifier: { method: "GET"; path: "/api/fetch-username/{contact_identifier}"; status: 200 };
   getApiGroups: { method: "GET"; path: "/api/groups"; status: 200 };
   getApiGroupsGroupJidInviteLink: { method: "GET"; path: "/api/groups/{groupJid}/invite-link"; status: 200 };
   getApiGroupsGroupJidMetadata: { method: "GET"; path: "/api/groups/{groupJid}/metadata"; status: 200 };
@@ -809,6 +866,7 @@ export type Operations = {
   getApiWhatsappSessionsWhatsappSession: { method: "GET"; path: "/api/whatsapp-sessions/{whatsappSession}"; status: 200 };
   getApiWhatsappSessionsWhatsappSessionMessageLogs: { method: "GET"; path: "/api/whatsapp-sessions/{whatsappSession}/message-logs"; status: 200 };
   getApiWhatsappSessionsWhatsappSessionQrcode: { method: "GET"; path: "/api/whatsapp-sessions/{whatsappSession}/qrcode"; status: 200 };
+  getApiWhatsappSessionsWhatsappSessionSessionLogs: { method: "GET"; path: "/api/whatsapp-sessions/{whatsappSession}/session-logs"; status: 200 };
   postApiContactsContactPhoneNumberBlock: { method: "POST"; path: "/api/contacts/{contactPhoneNumber}/block"; status: 200 };
   postApiContactsContactPhoneNumberUnblock: { method: "POST"; path: "/api/contacts/{contactPhoneNumber}/unblock"; status: 200 };
   postApiDecryptMedia: { method: "POST"; path: "/api/decrypt-media"; status: 200 };
@@ -824,6 +882,7 @@ export type Operations = {
   postApiSandboxScan: { method: "POST"; path: "/api/sandbox/scan"; status: 200 };
   postApiSandboxSessions: { method: "POST"; path: "/api/sandbox/sessions"; status: 201 };
   postApiSendMessage: { method: "POST"; path: "/api/send-message"; status: 200 };
+  postApiSendPresenceUpdate: { method: "POST"; path: "/api/send-presence-update"; status: 200 };
   postApiUpload: { method: "POST"; path: "/api/upload"; status: 200 };
   postApiWhatsappSessions: { method: "POST"; path: "/api/whatsapp-sessions"; status: 201 };
   postApiWhatsappSessionsWhatsappSessionConnect: { method: "POST"; path: "/api/whatsapp-sessions/{whatsappSession}/connect"; status: 200 };

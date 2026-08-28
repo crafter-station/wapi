@@ -93,6 +93,9 @@ const IMPLEMENTED = new Set([
   "POST /api/messages/read",
   "GET /api/contacts",
   "GET /api/contacts/{contactPhoneNumber}",
+  "GET /api/whatsapp-sessions/{whatsappSession}/session-logs",
+  "GET /api/fetch-username/{contact_identifier}",
+  "POST /api/send-presence-update",
   "PUT /api/messages/{msgId}",
   "DELETE /api/messages/{msgId}",
   "POST /api/messages/{message}/resend",
@@ -176,6 +179,8 @@ app.use("/api/lid-from-pn/*", authenticate(db));
 app.use("/api/pn-from-lid/*", authenticate(db));
 app.use("/api/groups", authenticate(db));
 app.use("/api/groups/*", authenticate(db));
+app.use("/api/send-presence-update", authenticate(db));
+app.use("/api/fetch-username/*", authenticate(db));
 app.use("/api/upload", authenticate(db));
 app.use("/api/decrypt-media", authenticate(db));
 // Sandbox controls. `/sessions` is account-scoped and checks for a PAT itself; the other two are

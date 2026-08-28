@@ -278,6 +278,25 @@ const statements: [label: string, ddl: string][] = [
     // Additive and idempotent like everything else here; existing rows default to real.
     `ALTER TABLE whatsapp_sessions ADD COLUMN IF NOT EXISTS sandbox boolean NOT NULL DEFAULT false`,
   ],
+  [
+    "contacts.username",
+    // Nullable with no default: WhatsApp volunteers a username rarely, and null is the answer.
+    `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS username text`,
+  ],
+  [
+    "session_logs",
+    `CREATE TABLE IF NOT EXISTS session_logs (
+       id serial PRIMARY KEY,
+       session_id integer NOT NULL REFERENCES whatsapp_sessions(id) ON DELETE CASCADE,
+       event_type text NOT NULL,
+       status text,
+       occurred_at timestamptz NOT NULL DEFAULT now()
+     )`,
+  ],
+  [
+    "session_logs_session_idx",
+    `CREATE INDEX IF NOT EXISTS session_logs_session_idx ON session_logs (session_id, occurred_at)`,
+  ],
 ];
 
 for (const [label, ddl] of statements) {

@@ -198,9 +198,42 @@ export const contacts = pgTable(
     notify: text("notify"),
     phoneNumber: text("phone_number"),
     lid: text("lid"),
+    /**
+     * WhatsApp's newer @username, when WhatsApp volunteers it.
+     *
+     * Baileys surfaces it on a contact "when provided by WA", which is rarely — most accounts
+     * have none. Null is therefore the ordinary answer for `GET /api/fetch-username/{id}`, not a
+     * failure, and there is no way to ask for one that was not sent.
+     */
+    username: text("username"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.sessionId, t.jid] })],
+);
+
+/**
+ * Session lifecycle events, for `GET /api/whatsapp-sessions/{id}/session-logs`.
+ *
+ * Deliberately not `audit_logs`, which records *HTTP calls*. This records what happened to the
+ * connection — a status change, a restart — which is what an operator is asking about when a
+ * session misbehaves, and the two would answer different questions under one name.
+ *
+ * Written by the webhook worker, which is already the single place a status transition is
+ * observed. Writing it from the API instead would miss every transition WhatsApp initiates.
+ */
+export const sessionLogs = pgTable(
+  "session_logs",
+  {
+    id: serial("id").primaryKey(),
+    sessionId: integer("session_id")
+      .notNull()
+      .references(() => whatsappSessions.id, { onDelete: "cascade" }),
+    /** `status_change`, `session_restarted`, … — their vocabulary. */
+    eventType: text("event_type").notNull(),
+    status: text("status"),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("session_logs_session_idx").on(t.sessionId, t.occurredAt)],
 );
 
 /**

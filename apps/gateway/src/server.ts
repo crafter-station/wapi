@@ -266,6 +266,11 @@ app.post("/rpc/save-contact", async (c) => {
   )(c);
 });
 
+app.post("/rpc/send-presence", async (c) => {
+  const { sessionId, jid, type } = await c.req.json();
+  return rpc(() => engine.sendPresence(Number(sessionId), String(jid), type).then(() => ({ ok: true })))(c);
+});
+
 app.post("/rpc/block-contact", async (c) => {
   const { sessionId, jid, action } = await c.req.json();
   return rpc(() =>

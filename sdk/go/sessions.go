@@ -154,6 +154,20 @@ func (k *SessionKeys) Regenerate(ctx context.Context, sessionID int) (string, er
 	return out.APIKey, nil
 }
 
+// Activity returns one page of a session's lifecycle events.
+//
+// Distinct from the audit log, which records HTTP calls: this records status changes and
+// restarts, which is what you want when a session misbehaves. PAT-scoped.
+func (l *SessionLogs) Activity(ctx context.Context, sessionID, page, perPage int) (json.RawMessage, error) {
+	q := url.Values{"page": {strconv.Itoa(page)}, "per_page": {strconv.Itoa(perPage)}}
+	raw, err := l.t.do(ctx, "GET", "/api/whatsapp-sessions/"+strconv.Itoa(sessionID)+"/session-logs", q, nil)
+	if err != nil {
+		return nil, err
+	}
+	var out json.RawMessage
+	return out, unwrap(raw, &out)
+}
+
 // Messages returns a paginated log of messages sent through a session.
 //
 // Uses Laravel's length-aware paginator — current_page, per_page, total — which is a *different*

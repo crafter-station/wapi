@@ -4,6 +4,7 @@ import type {
   GetApiWhatsappSessionsWhatsappSessionMessageLogsResponse,
   GetApiWhatsappSessionsWhatsappSessionQrcodeResponse,
   GetApiWhatsappSessionsWhatsappSessionResponse,
+  GetApiWhatsappSessionsWhatsappSessionSessionLogsResponse,
   PostApiWhatsappSessionsBody,
   PostApiWhatsappSessionsResponse,
   PostApiWhatsappSessionsWhatsappSessionConnectResponse,
@@ -187,5 +188,26 @@ export class SessionsResource {
   async delete(sessionId: number): Promise<void> {
     // No response type is generated for this one: it answers 204 with no body.
     await this.http.request<void>("DELETE", `/api/whatsapp-sessions/${sessionId}`);
+  }
+}
+
+/** Session activity — what happened to the connection, not what was called. */
+export class SessionLogsResource {
+  constructor(private readonly http: Transport) {}
+
+  /**
+   * One page of a session's lifecycle events.
+   *
+   * Distinct from the audit log, which records HTTP calls: this records status changes and
+   * restarts, which is what you want when a session misbehaves. PAT-scoped.
+   */
+  async page(sessionId: number, options: { page?: number; perPage?: number } = {}) {
+    return data(
+      await this.http.request<GetApiWhatsappSessionsWhatsappSessionSessionLogsResponse>(
+        "GET",
+        `/api/whatsapp-sessions/${sessionId}/session-logs`,
+        { query: { page: options.page, per_page: options.perPage } },
+      ),
+    );
   }
 }
