@@ -16,7 +16,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const SPEC = resolve(HERE, "../../../docs/wasenderapi/structured/endpoints.json");
 const OUT = resolve(HERE, "generated/routes.ts");
 
-/** The 29 Tier-1 operations, by `METHOD /path`. See PLAN.md §1. */
+/** The Tier-1 operations, by `METHOD /path`. See PLAN.md §1. */
 const TIER1 = new Set([
   // Sessions (12)
   "POST /api/whatsapp-sessions",
@@ -45,9 +45,13 @@ const TIER1 = new Set([
   "GET /api/groups/{groupJid}/participants",
   "POST /api/groups/{groupJid}/participants/add",
   "POST /api/groups/{groupJid}/participants/remove",
-  // Contacts (5)
+  // Contacts (9)
   "GET /api/contacts",
+  "PUT /api/contacts",
   "GET /api/contacts/{contactPhoneNumber}",
+  "POST /api/contacts/{contactPhoneNumber}/block",
+  "POST /api/contacts/{contactPhoneNumber}/unblock",
+  "GET /api/contacts/{contactPhoneNumber}/picture",
   "GET /api/on-whatsapp/{contact_identifier}",
   "GET /api/lid-from-pn/{pn}",
   "GET /api/pn-from-lid/{lid}",

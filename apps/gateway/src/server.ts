@@ -222,6 +222,25 @@ app.post("/rpc/sandbox-thread", async (c) => {
   return rpc(() => engine.sandboxThread(Number(sessionId)))(c);
 });
 
+app.post("/rpc/save-contact", async (c) => {
+  const { sessionId, jid, fullName } = await c.req.json();
+  return rpc(() =>
+    engine.saveContact(Number(sessionId), String(jid), fullName ?? null).then(() => ({ ok: true })),
+  )(c);
+});
+
+app.post("/rpc/block-contact", async (c) => {
+  const { sessionId, jid, action } = await c.req.json();
+  return rpc(() =>
+    engine.blockContact(Number(sessionId), String(jid), action === "unblock" ? "unblock" : "block").then(() => ({ ok: true })),
+  )(c);
+});
+
+app.post("/rpc/profile-picture", async (c) => {
+  const { sessionId, jid } = await c.req.json();
+  return rpc(() => engine.profilePicture(Number(sessionId), String(jid)).then((url) => ({ url })))(c);
+});
+
 app.post("/rpc/on-whatsapp", async (c) => {
   const { sessionId, identifier } = await c.req.json();
   return rpc(() => engine.onWhatsApp(Number(sessionId), String(identifier)))(c);

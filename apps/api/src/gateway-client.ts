@@ -145,6 +145,15 @@ export const gateway = {
   syncContacts: (sessionId: number) =>
     post<{ ok: true }>("/rpc/sync-contacts", { sessionId }, DEADLINES.connect),
 
+  saveContact: (sessionId: number, jid: string, fullName: string | null) =>
+    post<{ ok: true }>("/rpc/save-contact", { sessionId, jid, fullName }),
+
+  blockContact: (sessionId: number, jid: string, action: "block" | "unblock") =>
+    post<{ ok: true }>("/rpc/block-contact", { sessionId, jid, action }),
+
+  profilePicture: (sessionId: number, jid: string) =>
+    post<{ url: string | null }>("/rpc/profile-picture", { sessionId, jid }),
+
   contact: (sessionId: number, jid: string) =>
     post<{ contact: ContactRecord | null }>("/rpc/contact", { sessionId, jid }),
 

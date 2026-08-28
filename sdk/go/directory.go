@@ -82,6 +82,56 @@ func (c *Contacts) OnWhatsApp(ctx context.Context, identifier string) (json.RawM
 	return out, unwrap(raw, &out)
 }
 
+// Save stores a contact's name in this session's address book.
+//
+// wapi keeps this itself — WhatsApp exposes no address-book write — so the name is visible to
+// List and Get but never reaches the linked phone.
+func (c *Contacts) Save(ctx context.Context, jid string, fullName string) (json.RawMessage, error) {
+	body := map[string]any{"jid": jid}
+	if fullName != "" {
+		body["fullName"] = fullName
+	}
+	raw, err := c.t.do(ctx, "PUT", "/api/contacts", nil, body)
+	if err != nil {
+		return nil, err
+	}
+	var out json.RawMessage
+	return out, unwrap(raw, &out)
+}
+
+// Block blocks a contact.
+func (c *Contacts) Block(ctx context.Context, phoneNumber string) (json.RawMessage, error) {
+	raw, err := c.t.do(ctx, "POST", "/api/contacts/"+escape(phoneNumber)+"/block", nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	var out json.RawMessage
+	return out, unwrap(raw, &out)
+}
+
+// Unblock unblocks a contact.
+func (c *Contacts) Unblock(ctx context.Context, phoneNumber string) (json.RawMessage, error) {
+	raw, err := c.t.do(ctx, "POST", "/api/contacts/"+escape(phoneNumber)+"/unblock", nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	var out json.RawMessage
+	return out, unwrap(raw, &out)
+}
+
+// Picture returns a contact's profile picture URL.
+//
+// imgUrl is null more often than not — most accounts have no picture, or show it only to their
+// own contacts. That is a success with nothing in it, not an error.
+func (c *Contacts) Picture(ctx context.Context, phoneNumber string) (json.RawMessage, error) {
+	raw, err := c.t.do(ctx, "GET", "/api/contacts/"+escape(phoneNumber)+"/picture", nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	var out json.RawMessage
+	return out, unwrap(raw, &out)
+}
+
 // FromPhone resolves a phone number to its LID.
 func (l *LIDResolver) FromPhone(ctx context.Context, phoneNumber string) (string, error) {
 	raw, err := l.t.do(ctx, "GET", "/api/lid-from-pn/"+escape(phoneNumber), nil, nil)

@@ -133,17 +133,26 @@ d("the five success envelopes", () => {
     key = r.body["api_key"] as string; // the old one is dead from here on
   });
 
-  test.skipIf(!HAS_STORAGE)("upload puts publicUrl at the TOP level", async () => {
-    const r = await json(
-      await api("/api/upload", {
-        body: JSON.stringify({ base64: "aGVsbG8=", mimetype: "text/plain" }),
-        method: "POST",
-      }),
-    );
-    expect(r.status).toBe(200);
-    expect(typeof r.body["publicUrl"]).toBe("string");
-    expect(r.body["data"]).toBeUndefined();
-  });
+  test.skipIf(!HAS_STORAGE)(
+    "upload puts publicUrl at the TOP level",
+    async () => {
+      const r = await json(
+        await api("/api/upload", {
+          body: JSON.stringify({ base64: "aGVsbG8=", mimetype: "text/plain" }),
+          method: "POST",
+        }),
+      );
+      expect(r.status).toBe(200);
+      expect(typeof r.body["publicUrl"]).toBe("string");
+      expect(r.body["data"]).toBeUndefined();
+    },
+    /**
+     * The only assertion here that leaves the machine for a third-party service. Observed between
+     * 1.5s and over 5s for the same call, so Bun's five-second default turns ordinary latency into
+     * a red suite — the exact flake that teaches people to re-run rather than read a failure.
+     */
+    20_000,
+  );
 
   test("restart returns message at the top level", async () => {
     const r = await json(
@@ -363,6 +372,65 @@ d("sending", () => {
  * already made once. The sandbox is what makes them safe to run at all, so this block is the
  * clearest case of it paying for itself.
  */
+d("contact writes", () => {
+  test("saving a name is reflected by the directory", async () => {
+    const contacts = (await json(await api("/api/contacts"))).body["data"] as { jid: string }[];
+    const target = contacts[1]!.jid;
+
+    const saved = await json(
+      await api("/api/contacts", { body: JSON.stringify({ fullName: "Renamed", jid: target }), method: "PUT" }),
+    );
+    expect(saved.status).toBe(200);
+    expect(saved.body["data"]).toMatchObject({ fullName: "Renamed", jid: target });
+
+    // The round trip that matters: a save nobody can read back is not a save.
+    const after = (await json(await api("/api/contacts"))).body["data"] as { jid: string; name: string }[];
+    expect(after.find((c) => c.jid === target)!.name).toBe("Renamed");
+  });
+
+  test("saving needs a jid", async () => {
+    const r = await json(
+      await api("/api/contacts", { body: JSON.stringify({ fullName: "No jid" }), method: "PUT" }),
+    );
+    expect(r.status).toBe(422);
+    expect(r.body["message"]).toBe("Validation failed");
+  });
+
+  test("block and unblock both report what they did", async () => {
+    const contacts = (await json(await api("/api/contacts"))).body["data"] as { phoneNumber: string }[];
+    const who = contacts[0]!.phoneNumber;
+
+    const blocked = await json(await api(`/api/contacts/${encodeURIComponent(who)}/block`, { method: "POST" }));
+    expect(blocked.status).toBe(200);
+    expect(blocked.body["data"]).toEqual({ message: "Contact blocked" });
+
+    const unblocked = await json(await api(`/api/contacts/${encodeURIComponent(who)}/unblock`, { method: "POST" }));
+    expect(unblocked.body["data"]).toEqual({ message: "Contact unblocked" });
+  });
+
+  test("a profile picture is a success even when there is none", async () => {
+    const contacts = (await json(await api("/api/contacts"))).body["data"] as { phoneNumber: string }[];
+    const known = await json(await api(`/api/contacts/${encodeURIComponent(contacts[0]!.phoneNumber)}/picture`));
+    expect(known.status).toBe(200);
+    expect(typeof known.body["data"]).toBe("object");
+    expect("imgUrl" in (known.body["data"] as object)).toBe(true);
+
+    /**
+     * The branch that matters in production, where most accounts have no picture or restrict it:
+     * `imgUrl: null` inside a 200, never a 404. A caller that treats absence as an error would
+     * report a broken integration for the ordinary case.
+     */
+    const stranger = await json(await api("/api/contacts/%2B19999999999/picture"));
+    expect(stranger.status).toBe(200);
+    expect((stranger.body["data"] as { imgUrl: string | null }).imgUrl).toBeNull();
+  });
+
+  test("a bad number is refused before the engine is asked", async () => {
+    const r = await json(await api("/api/contacts/not-a-number/block", { method: "POST" }));
+    expect(r.status).toBe(422);
+  });
+});
+
 d("group mutations", () => {
   let created: { id: string; participants: { id: string }[] } | null = null;
 

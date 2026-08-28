@@ -16,6 +16,8 @@ export const getApiContactsBody = z.object({
 
 export const getApiContactsContactPhoneNumberParams = z.object({ "contactPhoneNumber": z.string() });
 
+export const getApiContactsContactPhoneNumberPictureParams = z.object({ "contactPhoneNumber": z.string() });
+
 export const getApiGroupsBody = z.object({
   "paginated": z.boolean().optional(),
   "page": z.number().int().optional(),
@@ -46,6 +48,10 @@ export const getApiWhatsappSessionsWhatsappSessionMessageLogsBody = z.object({
 });
 
 export const getApiWhatsappSessionsWhatsappSessionQrcodeParams = z.object({ "whatsappSession": z.string() });
+
+export const postApiContactsContactPhoneNumberBlockParams = z.object({ "contactPhoneNumber": z.string() });
+
+export const postApiContactsContactPhoneNumberUnblockParams = z.object({ "contactPhoneNumber": z.string() });
 
 export const postApiDecryptMediaBody = z.object({
   "data": z.record(z.string(), z.unknown()),
@@ -126,6 +132,12 @@ export const postApiWhatsappSessionsWhatsappSessionRegenerateKeyParams = z.objec
 
 export const postApiWhatsappSessionsWhatsappSessionRestartParams = z.object({ "whatsappSession": z.string() });
 
+export const putApiContactsBody = z.object({
+  "jid": z.string(),
+  "fullName": z.string().optional(),
+  "saveOnPrimaryAddressbook": z.boolean().optional(),
+});
+
 export const putApiWhatsappSessionsWhatsappSessionParams = z.object({ "whatsappSession": z.string() });
 export const putApiWhatsappSessionsWhatsappSessionBody = z.object({
   "name": z.string().optional(),
@@ -163,6 +175,13 @@ export const ROUTES = [
     operationId: "getApiContactsContactPhoneNumber",
     method: "GET",
     path: "/api/contacts/{contactPhoneNumber}",
+    pathParams: ["contactPhoneNumber"],
+    body: undefined,
+  },
+  {
+    operationId: "getApiContactsContactPhoneNumberPicture",
+    method: "GET",
+    path: "/api/contacts/{contactPhoneNumber}/picture",
     pathParams: ["contactPhoneNumber"],
     body: undefined,
   },
@@ -258,6 +277,20 @@ export const ROUTES = [
     body: undefined,
   },
   {
+    operationId: "postApiContactsContactPhoneNumberBlock",
+    method: "POST",
+    path: "/api/contacts/{contactPhoneNumber}/block",
+    pathParams: ["contactPhoneNumber"],
+    body: undefined,
+  },
+  {
+    operationId: "postApiContactsContactPhoneNumberUnblock",
+    method: "POST",
+    path: "/api/contacts/{contactPhoneNumber}/unblock",
+    pathParams: ["contactPhoneNumber"],
+    body: undefined,
+  },
+  {
     operationId: "postApiDecryptMedia",
     method: "POST",
     path: "/api/decrypt-media",
@@ -340,6 +373,13 @@ export const ROUTES = [
     path: "/api/whatsapp-sessions/{whatsappSession}/restart",
     pathParams: ["whatsappSession"],
     body: undefined,
+  },
+  {
+    operationId: "putApiContacts",
+    method: "PUT",
+    path: "/api/contacts",
+    pathParams: [],
+    body: putApiContactsBody,
   },
   {
     operationId: "putApiWhatsappSessionsWhatsappSession",

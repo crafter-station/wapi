@@ -72,6 +72,33 @@ class ContactsResource:
         """Check whether a number is registered on WhatsApp."""
         return data(self._http.request("GET", f"/api/on-whatsapp/{quote(identifier)}"))
 
+    def save(self, jid: str, full_name: str | None = None) -> Any:
+        """Save a contact's name to this session's address book.
+
+        wapi stores this itself — WhatsApp exposes no address-book write — so the name is
+        visible to ``list`` and ``get`` but never reaches the linked phone.
+        """
+        body: dict[str, Any] = {"jid": jid}
+        if full_name is not None:
+            body["fullName"] = full_name
+        return data(self._http.request("PUT", "/api/contacts", body=body))
+
+    def block(self, phone_number: str) -> Any:
+        """Block a contact."""
+        return data(self._http.request("POST", f"/api/contacts/{quote(phone_number)}/block"))
+
+    def unblock(self, phone_number: str) -> Any:
+        """Unblock a contact."""
+        return data(self._http.request("POST", f"/api/contacts/{quote(phone_number)}/unblock"))
+
+    def picture(self, phone_number: str) -> Any:
+        """A contact's profile picture.
+
+        ``imgUrl`` is ``None`` more often than not — most accounts have no picture, or show it
+        only to their own contacts. That is a success with nothing in it, not an error.
+        """
+        return data(self._http.request("GET", f"/api/contacts/{quote(phone_number)}/picture"))
+
 
 class GroupParticipants:
     def __init__(self, http: Transport) -> None:

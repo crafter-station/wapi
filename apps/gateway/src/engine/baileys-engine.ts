@@ -21,7 +21,7 @@ import type { Logger } from "pino";
 import { usePostgresAuthState } from "@wapi/baileys-auth";
 import { proxyAgentFor } from "./proxy-agent.js";
 import { contacts, whatsappSessions, type Db } from "@wapi/db";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type {
   WhatsAppEngine,
   EngineEvent,
@@ -388,6 +388,40 @@ export class BaileysEngine implements WhatsAppEngine {
    * v7 removed LIDs from `onWhatsApp()` results, which is part of why the LID routes were
    * promoted into Tier 1 — the mapping has to come from `lidFromPn` instead (PLAN.md §1).
    */
+  /**
+   * Written to our own cache, which is where `contacts()` reads from — WhatsApp exposes no
+   * address-book write, so this name is wapi's and never reaches the linked phone.
+   *
+   * `coalesce` so saving without a name does not erase one already learned from traffic.
+   */
+  async saveContact(sessionId: number, jid: string, fullName: string | null) {
+    await this.db
+      .insert(contacts)
+      .values({ jid, name: fullName, sessionId, updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: [contacts.sessionId, contacts.jid],
+        set: { name: sql`coalesce(excluded.name, contacts.name)`, updatedAt: new Date() } as never,
+      });
+  }
+
+  async blockContact(sessionId: number, jid: string, action: "block" | "unblock") {
+    await this.live(sessionId).sock.updateBlockStatus(jid, action);
+  }
+
+  /**
+   * WhatsApp answers "no picture" by throwing, not by returning nothing, and the two are not the
+   * same thing to a caller. A 404 raised because someone has no avatar would be indistinguishable
+   * from a 404 raised because the JID does not exist, so the absent case is normalised to null
+   * here and only a genuine transport failure propagates.
+   */
+  async profilePicture(sessionId: number, jid: string): Promise<string | null> {
+    try {
+      return (await this.live(sessionId).sock.profilePictureUrl(jid, "image")) ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   async onWhatsApp(sessionId: number, identifier: string) {
     const res = await this.live(sessionId).sock.onWhatsApp(identifier);
     const hit = res?.[0];

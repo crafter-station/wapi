@@ -133,6 +133,22 @@ export type GetApiContactsResponse = {
   };
 };
 
+/** Request body for `PUT /api/contacts`. */
+export type PutApiContactsBody = {
+  jid: string;
+  fullName?: string;
+  saveOnPrimaryAddressbook?: boolean;
+};
+
+/** putApiContacts. */
+export type PutApiContactsResponse = {
+  success: true;
+  data: {
+    fullName: string | null;
+    jid: string;
+  };
+};
+
 /** Fetch one contact. */
 export type GetApiContactsContactPhoneNumberResponse = {
   success: true;
@@ -146,6 +162,14 @@ export type GetApiContactsContactPhoneNumberResponse = {
     status: string | null;
     phoneNumber?: string | null;
     lid?: string | null;
+  };
+};
+
+/** getApiContactsContactPhoneNumberPicture. */
+export type GetApiContactsContactPhoneNumberPictureResponse = {
+  success: true;
+  data: {
+    imgUrl: string | null;
   };
 };
 
@@ -421,6 +445,22 @@ export type GetApiWhatsappSessionsWhatsappSessionQrcodeResponse = {
   };
 };
 
+/** postApiContactsContactPhoneNumberBlock. */
+export type PostApiContactsContactPhoneNumberBlockResponse = {
+  success: true;
+  data: {
+    message: string;
+  };
+};
+
+/** postApiContactsContactPhoneNumberUnblock. */
+export type PostApiContactsContactPhoneNumberUnblockResponse = {
+  success: true;
+  data: {
+    message: string;
+  };
+};
+
 /** Request body for `POST /api/decrypt-media`. */
 export type PostApiDecryptMediaBody = {
   data: Record<string, unknown>;
@@ -632,6 +672,7 @@ export type Operations = {
   deleteApiWhatsappSessionsWhatsappSession: { method: "DELETE"; path: "/api/whatsapp-sessions/{whatsappSession}"; status: 204 };
   getApiContacts: { method: "GET"; path: "/api/contacts"; status: 200 };
   getApiContactsContactPhoneNumber: { method: "GET"; path: "/api/contacts/{contactPhoneNumber}"; status: 200 };
+  getApiContactsContactPhoneNumberPicture: { method: "GET"; path: "/api/contacts/{contactPhoneNumber}/picture"; status: 200 };
   getApiGroups: { method: "GET"; path: "/api/groups"; status: 200 };
   getApiGroupsGroupJidMetadata: { method: "GET"; path: "/api/groups/{groupJid}/metadata"; status: 200 };
   getApiGroupsGroupJidParticipants: { method: "GET"; path: "/api/groups/{groupJid}/participants"; status: 200 };
@@ -645,6 +686,8 @@ export type Operations = {
   getApiWhatsappSessionsWhatsappSession: { method: "GET"; path: "/api/whatsapp-sessions/{whatsappSession}"; status: 200 };
   getApiWhatsappSessionsWhatsappSessionMessageLogs: { method: "GET"; path: "/api/whatsapp-sessions/{whatsappSession}/message-logs"; status: 200 };
   getApiWhatsappSessionsWhatsappSessionQrcode: { method: "GET"; path: "/api/whatsapp-sessions/{whatsappSession}/qrcode"; status: 200 };
+  postApiContactsContactPhoneNumberBlock: { method: "POST"; path: "/api/contacts/{contactPhoneNumber}/block"; status: 200 };
+  postApiContactsContactPhoneNumberUnblock: { method: "POST"; path: "/api/contacts/{contactPhoneNumber}/unblock"; status: 200 };
   postApiDecryptMedia: { method: "POST"; path: "/api/decrypt-media"; status: 200 };
   postApiGroups: { method: "POST"; path: "/api/groups"; status: 201 };
   postApiGroupsGroupJidParticipantsAdd: { method: "POST"; path: "/api/groups/{groupJid}/participants/add"; status: 200 };
@@ -661,5 +704,6 @@ export type Operations = {
   postApiWhatsappSessionsWhatsappSessionDisconnect: { method: "POST"; path: "/api/whatsapp-sessions/{whatsappSession}/disconnect"; status: 200 };
   postApiWhatsappSessionsWhatsappSessionRegenerateKey: { method: "POST"; path: "/api/whatsapp-sessions/{whatsappSession}/regenerate-key"; status: 200 };
   postApiWhatsappSessionsWhatsappSessionRestart: { method: "POST"; path: "/api/whatsapp-sessions/{whatsappSession}/restart"; status: 200 };
+  putApiContacts: { method: "PUT"; path: "/api/contacts"; status: 200 };
   putApiWhatsappSessionsWhatsappSession: { method: "PUT"; path: "/api/whatsapp-sessions/{whatsappSession}"; status: 200 };
 };

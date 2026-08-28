@@ -148,6 +148,18 @@ export class DispatchingEngine implements WhatsAppEngine {
   }
 
   // ------------------------------------------------------------------ directory
+  async saveContact(sessionId: number, jid: string, fullName: string | null) {
+    return (await this.pick(sessionId)).saveContact(sessionId, jid, fullName);
+  }
+
+  async blockContact(sessionId: number, jid: string, action: "block" | "unblock") {
+    return (await this.pick(sessionId)).blockContact(sessionId, jid, action);
+  }
+
+  async profilePicture(sessionId: number, jid: string): Promise<string | null> {
+    return (await this.pick(sessionId)).profilePicture(sessionId, jid);
+  }
+
   async onWhatsApp(sessionId: number, identifier: string) {
     return (await this.pick(sessionId)).onWhatsApp(sessionId, identifier);
   }

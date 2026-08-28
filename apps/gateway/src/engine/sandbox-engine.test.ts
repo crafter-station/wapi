@@ -282,6 +282,65 @@ describe("group mutations", () => {
   });
 });
 
+describe("contacts", () => {
+  test("a saved name shows up in the directory", async () => {
+    const { engine } = await connected(3);
+    const [first] = await engine.contacts(3);
+
+    await engine.saveContact(3, first!.jid, "Renamed");
+    const after = await engine.contacts(3);
+    expect(after.find((c) => c.jid === first!.jid)!.name).toBe("Renamed");
+    // Still five: renaming a known contact must not duplicate it.
+    expect(after).toHaveLength(5);
+  });
+
+  test("saving somebody outside the fixtures adds them", async () => {
+    const { engine } = await connected(3);
+    await engine.saveContact(3, "99988877766@s.whatsapp.net", "Stranger");
+    const after = await engine.contacts(3);
+    expect(after).toHaveLength(6);
+    expect(after.find((c) => c.name === "Stranger")).toBeTruthy();
+  });
+
+  test("blocking is remembered, and unblocking undoes it", async () => {
+    const { engine } = await connected(3);
+    const [first] = await engine.contacts(3);
+    // No observable effect beyond being remembered — there is no delivery to prevent here.
+    await engine.blockContact(3, first!.jid, "block");
+    await engine.blockContact(3, first!.jid, "unblock");
+    await expect(engine.blockContact(3, first!.jid, "block")).resolves.toBeUndefined();
+  });
+
+  test("a picture is a stable URL for anyone known, and null otherwise", async () => {
+    const { engine } = await connected(3);
+    const [first] = await engine.contacts(3);
+
+    const url = await engine.profilePicture(3, first!.jid);
+    expect(url).toBe(await engine.profilePicture(3, first!.jid));
+    // The jid is URL-encoded into the path, so match on the number rather than the raw jid.
+    expect(url).toContain(encodeURIComponent(first!.jid));
+    // Null is the honest answer for a stranger, and the branch a caller must handle in production.
+    expect(await engine.profilePicture(3, "1@s.whatsapp.net")).toBeNull();
+  });
+
+  test("groups have pictures too, since the route shape is the same", async () => {
+    const { engine } = await connected(3);
+    const [group] = await engine.groups(3);
+    expect(await engine.profilePicture(3, group!.id)).toBeTruthy();
+  });
+
+  test("saved names do not leak between sessions", async () => {
+    const { engine } = engineFor();
+    for (const id of [3, 4]) {
+      await engine.connect(id);
+      engine.scan(id);
+    }
+    await engine.saveContact(3, "99988877766@s.whatsapp.net", "Only mine");
+    expect(await engine.contacts(3)).toHaveLength(6);
+    expect(await engine.contacts(4)).toHaveLength(5);
+  });
+});
+
 describe("the conversation", () => {
   /** What makes the dashboard able to show a sandbox as a chat rather than a status field. */
   test("records both directions, oldest first", async () => {

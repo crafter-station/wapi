@@ -1,5 +1,6 @@
 import { data, type Transport } from "../http.js";
 import type {
+  GetApiContactsContactPhoneNumberPictureResponse,
   GetApiContactsContactPhoneNumberResponse,
   GetApiContactsResponse,
   GetApiGroupsGroupJidMetadataResponse,
@@ -8,9 +9,12 @@ import type {
   GetApiLidFromPnPnResponse,
   GetApiOnWhatsappContactIdentifierResponse,
   GetApiPnFromLidLidResponse,
+  PostApiContactsContactPhoneNumberBlockResponse,
+  PostApiContactsContactPhoneNumberUnblockResponse,
   PostApiGroupsBody,
   PostApiGroupsGroupJidParticipantsAddResponse,
   PostApiGroupsResponse,
+  PutApiContactsResponse,
 } from "../types.gen.js";
 
 /**
@@ -109,6 +113,56 @@ export class ContactsResource {
       await this.http.request<GetApiOnWhatsappContactIdentifierResponse>(
         "GET",
         `/api/on-whatsapp/${encodeURIComponent(identifier)}`,
+      ),
+    );
+  }
+
+  /**
+   * Save a contact's name to this session's address book.
+   *
+   * wapi stores this itself — WhatsApp exposes no address-book write — so the name is visible to
+   * `list()` and `get()` but never appears on the linked phone. `saveOnPrimaryAddressbook` is
+   * accepted by the server and ignored for the same reason.
+   */
+  async save(jid: string, fullName?: string) {
+    return data(
+      await this.http.request<PutApiContactsResponse>("PUT", "/api/contacts", {
+        body: { fullName, jid },
+      }),
+    );
+  }
+
+  /** Block a contact. */
+  async block(phoneNumber: string) {
+    return data(
+      await this.http.request<PostApiContactsContactPhoneNumberBlockResponse>(
+        "POST",
+        `/api/contacts/${encodeURIComponent(phoneNumber)}/block`,
+      ),
+    );
+  }
+
+  /** Unblock a contact. */
+  async unblock(phoneNumber: string) {
+    return data(
+      await this.http.request<PostApiContactsContactPhoneNumberUnblockResponse>(
+        "POST",
+        `/api/contacts/${encodeURIComponent(phoneNumber)}/unblock`,
+      ),
+    );
+  }
+
+  /**
+   * A contact's profile picture.
+   *
+   * `imgUrl` is `null` far more often than not — most accounts have no picture, or restrict it to
+   * their own contacts — so this is a success with nothing in it, not an error.
+   */
+  async picture(phoneNumber: string) {
+    return data(
+      await this.http.request<GetApiContactsContactPhoneNumberPictureResponse>(
+        "GET",
+        `/api/contacts/${encodeURIComponent(phoneNumber)}/picture`,
       ),
     );
   }

@@ -3,8 +3,13 @@ import { ROUTES, postApiSendMessageBody } from "./generated/routes.ts";
 import { ok, fail, failFramework, failThrottle, paginate } from "./envelope.ts";
 
 describe("Tier-1 surface", () => {
-  test("exposes exactly 29 routes", () => {
-    expect(ROUTES.length).toBe(29);
+  /**
+   * A hardcoded number on purpose: it is a claim about *fidelity*, and the only way to change it
+   * should be to deliberately widen the cloned surface in `generate.ts`. A route appearing here
+   * by accident — or one of ours leaking out of `extensions.ts` — is exactly what this catches.
+   */
+  test("exposes exactly 33 routes", () => {
+    expect(ROUTES.length).toBe(33);
   });
 
   test("every route path is namespaced under /api", () => {

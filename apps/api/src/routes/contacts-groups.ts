@@ -1,7 +1,13 @@
 import { Hono } from "hono";
 import type { Db } from "@wapi/db";
-import { ok, fail, directoryPage } from "@wapi/contracts";
-import { contactToWire, groupToWire, participantToWire, resolveRecipient } from "@wapi/core";
+import { ok, fail, directoryPage, putApiContactsBody } from "@wapi/contracts";
+import {
+  contactToWire,
+  groupToWire,
+  participantToWire,
+  resolveRecipient,
+  validationFailure,
+} from "@wapi/core";
 import { gateway, GatewayUnavailableError, SessionNotConnectedError } from "../gateway-client.ts";
 
 /**
@@ -89,6 +95,61 @@ export function contactGroupRoutes(_db: Db) {
        * got undefined. `jid` and the LID pair stay alongside as additions.
        */
       return c.json(ok(contactToWire(contact)));
+    }),
+  );
+
+  /**
+   * PUT /api/contacts — save a contact to this session's address book.
+   *
+   * **Local to wapi, and deliberately so.** WhatsApp has no "write to the address book" call that
+   * Baileys exposes, so the name goes into whatever this session's engine uses as its contact
+   * source — the cache table for a real session, the derived directory for a sandbox. Either way
+   * `GET /api/contacts` reflects it, and either way the name is *ours*: it never appears on the
+   * linked phone and does not survive the account moving to another wapi install.
+   *
+   * `saveOnPrimaryAddressbook` is accepted and ignored for that reason. Rejecting it would break
+   * a client that sends it; pretending to honour it would be worse.
+   */
+  app.put("/contacts", (c) =>
+    guard(c, async (sessionId) => {
+      const parsed = putApiContactsBody.safeParse(await c.req.json().catch(() => ({})));
+      if (!parsed.success) return c.json(validationFailure(parsed.error), 422);
+
+      const r = resolveRecipient(parsed.data.jid);
+      if (!r.ok) return c.json(fail(r.reason), 422);
+
+      const fullName = parsed.data.fullName ?? null;
+      await gateway.saveContact(sessionId, r.jid, fullName);
+      return c.json(ok({ fullName, jid: r.jid }));
+    }),
+  );
+
+  /** POST /api/contacts/{n}/block and /unblock — one handler, since only the verb differs. */
+  for (const action of ["block", "unblock"] as const) {
+    app.post(`/contacts/:contactPhoneNumber/${action}`, (c) =>
+      guard(c, async (sessionId) => {
+        const r = resolveRecipient(c.req.param("contactPhoneNumber"));
+        if (!r.ok) return c.json(fail(r.reason), 422);
+        await gateway.blockContact(sessionId, r.jid, action);
+        // Their wording, capitalised as documented: "Contact blocked" / "Contact unblocked".
+        return c.json(ok({ message: `Contact ${action}ed` }));
+      }),
+    );
+  }
+
+  /**
+   * GET /api/contacts/{n}/picture.
+   *
+   * `imgUrl: null` is a success, not a 404. Most accounts either have no picture or restrict it
+   * to their own contacts, so treating absence as an error would make the common case look
+   * broken — and would be indistinguishable from the JID not existing.
+   */
+  app.get("/contacts/:contactPhoneNumber/picture", (c) =>
+    guard(c, async (sessionId) => {
+      const r = resolveRecipient(c.req.param("contactPhoneNumber"));
+      if (!r.ok) return c.json(fail(r.reason), 422);
+      const { url } = await gateway.profilePicture(sessionId, r.jid);
+      return c.json(ok({ imgUrl: url }));
     }),
   );
 

@@ -130,6 +130,29 @@ export interface WhatsAppEngine {
   pnFromLid(sessionId: number, lid: string): Promise<string | null>;
 
   /** Groups. */
+  /**
+   * Block or unblock a contact.
+   *
+   * One method rather than two, because WhatsApp models it as one call with a direction and a
+   * pair would invite them drifting apart.
+   */
+  blockContact(sessionId: number, jid: string, action: "block" | "unblock"): Promise<void>;
+  /**
+   * Save a display name for a contact.
+   *
+   * On the port rather than written straight to the table by the API, because each engine owns
+   * where its contacts come from — Baileys reads the cache table, the sandbox derives them. A
+   * direct DB write would be invisible to a sandbox, so "save then list" would work against one
+   * engine and silently do nothing against the other.
+   */
+  saveContact(sessionId: number, jid: string, fullName: string | null): Promise<void>;
+  /**
+   * A contact's or group's profile picture URL, or null when there is none.
+   *
+   * Null is a real answer here and not an error: most WhatsApp accounts have no picture, or
+   * restrict it to contacts. Throwing would make the common case look like a failure.
+   */
+  profilePicture(sessionId: number, jid: string): Promise<string | null>;
   groups(sessionId: number): Promise<GroupRecord[]>;
   groupMetadata(sessionId: number, jid: string): Promise<GroupRecord | null>;
   createGroup(sessionId: number, subject: string, participants: string[]): Promise<GroupRecord>;

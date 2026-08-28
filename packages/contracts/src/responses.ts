@@ -328,6 +328,24 @@ export const SUCCESS_RESPONSES: Record<string, SuccessResponse> = {
     // `jid` is ours; their documented body is `{exists}` alone.
     schema: ok(z.object({ exists: z.boolean(), jid: z.string().nullable().optional() })),
   },
+  putApiContacts: {
+    status: 200,
+    schema: ok(z.object({ fullName: z.string().nullable(), jid: z.string() })),
+  },
+  postApiContactsContactPhoneNumberBlock: {
+    status: 200,
+    schema: ok(z.object({ message: z.string() })),
+  },
+  postApiContactsContactPhoneNumberUnblock: {
+    status: 200,
+    schema: ok(z.object({ message: z.string() })),
+  },
+  getApiContactsContactPhoneNumberPicture: {
+    status: 200,
+    // Nullable, and that is the ordinary answer: most accounts have no picture, or show it only
+    // to their own contacts. A caller must handle null on the success path, not the error one.
+    schema: ok(z.object({ imgUrl: z.string().nullable() })),
+  },
   getApiLidFromPnPn: { status: 200, schema: ok(z.object({ lid: z.string() })) },
   getApiPnFromLidLid: { status: 200, schema: ok(z.object({ pn: z.string() })) },
 

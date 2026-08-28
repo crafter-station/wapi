@@ -142,7 +142,13 @@ export type ThreadEntry = {
 const THREAD_LIMIT = 200;
 
 /** Everything a sandbox session accumulates while it is alive. */
-type World = { groups: GroupRecord[]; thread: ThreadEntry[] };
+type World = {
+  blocked: Set<string>;
+  groups: GroupRecord[];
+  /** Names saved through `PUT /api/contacts`, layered over the derived directory. */
+  names: Map<string, string>;
+  thread: ThreadEntry[];
+};
 
 export class SandboxEngine implements WhatsAppEngine {
   private readonly sessions = new Map<number, Live>();
@@ -176,7 +182,7 @@ export class SandboxEngine implements WhatsAppEngine {
   private world(sessionId: number): World {
     let world = this.worlds.get(sessionId);
     if (!world) {
-      world = { groups: groupsFor(sessionId), thread: [] };
+      world = { blocked: new Set(), groups: groupsFor(sessionId), names: new Map(), thread: [] };
       this.worlds.set(sessionId, world);
     }
     return world;
@@ -359,6 +365,44 @@ export class SandboxEngine implements WhatsAppEngine {
     return { data: FAKE_PNG, fileName: "sandbox.png", mimetype: "image/png" };
   }
 
+  /**
+   * Blocking is accepted and remembered, so a caller can block then observe the block, but it
+   * changes nothing else: there is no delivery to prevent when nothing is real.
+   */
+  /**
+   * Remembered, so `PUT /api/contacts` then `GET /api/contacts` shows the saved name — the same
+   * round trip a real session gets from the cache table. A save that vanished would teach the
+   * wrong thing about the real endpoint, which is the mistake `createGroup` used to make.
+   */
+  async saveContact(sessionId: number, jid: string, fullName: string | null) {
+    this.require(sessionId);
+    if (fullName) this.world(sessionId).names.set(jid, fullName);
+  }
+
+  async blockContact(sessionId: number, jid: string, action: "block" | "unblock") {
+    this.require(sessionId);
+    const { blocked } = this.world(sessionId);
+    if (action === "block") blocked.add(jid);
+    else blocked.delete(jid);
+  }
+
+  /**
+   * A stable fake URL rather than null.
+   *
+   * Null is the more common answer in production, but a caller wiring up an <img> needs the
+   * populated branch to exist at least once — and the sandbox is where they will look for it. The
+   * URL is derived, so it is the same on every call and asserting on it is safe.
+   */
+  async profilePicture(sessionId: number, jid: string): Promise<string | null> {
+    this.require(sessionId);
+    const known =
+      jid === jidFor(sessionId) ||
+      contactsFor(sessionId).some((c) => c.jid === jid) ||
+      groupsFor(sessionId).some((g) => g.id === jid);
+    if (!known) return null;
+    return `https://sandbox.invalid/pp/${encodeURIComponent(jid)}.jpg`;
+  }
+
   async onWhatsApp(sessionId: number, identifier: string) {
     this.require(sessionId);
     const digits = identifier.replace(/[^\d]/g, "");
@@ -369,7 +413,19 @@ export class SandboxEngine implements WhatsAppEngine {
 
   async contacts(sessionId: number) {
     this.require(sessionId);
-    return contactsFor(sessionId);
+    const { names } = this.world(sessionId);
+    const derived = contactsFor(sessionId).map((c) =>
+      names.has(c.jid) ? { ...c, name: names.get(c.jid)! } : c,
+    );
+    /**
+     * A name saved for somebody outside the fixture list still has to appear, or saving a contact
+     * you have not spoken to looks like a no-op.
+     */
+    for (const [jid, name] of names) {
+      if (derived.some((c) => c.jid === jid)) continue;
+      derived.push({ jid, lid: null, name, notify: name, phoneNumber: `+${jid.split("@")[0]}` });
+    }
+    return derived;
   }
 
   async syncContacts(sessionId: number) {
