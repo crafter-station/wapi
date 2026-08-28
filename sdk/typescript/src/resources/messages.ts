@@ -1,13 +1,16 @@
 import { data, type Transport } from "../http.js";
 import type {
+  DeleteApiMessagesMsgIdResponse,
   GetApiMessagesMsgIdInfoResponse,
   PostApiDecryptMediaResponse,
+  PostApiMessagesMessageResendResponse,
   PostApiMessagesReactBody,
   PostApiMessagesReactResponse,
   PostApiMessagesReadResponse,
   PostApiSendMessageBody,
   PostApiSendMessageResponse,
   PostApiUploadResponse,
+  PutApiMessagesMsgIdResponse,
 } from "../types.gen.js";
 
 /**
@@ -101,6 +104,50 @@ export class MessagesResource {
         `/api/messages/${msgId}/info`,
       ),
     );
+  }
+
+  /**
+   * Edit a message you sent.
+   *
+   * WhatsApp allows this only for a short window afterwards and gives no way to ask how long is
+   * left, so a refusal is an ordinary outcome. The edit is a *new* message superseding the old
+   * one, so the response carries a fresh key alongside the original `msgId`.
+   */
+  async edit(msgId: number, text: string) {
+    return data(
+      await this.http.request<PutApiMessagesMsgIdResponse>("PUT", `/api/messages/${msgId}`, {
+        body: { text },
+      }),
+    );
+  }
+
+  /**
+   * Delete a message for everyone. Same short window as editing.
+   *
+   * Note this endpoint puts `message` at the *top level* rather than under `data`, so it returns
+   * the confirmation string rather than unwrapping.
+   */
+  async delete(msgId: number) {
+    const res = await this.http.request<DeleteApiMessagesMsgIdResponse>(
+      "DELETE",
+      `/api/messages/${msgId}`,
+    );
+    return res.message;
+  }
+
+  /**
+   * Retry a message whose status is `failed`.
+   *
+   * Only failed messages, deliberately: a send that timed out is recorded as `in_progress`
+   * because nobody knows whether it arrived, and resending one of those is how a customer gets
+   * the same message twice.
+   */
+  async resend(msgId: number) {
+    const res = await this.http.request<PostApiMessagesMessageResendResponse>(
+      "POST",
+      `/api/messages/${msgId}/resend`,
+    );
+    return res.message;
   }
 
   /** Mark a received message as read. Takes the WhatsApp key, not a `msgId`. */

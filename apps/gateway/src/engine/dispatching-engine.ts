@@ -149,6 +149,14 @@ export class DispatchingEngine implements WhatsAppEngine {
   }
 
   // ------------------------------------------------------------------ directory
+  async editMessage(sessionId: number, key: Record<string, unknown>, text: string) {
+    return (await this.pick(sessionId)).editMessage(sessionId, key, text);
+  }
+
+  async deleteMessage(sessionId: number, key: Record<string, unknown>) {
+    return (await this.pick(sessionId)).deleteMessage(sessionId, key);
+  }
+
   async leaveGroup(sessionId: number, jid: string) {
     return (await this.pick(sessionId)).leaveGroup(sessionId, jid);
   }

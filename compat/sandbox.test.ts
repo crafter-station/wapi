@@ -619,6 +619,71 @@ d("webhook delivery", () => {
   }, 30_000);
 });
 
+d("editing and deleting", () => {
+  const sendOne = async (text: string) => {
+    const r = await json(
+      await api("/api/send-message", {
+        body: JSON.stringify({ text, to: `+999${String(sessionId).padStart(8, "0")}001` }),
+        method: "POST",
+      }),
+    );
+    return (r.body["data"] as { msgId: number }).msgId;
+  };
+
+  test("an edit returns a fresh key but keeps the original msgId", async () => {
+    const msgId = await sendOne("before the edit");
+    const r = await json(
+      await api(`/api/messages/${msgId}`, { body: JSON.stringify({ text: "after" }), method: "PUT" }),
+    );
+
+    expect(r.status).toBe(200);
+    const body = r.body["data"] as { id: string; key: Record<string, unknown>; msgId: number };
+    expect(body.msgId).toBe(msgId);
+    // An edit is a new message superseding the old one, so the WhatsApp key must differ.
+    expect(body.key["id"]).toBe(body.id);
+    expect(body.id).toBeTruthy();
+
+    // And `/info` on the same id keeps working, now pointing at the newer key.
+    const info = await json(await api(`/api/messages/${msgId}/info`));
+    expect(info.status).toBe(200);
+  });
+
+  test("an edit needs text", async () => {
+    const msgId = await sendOne("x");
+    const r = await json(await api(`/api/messages/${msgId}`, { body: "{}", method: "PUT" }));
+    expect(r.status).toBe(422);
+  });
+
+  test("delete puts message at the TOP level", async () => {
+    const msgId = await sendOne("to be deleted");
+    const r = await json(await api(`/api/messages/${msgId}`, { method: "DELETE" }));
+
+    expect(r.status).toBe(200);
+    expect(typeof r.body["message"]).toBe("string");
+    expect(r.body["data"]).toBeUndefined();
+  });
+
+  test("resend refuses a message that did not fail", async () => {
+    const msgId = await sendOne("healthy");
+    const r = await json(await api(`/api/messages/${msgId}/resend`, { method: "POST" }));
+    /**
+     * Their restriction, and the right one: a send that timed out is recorded as `in_progress`
+     * because nobody knows whether it arrived, so resending it is how a customer gets the same
+     * message twice.
+     */
+    expect(r.status).toBe(422);
+    expect(String(r.body["error"])).toContain("failed");
+  });
+
+  test("a message belonging to nobody is a 404, not a 500", async () => {
+    for (const path of ["/api/messages/99999999", "/api/messages/99999999/resend"]) {
+      const method = path.endsWith("resend") ? "POST" : "DELETE";
+      const r = await json(await api(path, { method }));
+      expect(r.status).toBe(404);
+    }
+  });
+});
+
 d("group membership", () => {
   test("promote and demote report per participant", async () => {
     const groups = (await json(await api("/api/groups"))).body["data"] as { id: string }[];

@@ -1,7 +1,7 @@
-import { Hono } from "hono";
-import { eq } from "drizzle-orm";
+import { Hono, type Context } from "hono";
+import { and, eq } from "drizzle-orm";
 import { messages, whatsappSessions, type Db } from "@wapi/db";
-import { ok, fail, postApiSendMessageBody } from "@wapi/contracts";
+import { ok, fail, postApiSendMessageBody, putApiMessagesMsgIdBody } from "@wapi/contracts";
 import { validationFailure, resolveRecipient, type SendContent, type SendOptions } from "@wapi/core";
 import { gateway, GatewayUnavailableError, SessionNotConnectedError } from "../gateway-client.ts";
 
@@ -108,6 +108,127 @@ export function messageRoutes(db: Db) {
       throw err;
     }
   });
+
+  /**
+   * The three routes below all address a message by our integer `msgId`, look up its stored
+   * WhatsApp key, and act on that. A message we never recorded cannot be edited, deleted or
+   * resent — inbound messages have no row, which is the same reason `/read` and `/react` take a
+   * `key` instead.
+   */
+  const ownMessage = async (c: Context, msgId: number) => {
+    const auth = c.get("auth");
+    if (auth.kind !== "session") return { error: c.json(fail("This endpoint requires a session API key."), 403) };
+    if (!Number.isInteger(msgId)) return { error: c.json(fail("The specified message was not found."), 404) };
+
+    const [m] = await db
+      .select()
+      .from(messages)
+      .where(and(eq(messages.msgId, msgId), eq(messages.sessionId, auth.sessionId)))
+      .limit(1);
+    // Scoped by session as well as id, so a valid msgId from another session is a 404 and not a
+    // way to touch somebody else's message.
+    if (!m) return { error: c.json(fail("The specified message was not found."), 404) };
+    return { message: m, sessionId: auth.sessionId };
+  };
+
+  /** PUT /api/messages/{msgId} — edit the text of a message already sent. */
+  app.put("/messages/:msgId", async (c) => {
+    const found = await ownMessage(c, Number(c.req.param("msgId")));
+    if ("error" in found) return found.error;
+
+    const parsed = putApiMessagesMsgIdBody.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) return c.json(validationFailure(parsed.error), 422);
+
+    try {
+      const sent = await gateway.editMessage(
+        found.sessionId,
+        (found.message.waKey ?? {}) as Record<string, unknown>,
+        parsed.data.text,
+      );
+      /**
+       * The stored row keeps its original `msgId` and takes the new key: an edit supersedes the
+       * message rather than replacing the row, so `/info` on the same id keeps working.
+       */
+      await db
+        .update(messages)
+        .set({ updatedAt: new Date(), waKey: sent.key })
+        .where(eq(messages.msgId, found.message.msgId));
+
+      return c.json(
+        ok({
+          id: String(sent.key["id"] ?? ""),
+          key: sent.key,
+          msgId: found.message.msgId,
+          remoteJid: sent.remoteJid,
+        }),
+      );
+    } catch (err) {
+      return messageError(c, err);
+    }
+  });
+
+  /** DELETE /api/messages/{msgId} — delete for everyone. `message` sits at the top level. */
+  app.delete("/messages/:msgId", async (c) => {
+    const found = await ownMessage(c, Number(c.req.param("msgId")));
+    if ("error" in found) return found.error;
+
+    try {
+      await gateway.deleteMessage(found.sessionId, (found.message.waKey ?? {}) as Record<string, unknown>);
+      await db
+        .update(messages)
+        .set({ status: "deleted", updatedAt: new Date() })
+        .where(eq(messages.msgId, found.message.msgId));
+      return c.json({ message: "Message deleted successfully.", success: true });
+    } catch (err) {
+      return messageError(c, err);
+    }
+  });
+
+  /**
+   * POST /api/messages/{msgId}/resend — retry a message that failed.
+   *
+   * Only `failed` rows, and that restriction is theirs. It is also the right one: resending a
+   * message that actually went out is how somebody double-sends to a customer, and a send that
+   * timed out is recorded as in_progress rather than failed precisely because we do not know.
+   */
+  app.post("/messages/:message/resend", async (c) => {
+    const found = await ownMessage(c, Number(c.req.param("message")));
+    if ("error" in found) return found.error;
+
+    const m = found.message;
+    if (m.status !== "failed") {
+      return c.json(fail("Only messages with status 'failed' can be resent."), 422);
+    }
+    const text = (m.content as { text?: string } | null)?.text;
+    if (!text) {
+      // Content is only stored when `log_messages` is on, so there may be nothing to resend.
+      return c.json(fail("This message has no stored content to resend."), 422);
+    }
+
+    try {
+      const sent = await gateway.send(found.sessionId, m.remoteJid, { kind: "text", text }, {});
+      await db
+        .update(messages)
+        .set({ failedReason: null, status: "in_progress", updatedAt: new Date(), waKey: sent.key })
+        .where(eq(messages.msgId, m.msgId));
+      return c.json({ message: "Message resend initiated successfully.", success: true });
+    } catch (err) {
+      return messageError(c, err);
+    }
+  });
+
+  /**
+   * The same mapping the send path uses: a disconnected session is a 409 and an unreachable
+   * gateway a 503. WhatsApp refusing an edit or delete because the window has closed surfaces as
+   * a generic failure, because it gives no distinguishable error to map.
+   */
+  function messageError(c: Context, err: unknown) {
+    if (err instanceof SessionNotConnectedError) return c.json(fail(err.message), 409);
+    if (err instanceof GatewayUnavailableError) {
+      return c.json(fail("The WhatsApp service is temporarily unavailable. Please retry."), 503);
+    }
+    throw err;
+  }
 
   return app;
 }

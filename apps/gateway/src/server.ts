@@ -222,6 +222,16 @@ app.post("/rpc/sandbox-thread", async (c) => {
   return rpc(() => engine.sandboxThread(Number(sessionId)))(c);
 });
 
+app.post("/rpc/edit-message", async (c) => {
+  const { sessionId, key, text } = await c.req.json();
+  return rpc(() => engine.editMessage(Number(sessionId), key ?? {}, String(text ?? "")))(c);
+});
+
+app.post("/rpc/delete-message", async (c) => {
+  const { sessionId, key } = await c.req.json();
+  return rpc(() => engine.deleteMessage(Number(sessionId), key ?? {}).then(() => ({ ok: true })))(c);
+});
+
 app.post("/rpc/leave-group", async (c) => {
   const { sessionId, jid } = await c.req.json();
   return rpc(() => engine.leaveGroup(Number(sessionId), String(jid)).then(() => ({ ok: true })))(c);

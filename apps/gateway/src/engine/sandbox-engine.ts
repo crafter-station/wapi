@@ -356,6 +356,35 @@ export class SandboxEngine implements WhatsAppEngine {
     return { id };
   }
 
+  /**
+   * Edits rewrite the recorded line rather than appending one, so the dashboard's conversation
+   * shows what a real client would show after an edit.
+   */
+  async editMessage(sessionId: number, key: Record<string, unknown>, text: string): Promise<SendResult> {
+    this.require(sessionId);
+    const id = String(key["id"] ?? "");
+    const entry = this.world(sessionId).thread.find((t) => t.id === id);
+    if (entry) entry.text = text;
+
+    const remoteJid = String(key["remoteJid"] ?? jidFor(sessionId));
+    const newKey = { fromMe: true, id: this.nextKeyId(), remoteJid };
+    this.emit({
+      event: "messages.upsert",
+      payload: { messages: [{ key: newKey, message: { editedMessage: { conversation: text } } }], type: "notify" },
+      sessionId,
+      type: "wa",
+    });
+    return { key: newKey, remoteJid, waKeyId: newKey.id };
+  }
+
+  /** Deleting drops the line, which is what a recipient's client does. */
+  async deleteMessage(sessionId: number, key: Record<string, unknown>) {
+    this.require(sessionId);
+    const id = String(key["id"] ?? "");
+    const world = this.world(sessionId);
+    world.thread = world.thread.filter((t) => t.id !== id);
+  }
+
   async readMessages(sessionId: number, _keys: Record<string, unknown>[]) {
     this.require(sessionId);
   }

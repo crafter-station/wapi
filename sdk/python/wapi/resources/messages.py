@@ -67,6 +67,32 @@ class MessagesResource:
         """
         return data(self._http.request("GET", f"/api/messages/{msg_id}/info"))
 
+def edit(self, msg_id: int, text: str) -> Any:
+        """Edit a message you sent.
+
+        WhatsApp allows this only for a short window afterwards and gives no way to ask how long
+        is left, so a refusal is an ordinary outcome. The edit is a *new* message superseding the
+        old one, so the response carries a fresh key alongside the original ``msgId``.
+        """
+        return data(self._http.request("PUT", f"/api/messages/{msg_id}", body={"text": text}))
+
+    def delete(self, msg_id: int) -> str:
+        """Delete a message for everyone. Same short window as editing.
+
+        This endpoint puts ``message`` at the *top level* rather than under ``data``, so it
+        returns the confirmation string rather than unwrapping.
+        """
+        return str(self._http.request("DELETE", f"/api/messages/{msg_id}")["message"])
+
+    def resend(self, msg_id: int) -> str:
+        """Retry a message whose status is ``failed``.
+
+        Only failed messages, deliberately: a send that timed out is recorded as ``in_progress``
+        because nobody knows whether it arrived, and resending one of those is how a customer
+        gets the same message twice.
+        """
+        return str(self._http.request("POST", f"/api/messages/{msg_id}/resend")["message"])
+
     def mark_read(self, key: dict[str, Any]) -> Any:
         """Mark a *received* message as read.
 

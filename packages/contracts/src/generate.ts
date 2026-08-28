@@ -31,11 +31,14 @@ const TIER1 = new Set([
   "GET /api/whatsapp-sessions/{whatsappSession}/qrcode",
   "GET /api/status",
   "GET /api/user",
-  // Messages (6)
+  // Messages (9)
   "POST /api/send-message",
   "POST /api/upload",
   "POST /api/decrypt-media",
   "GET /api/messages/{msgId}/info",
+  "PUT /api/messages/{msgId}",
+  "DELETE /api/messages/{msgId}",
+  "POST /api/messages/{message}/resend",
   "POST /api/messages/read",
   "GET /api/whatsapp-sessions/{whatsappSession}/message-logs",
   // Groups (13)

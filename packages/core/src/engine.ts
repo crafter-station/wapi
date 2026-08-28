@@ -126,6 +126,15 @@ export interface WhatsAppEngine {
     emoji: string,
   ): Promise<{ id: string | null }>;
   readMessages(sessionId: number, keys: Record<string, unknown>[]): Promise<void>;
+  /**
+   * Edit a message already sent.
+   *
+   * WhatsApp allows this only for a short window after sending and gives no way to ask how long
+   * is left, so a refusal here is an ordinary outcome rather than a bug.
+   */
+  editMessage(sessionId: number, key: Record<string, unknown>, text: string): Promise<SendResult>;
+  /** Delete a message for everyone. Subject to the same short window as editing. */
+  deleteMessage(sessionId: number, key: Record<string, unknown>): Promise<void>;
 
   /**
    * Decrypt a media node into bytes.

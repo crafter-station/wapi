@@ -409,6 +409,32 @@ export const SUCCESS_RESPONSES: Record<string, SuccessResponse> = {
     ),
   },
 
+  putApiMessagesMsgId: {
+    status: 200,
+    /**
+     * An edit is a *new* protocol message that supersedes the old one, so this carries the fresh
+     * key and the original `msgId` — not a mutated copy of the first send.
+     */
+    schema: ok(
+      z.object({
+        id: z.string(),
+        key: z.record(z.string(), z.unknown()),
+        message: z.record(z.string(), z.unknown()).optional(),
+        msgId: z.number().int(),
+        remoteJid: z.string(),
+      }),
+    ),
+  },
+  deleteApiMessagesMsgId: {
+    status: 200,
+    // `message` at the top level, beside `success` — the same shape `restart` uses.
+    schema: z.object({ message: z.string(), success: z.literal(true) }),
+  },
+  postApiMessagesMessageResend: {
+    status: 200,
+    schema: z.object({ message: z.string(), success: z.literal(true) }),
+  },
+
   // -- groups
   getApiGroups: {
     status: 200,

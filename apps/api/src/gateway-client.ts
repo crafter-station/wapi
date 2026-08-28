@@ -12,6 +12,7 @@ import type {
   GroupRecord,
   GroupSettings,
   SendContent,
+  SendResult,
   SendOptions,
 } from "@wapi/core";
 
@@ -145,6 +146,12 @@ export const gateway = {
 
   syncContacts: (sessionId: number) =>
     post<{ ok: true }>("/rpc/sync-contacts", { sessionId }, DEADLINES.connect),
+
+  editMessage: (sessionId: number, key: Record<string, unknown>, text: string) =>
+    post<SendResult>("/rpc/edit-message", { sessionId, key, text }, DEADLINES.send),
+
+  deleteMessage: (sessionId: number, key: Record<string, unknown>) =>
+    post<{ ok: true }>("/rpc/delete-message", { sessionId, key }, DEADLINES.send),
 
   leaveGroup: (sessionId: number, jid: string) =>
     post<{ ok: true }>("/rpc/leave-group", { sessionId, jid }),

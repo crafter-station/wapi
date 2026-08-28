@@ -81,6 +81,58 @@ func (m *Messages) Info(ctx context.Context, msgID int64) (*MessageInfo, error) 
 	return &out, unwrap(raw, &out)
 }
 
+// Edit changes the text of a message you sent.
+//
+// WhatsApp allows this only for a short window afterwards and gives no way to ask how long is
+// left, so a refusal is an ordinary outcome. The edit is a new message superseding the old one,
+// so the response carries a fresh key alongside the original msgId.
+func (m *Messages) Edit(ctx context.Context, msgID int64, text string) (json.RawMessage, error) {
+	raw, err := m.t.do(ctx, "PUT", "/api/messages/"+strconv.FormatInt(msgID, 10), nil,
+		map[string]any{"text": text})
+	if err != nil {
+		return nil, err
+	}
+	var out json.RawMessage
+	return out, unwrap(raw, &out)
+}
+
+// Delete deletes a message for everyone. Same short window as editing.
+//
+// This endpoint puts message at the top level rather than under data, so it returns the
+// confirmation string rather than unwrapping.
+func (m *Messages) Delete(ctx context.Context, msgID int64) (string, error) {
+	raw, err := m.t.do(ctx, "DELETE", "/api/messages/"+strconv.FormatInt(msgID, 10), nil, nil)
+	if err != nil {
+		return "", err
+	}
+	var out struct {
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return "", err
+	}
+	return out.Message, nil
+}
+
+// Resend retries a message whose status is "failed".
+//
+// Only failed messages, deliberately: a send that timed out is recorded as in_progress because
+// nobody knows whether it arrived, and resending one of those is how a customer gets the same
+// message twice.
+func (m *Messages) Resend(ctx context.Context, msgID int64) (string, error) {
+	raw, err := m.t.do(ctx, "POST", "/api/messages/"+strconv.FormatInt(msgID, 10)+"/resend", nil, nil)
+	if err != nil {
+		return "", err
+	}
+	var out struct {
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return "", err
+	}
+	return out.Message, nil
+}
+
 // MarkRead marks a received message as read.
 //
 // Takes the WhatsApp key rather than a msgId: inbound messages have no msgId, which only ever

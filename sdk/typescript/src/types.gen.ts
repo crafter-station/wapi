@@ -31,6 +31,29 @@ export type ThrottleFailure = {
   retry_after: number;
 };
 
+/** deleteApiMessagesMsgId. */
+export type DeleteApiMessagesMsgIdResponse = {
+  message: string;
+  success: true;
+};
+
+/** Request body for `PUT /api/messages/{msgId}`. */
+export type PutApiMessagesMsgIdBody = {
+  text: string;
+};
+
+/** putApiMessagesMsgId. */
+export type PutApiMessagesMsgIdResponse = {
+  success: true;
+  data: {
+    id: string;
+    key: Record<string, unknown>;
+    message?: Record<string, unknown>;
+    msgId: number;
+    remoteJid: string;
+  };
+};
+
 /** Fetch one session, including its API key and webhook secret. */
 export type GetApiWhatsappSessionsWhatsappSessionResponse = {
   success: true;
@@ -558,6 +581,12 @@ export type PostApiGroupsInviteAcceptResponse = {
   };
 };
 
+/** postApiMessagesMessageResend. */
+export type PostApiMessagesMessageResendResponse = {
+  message: string;
+  success: true;
+};
+
 /** Request body for `POST /api/messages/read`. */
 export type PostApiMessagesReadBody = {
   key: Record<string, unknown>;
@@ -759,6 +788,7 @@ export type PostApiSandboxScanResponse = {
  * in one place, and so a removed endpoint shows up as a type error rather than a 404.
  */
 export type Operations = {
+  deleteApiMessagesMsgId: { method: "DELETE"; path: "/api/messages/{msgId}"; status: 200 };
   deleteApiWhatsappSessionsWhatsappSession: { method: "DELETE"; path: "/api/whatsapp-sessions/{whatsappSession}"; status: 204 };
   getApiContacts: { method: "GET"; path: "/api/contacts"; status: 200 };
   getApiContactsContactPhoneNumber: { method: "GET"; path: "/api/contacts/{contactPhoneNumber}"; status: 200 };
@@ -787,6 +817,7 @@ export type Operations = {
   postApiGroupsGroupJidParticipantsAdd: { method: "POST"; path: "/api/groups/{groupJid}/participants/add"; status: 200 };
   postApiGroupsGroupJidParticipantsRemove: { method: "POST"; path: "/api/groups/{groupJid}/participants/remove"; status: 200 };
   postApiGroupsInviteAccept: { method: "POST"; path: "/api/groups/invite/accept"; status: 200 };
+  postApiMessagesMessageResend: { method: "POST"; path: "/api/messages/{message}/resend"; status: 200 };
   postApiMessagesReact: { method: "POST"; path: "/api/messages/react"; status: 200 };
   postApiMessagesRead: { method: "POST"; path: "/api/messages/read"; status: 200 };
   postApiSandboxInbound: { method: "POST"; path: "/api/sandbox/inbound"; status: 200 };
@@ -802,5 +833,6 @@ export type Operations = {
   putApiContacts: { method: "PUT"; path: "/api/contacts"; status: 200 };
   putApiGroupsGroupIdParticipantsUpdate: { method: "PUT"; path: "/api/groups/{groupId}/participants/update"; status: 200 };
   putApiGroupsGroupJidSettings: { method: "PUT"; path: "/api/groups/{groupJid}/settings"; status: 200 };
+  putApiMessagesMsgId: { method: "PUT"; path: "/api/messages/{msgId}"; status: 200 };
   putApiWhatsappSessionsWhatsappSession: { method: "PUT"; path: "/api/whatsapp-sessions/{whatsappSession}"; status: 200 };
 };

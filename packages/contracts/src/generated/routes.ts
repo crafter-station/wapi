@@ -6,6 +6,8 @@
 
 import { z } from "zod";
 
+export const deleteApiMessagesMsgIdParams = z.object({ "msgId": z.string() });
+
 export const deleteApiWhatsappSessionsWhatsappSessionParams = z.object({ "whatsappSession": z.string() });
 
 export const getApiContactsBody = z.object({
@@ -83,6 +85,8 @@ export const postApiGroupsGroupJidParticipantsRemoveBody = z.object({
 export const postApiGroupsInviteAcceptBody = z.object({
   "code": z.string(),
 });
+
+export const postApiMessagesMessageResendParams = z.object({ "message": z.string() });
 
 export const postApiMessagesReadBody = z.object({
   "key": z.record(z.string(), z.unknown()),
@@ -167,6 +171,11 @@ export const putApiGroupsGroupJidSettingsBody = z.object({
   "profilePicUrl": z.string().optional(),
 });
 
+export const putApiMessagesMsgIdParams = z.object({ "msgId": z.string() });
+export const putApiMessagesMsgIdBody = z.object({
+  "text": z.string(),
+});
+
 export const putApiWhatsappSessionsWhatsappSessionParams = z.object({ "whatsappSession": z.string() });
 export const putApiWhatsappSessionsWhatsappSessionBody = z.object({
   "name": z.string().optional(),
@@ -186,6 +195,13 @@ export const putApiWhatsappSessionsWhatsappSessionBody = z.object({
 });
 
 export const ROUTES = [
+  {
+    operationId: "deleteApiMessagesMsgId",
+    method: "DELETE",
+    path: "/api/messages/{msgId}",
+    pathParams: ["msgId"],
+    body: undefined,
+  },
   {
     operationId: "deleteApiWhatsappSessionsWhatsappSession",
     method: "DELETE",
@@ -383,6 +399,13 @@ export const ROUTES = [
     body: postApiGroupsInviteAcceptBody,
   },
   {
+    operationId: "postApiMessagesMessageResend",
+    method: "POST",
+    path: "/api/messages/{message}/resend",
+    pathParams: ["message"],
+    body: undefined,
+  },
+  {
     operationId: "postApiMessagesRead",
     method: "POST",
     path: "/api/messages/read",
@@ -458,6 +481,13 @@ export const ROUTES = [
     path: "/api/groups/{groupJid}/settings",
     pathParams: ["groupJid"],
     body: putApiGroupsGroupJidSettingsBody,
+  },
+  {
+    operationId: "putApiMessagesMsgId",
+    method: "PUT",
+    path: "/api/messages/{msgId}",
+    pathParams: ["msgId"],
+    body: putApiMessagesMsgIdBody,
   },
   {
     operationId: "putApiWhatsappSessionsWhatsappSession",

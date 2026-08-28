@@ -362,6 +362,29 @@ export class BaileysEngine implements WhatsAppEngine {
     return null;
   }
 
+  /**
+   * An edit is a *send* carrying the original key, not a mutation — WhatsApp models it as a new
+   * protocol message that supersedes the old one, which is why this returns a fresh SendResult.
+   */
+  async editMessage(sessionId: number, key: Record<string, unknown>, text: string): Promise<SendResult> {
+    const remoteJid = String(key["remoteJid"] ?? "");
+    const sent = await this.live(sessionId).sock.sendMessage(remoteJid, {
+      edit: key as never,
+      text,
+    });
+    return {
+      key: (sent?.key ?? {}) as Record<string, unknown>,
+      remoteJid,
+      waKeyId: String(sent?.key?.id ?? ""),
+    };
+  }
+
+  /** Likewise a send, carrying the key of the message to revoke. */
+  async deleteMessage(sessionId: number, key: Record<string, unknown>) {
+    const remoteJid = String(key["remoteJid"] ?? "");
+    await this.live(sessionId).sock.sendMessage(remoteJid, { delete: key as never });
+  }
+
   async readMessages(sessionId: number, keys: Record<string, unknown>[]) {
     await this.live(sessionId).sock.readMessages(keys as never);
   }
