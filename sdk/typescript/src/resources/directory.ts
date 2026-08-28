@@ -3,8 +3,11 @@ import type {
   GetApiContactsContactPhoneNumberPictureResponse,
   GetApiContactsContactPhoneNumberResponse,
   GetApiContactsResponse,
+  GetApiGroupsGroupJidInviteLinkResponse,
   GetApiGroupsGroupJidMetadataResponse,
+  GetApiGroupsGroupJidPictureResponse,
   GetApiGroupsGroupJidParticipantsResponse,
+  GetApiGroupsInviteInviteCodeResponse,
   GetApiGroupsResponse,
   GetApiLidFromPnPnResponse,
   GetApiOnWhatsappContactIdentifierResponse,
@@ -12,9 +15,14 @@ import type {
   PostApiContactsContactPhoneNumberBlockResponse,
   PostApiContactsContactPhoneNumberUnblockResponse,
   PostApiGroupsBody,
+  PostApiGroupsGroupIdLeaveResponse,
   PostApiGroupsGroupJidParticipantsAddResponse,
+  PostApiGroupsInviteAcceptResponse,
   PostApiGroupsResponse,
   PutApiContactsResponse,
+  PutApiGroupsGroupIdParticipantsUpdateResponse,
+  PutApiGroupsGroupJidSettingsBody,
+  PutApiGroupsGroupJidSettingsResponse,
 } from "../types.gen.js";
 
 /**
@@ -199,6 +207,22 @@ class GroupParticipants {
     );
   }
 
+  /**
+   * Promote participants to admin, or demote them back.
+   *
+   * Same per-JID result shape as `add`: the request can succeed while an individual participant
+   * does not, so read each entry's `status` rather than the HTTP code alone.
+   */
+  async update(groupJid: string, participants: string[], action: "promote" | "demote") {
+    return data(
+      await this.http.request<PutApiGroupsGroupIdParticipantsUpdateResponse>(
+        "PUT",
+        `/api/groups/${encodeURIComponent(groupJid)}/participants/update`,
+        { body: { action, participants } },
+      ),
+    );
+  }
+
   /** The participants of a group. This shape is keyed on `id`, unlike the metadata route. */
   async list(groupJid: string) {
     return data(
@@ -216,6 +240,75 @@ export class GroupsResource {
 
   constructor(private readonly http: Transport) {
     this.participants = new GroupParticipants(http);
+  }
+
+  /** Leave a group. Rejoining needs a fresh invite, so there is no undo. */
+  async leave(groupJid: string) {
+    return data(
+      await this.http.request<PostApiGroupsGroupIdLeaveResponse>(
+        "POST",
+        `/api/groups/${encodeURIComponent(groupJid)}/leave`,
+      ),
+    );
+  }
+
+  /**
+   * The group's invite link.
+   *
+   * Note this endpoint puts `inviteLink` at the *top level* rather than under `data`, so unlike
+   * every other method here it does not unwrap.
+   */
+  async inviteLink(groupJid: string) {
+    const res = await this.http.request<GetApiGroupsGroupJidInviteLinkResponse>(
+      "GET",
+      `/api/groups/${encodeURIComponent(groupJid)}/invite-link`,
+    );
+    return res.inviteLink;
+  }
+
+  /** A group's picture. `imgUrl` is null when there is none — a success, not an error. */
+  async picture(groupJid: string) {
+    return data(
+      await this.http.request<GetApiGroupsGroupJidPictureResponse>(
+        "GET",
+        `/api/groups/${encodeURIComponent(groupJid)}/picture`,
+      ),
+    );
+  }
+
+  /**
+   * Change a group's settings. Only the fields you pass are touched.
+   *
+   * WhatsApp applies these as separate operations with no transaction, so a partial failure can
+   * leave earlier fields changed. Requires admin rights in the group.
+   */
+  async updateSettings(groupJid: string, settings: PutApiGroupsGroupJidSettingsBody) {
+    return data(
+      await this.http.request<PutApiGroupsGroupJidSettingsResponse>(
+        "PUT",
+        `/api/groups/${encodeURIComponent(groupJid)}/settings`,
+        { body: settings },
+      ),
+    );
+  }
+
+  /** Inspect a group from an invite code without joining it. */
+  async byInvite(inviteCode: string) {
+    return data(
+      await this.http.request<GetApiGroupsInviteInviteCodeResponse>(
+        "GET",
+        `/api/groups/invite/${encodeURIComponent(inviteCode)}`,
+      ),
+    );
+  }
+
+  /** Join a group by invite code. Returns the group's JID. */
+  async acceptInvite(code: string) {
+    return data(
+      await this.http.request<PostApiGroupsInviteAcceptResponse>("POST", "/api/groups/invite/accept", {
+        body: { code },
+      }),
+    );
   }
 
   /** Every group, as a flat array. */

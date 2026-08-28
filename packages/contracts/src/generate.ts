@@ -38,9 +38,16 @@ const TIER1 = new Set([
   "GET /api/messages/{msgId}/info",
   "POST /api/messages/read",
   "GET /api/whatsapp-sessions/{whatsappSession}/message-logs",
-  // Groups (6)
+  // Groups (13)
   "GET /api/groups",
   "POST /api/groups",
+  "POST /api/groups/{groupId}/leave",
+  "PUT /api/groups/{groupId}/participants/update",
+  "GET /api/groups/{groupJid}/invite-link",
+  "GET /api/groups/{groupJid}/picture",
+  "PUT /api/groups/{groupJid}/settings",
+  "POST /api/groups/invite/accept",
+  "GET /api/groups/invite/{inviteCode}",
   "GET /api/groups/{groupJid}/metadata",
   "GET /api/groups/{groupJid}/participants",
   "POST /api/groups/{groupJid}/participants/add",

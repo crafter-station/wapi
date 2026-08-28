@@ -32,6 +32,7 @@ import type {
   EngineEvent,
   EngineIdentity,
   GroupRecord,
+  GroupSettings,
   SendContent,
   SendOptions,
   SendResult,
@@ -148,6 +149,26 @@ export class DispatchingEngine implements WhatsAppEngine {
   }
 
   // ------------------------------------------------------------------ directory
+  async leaveGroup(sessionId: number, jid: string) {
+    return (await this.pick(sessionId)).leaveGroup(sessionId, jid);
+  }
+
+  async groupInviteCode(sessionId: number, jid: string) {
+    return (await this.pick(sessionId)).groupInviteCode(sessionId, jid);
+  }
+
+  async groupByInvite(sessionId: number, code: string) {
+    return (await this.pick(sessionId)).groupByInvite(sessionId, code);
+  }
+
+  async acceptGroupInvite(sessionId: number, code: string) {
+    return (await this.pick(sessionId)).acceptGroupInvite(sessionId, code);
+  }
+
+  async updateGroupSettings(sessionId: number, jid: string, settings: GroupSettings) {
+    return (await this.pick(sessionId)).updateGroupSettings(sessionId, jid, settings);
+  }
+
   async saveContact(sessionId: number, jid: string, fullName: string | null) {
     return (await this.pick(sessionId)).saveContact(sessionId, jid, fullName);
   }

@@ -619,6 +619,126 @@ d("webhook delivery", () => {
   }, 30_000);
 });
 
+d("group membership", () => {
+  test("promote and demote report per participant", async () => {
+    const groups = (await json(await api("/api/groups"))).body["data"] as { id: string }[];
+    const participants = (await json(await api(`/api/groups/${groups[0]!.id}/participants`))).body[
+      "data"
+    ] as { id: string }[];
+    const member = participants[1]!.id;
+
+    const promoted = await json(
+      await api(`/api/groups/${groups[0]!.id}/participants/update`, {
+        body: JSON.stringify({ action: "promote", participants: [member] }),
+        method: "PUT",
+      }),
+    );
+    expect(promoted.status).toBe(200);
+    expect(promoted.body["data"]).toEqual([{ jid: member, status: "200" }]);
+
+    const after = (await json(await api(`/api/groups/${groups[0]!.id}/participants`))).body["data"] as {
+      admin: string | null;
+      id: string;
+    }[];
+    expect(after.find((p) => p.id === member)!.admin).toBe("admin");
+  });
+
+  test("an unknown action is refused rather than guessed at", async () => {
+    const groups = (await json(await api("/api/groups"))).body["data"] as { id: string }[];
+    const r = await json(
+      await api(`/api/groups/${groups[0]!.id}/participants/update`, {
+        body: JSON.stringify({ action: "banish", participants: ["99900000001001@s.whatsapp.net"] }),
+        method: "PUT",
+      }),
+    );
+    expect(r.status).toBe(422);
+    expect(String(r.body["error"])).toContain("promote");
+  });
+
+  /**
+   * The sixth success envelope. `inviteLink` sits beside `success` rather than under `data`, so a
+   * client reading `data.inviteLink` gets undefined — which is precisely why it is asserted.
+   */
+  test("an invite link is returned at the TOP level, not under data", async () => {
+    const groups = (await json(await api("/api/groups"))).body["data"] as { id: string }[];
+    const r = await json(await api(`/api/groups/${groups[0]!.id}/invite-link`));
+
+    expect(r.status).toBe(200);
+    expect(typeof r.body["inviteLink"]).toBe("string");
+    expect(String(r.body["inviteLink"])).toStartWith("https://chat.whatsapp.com/");
+    expect(r.body["data"]).toBeUndefined();
+  });
+
+  test("a group picture uses the same nullable shape as a contact's", async () => {
+    const groups = (await json(await api("/api/groups"))).body["data"] as { id: string }[];
+    const r = await json(await api(`/api/groups/${groups[0]!.id}/picture`));
+    expect(r.status).toBe(200);
+    expect("imgUrl" in (r.body["data"] as object)).toBe(true);
+  });
+
+  test("settings change only what is sent", async () => {
+    const groups = (await json(await api("/api/groups"))).body["data"] as { id: string }[];
+    const r = await json(
+      await api(`/api/groups/${groups[0]!.id}/settings`, {
+        body: JSON.stringify({ subject: "Renamed by test" }),
+        method: "PUT",
+      }),
+    );
+    expect(r.status).toBe(200);
+    expect(r.body["data"]).toMatchObject({ subject: "Renamed by test" });
+
+    const meta = (await json(await api(`/api/groups/${groups[0]!.id}/metadata`))).body["data"] as {
+      subject: string;
+    };
+    expect(meta.subject).toBe("Renamed by test");
+  });
+
+  test("an invite code can be inspected before joining, and a bad one is refused", async () => {
+    const groups = (await json(await api("/api/groups"))).body["data"] as { id: string }[];
+    const link = (await json(await api(`/api/groups/${groups[0]!.id}/invite-link`))).body[
+      "inviteLink"
+    ] as string;
+    const code = link.split("/").pop()!;
+
+    const info = await json(await api(`/api/groups/invite/${code}`));
+    expect(info.status).toBe(200);
+    expect((info.body["data"] as { id: string }).id).toBe(groups[0]!.id);
+
+    const bad = await json(await api("/api/groups/invite/definitely-not-a-code"));
+    expect(bad.status).toBe(422);
+    expect(String(bad.body["error"])).toContain("invite");
+  });
+
+  test("accepting an invite returns the group id, and a bad code does not", async () => {
+    const accepted = await json(
+      await api("/api/groups/invite/accept", {
+        body: JSON.stringify({ code: "SANDBOX000001ffffffff" }),
+        method: "POST",
+      }),
+    );
+    expect(accepted.status).toBe(200);
+    expect(String((accepted.body["data"] as { id: string }).id)).toEndWith("@g.us");
+
+    const bad = await json(
+      await api("/api/groups/invite/accept", { body: JSON.stringify({ code: "nope" }), method: "POST" }),
+    );
+    expect(bad.status).toBe(422);
+  });
+
+  /** Last, because it removes a group the tests above rely on. */
+  test("leaving a group removes it from the listing", async () => {
+    const before = (await json(await api("/api/groups"))).body["data"] as { id: string }[];
+    const target = before[before.length - 1]!.id;
+
+    const r = await json(await api(`/api/groups/${target}/leave`, { method: "POST" }));
+    expect(r.status).toBe(200);
+    expect(r.body["data"]).toEqual({});
+
+    const after = (await json(await api("/api/groups"))).body["data"] as { id: string }[];
+    expect(after.map((g) => g.id)).not.toContain(target);
+  });
+});
+
 d("sandbox controls refuse where they should", () => {
   test("a PAT cannot drive a session-scoped control", async () => {
     const r = await json(

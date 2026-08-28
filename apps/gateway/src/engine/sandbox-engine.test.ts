@@ -341,6 +341,69 @@ describe("contacts", () => {
   });
 });
 
+describe("group membership", () => {
+  test("leaving removes the group from the listing", async () => {
+    const { engine } = await connected(3);
+    const [first] = await engine.groups(3);
+
+    await engine.leaveGroup(3, first!.id);
+    const after = await engine.groups(3);
+    expect(after).toHaveLength(1);
+    expect(after.map((g) => g.id)).not.toContain(first!.id);
+    // And metadata must agree, or a stale link into the group still resolves.
+    expect(await engine.groupMetadata(3, first!.id)).toBeNull();
+  });
+
+  test("an invite code round-trips back to its group", async () => {
+    const { engine } = await connected(3);
+    const [first] = await engine.groups(3);
+
+    const code = await engine.groupInviteCode(3, first!.id);
+    expect(code).toBeTruthy();
+    // Accept-what-you-were-given has to work, or the pair is useless together.
+    expect((await engine.groupByInvite(3, code!))!.id).toBe(first!.id);
+    expect(await engine.acceptGroupInvite(3, code!)).toBe(first!.id);
+  });
+
+  test("a code for a group that is gone is null, not an error", async () => {
+    const { engine } = await connected(3);
+    expect(await engine.groupInviteCode(3, "1@g.us")).toBeNull();
+    // A wrong or expired invite is an ordinary thing to paste, not an exception.
+    expect(await engine.groupByInvite(3, "nonsense")).toBeNull();
+    expect(await engine.acceptGroupInvite(3, "nonsense")).toBeNull();
+  });
+
+  test("accepting an unfamiliar sandbox code joins a new group", async () => {
+    const { engine } = await connected(3);
+    const before = (await engine.groups(3)).length;
+
+    const jid = await engine.acceptGroupInvite(3, "SANDBOX000003ffffffff");
+    expect(jid).toBeTruthy();
+    expect(await engine.groups(3)).toHaveLength(before + 1);
+    // The session is a member, not the owner — it was invited.
+    const joined = await engine.groupMetadata(3, jid!);
+    expect(joined!.owner).not.toBe("99900000003@s.whatsapp.net");
+    expect(joined!.participants.map((p) => p.id)).toContain("99900000003@s.whatsapp.net");
+  });
+
+  test("settings change only what was passed", async () => {
+    const { engine } = await connected(3);
+    const [first] = await engine.groups(3);
+    const originalDesc = first!.desc;
+
+    await engine.updateGroupSettings(3, first!.id, { subject: "Renamed" });
+    const after = await engine.groupMetadata(3, first!.id);
+    expect(after!.subject).toBe("Renamed");
+    // `undefined` means leave alone — a subject edit must not clear the description.
+    expect(after!.desc).toBe(originalDesc);
+  });
+
+  test("settings on an unknown group are an error, not a silent success", async () => {
+    const { engine } = await connected(3);
+    await expect(engine.updateGroupSettings(3, "1@g.us", { subject: "x" })).rejects.toThrow();
+  });
+});
+
 describe("the conversation", () => {
   /** What makes the dashboard able to show a sandbox as a chat rather than a status field. */
   test("records both directions, oldest first", async () => {

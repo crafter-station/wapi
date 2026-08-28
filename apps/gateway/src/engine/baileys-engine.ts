@@ -30,6 +30,7 @@ import type {
   EngineIdentity,
   ContactRecord,
   GroupRecord,
+  GroupSettings,
   SendContent,
   SendOptions,
 } from "@wapi/core";
@@ -521,6 +522,58 @@ export class BaileysEngine implements WhatsAppEngine {
   async createGroup(sessionId: number, subject: string, participants: string[]): Promise<GroupRecord> {
     const md = await this.live(sessionId).sock.groupCreate(subject, participants);
     return toGroup(md as unknown as Record<string, unknown>);
+  }
+
+  async leaveGroup(sessionId: number, jid: string) {
+    await this.live(sessionId).sock.groupLeave(jid);
+  }
+
+  async groupInviteCode(sessionId: number, jid: string): Promise<string | null> {
+    return (await this.live(sessionId).sock.groupInviteCode(jid)) ?? null;
+  }
+
+  /**
+   * Inspect a group from its invite code without joining.
+   *
+   * An expired or revoked code makes WhatsApp throw; that is a "no such group" answer to the
+   * caller, not a transport failure, so it becomes null and the route turns it into a 404.
+   */
+  async groupByInvite(sessionId: number, code: string): Promise<GroupRecord | null> {
+    try {
+      const md = await this.live(sessionId).sock.groupGetInviteInfo(code);
+      return toGroup(md as unknown as Record<string, unknown>);
+    } catch {
+      return null;
+    }
+  }
+
+  async acceptGroupInvite(sessionId: number, code: string): Promise<string | null> {
+    return (await this.live(sessionId).sock.groupAcceptInvite(code)) ?? null;
+  }
+
+  /**
+   * One documented body, five separate WhatsApp calls.
+   *
+   * Applied in sequence and not in a transaction, because WhatsApp offers none — a failure
+   * halfway leaves the earlier changes applied. Subject first, since it is the field most likely
+   * to be rejected for permissions, so the common failure happens before anything else changes.
+   */
+  async updateGroupSettings(sessionId: number, jid: string, settings: GroupSettings) {
+    const { sock } = this.live(sessionId);
+    if (settings.subject !== undefined) await sock.groupUpdateSubject(jid, settings.subject);
+    if (settings.description !== undefined) await sock.groupUpdateDescription(jid, settings.description);
+    if (settings.announce !== undefined) {
+      await sock.groupSettingUpdate(jid, settings.announce ? "announcement" : "not_announcement");
+    }
+    if (settings.restrict !== undefined) {
+      await sock.groupSettingUpdate(jid, settings.restrict ? "locked" : "unlocked");
+    }
+    if (settings.joinApproval !== undefined) {
+      await sock.groupJoinApprovalMode(jid, settings.joinApproval ? "on" : "off");
+    }
+    if (settings.memberAdd !== undefined) {
+      await sock.groupMemberAddMode(jid, settings.memberAdd ? "all_member_add" : "admin_add");
+    }
   }
 
   /**

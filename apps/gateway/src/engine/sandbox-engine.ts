@@ -31,6 +31,7 @@ import type {
   EngineEvent,
   EngineIdentity,
   GroupRecord,
+  GroupSettings,
   SendContent,
   SendOptions,
   SendResult,
@@ -492,6 +493,69 @@ export class SandboxEngine implements WhatsAppEngine {
     };
     this.world(sessionId).groups.push(group);
     return group;
+  }
+
+  /** Leaving removes the group from this session's world, as it would in production. */
+  async leaveGroup(sessionId: number, jid: string) {
+    this.require(sessionId);
+    const world = this.world(sessionId);
+    world.groups = world.groups.filter((g) => g.id !== jid);
+  }
+
+  /**
+   * A derived code, and the same one every time.
+   *
+   * Deterministic so a test can assert an exact value, and long enough to look like the real
+   * thing — a 4-character code would let a caller's validation pass here and fail in production.
+   */
+  async groupInviteCode(sessionId: number, jid: string): Promise<string | null> {
+    this.require(sessionId);
+    if (!this.world(sessionId).groups.some((g) => g.id === jid)) return null;
+    return `SANDBOX${pad(sessionId, 6)}${jid.replace(/[^0-9]/g, "").slice(-8)}`;
+  }
+
+  /** Round-trips with `groupInviteCode`, so accept-what-you-were-given works. */
+  async groupByInvite(sessionId: number, code: string): Promise<GroupRecord | null> {
+    this.require(sessionId);
+    const groups = this.world(sessionId).groups;
+    for (const g of groups) {
+      if ((await this.groupInviteCode(sessionId, g.id)) === code) return g;
+    }
+    return null;
+  }
+
+  /**
+   * Joining by invite adds a group that was not derived, so `groups()` grows.
+   *
+   * An unknown code is null rather than an error: a wrong or expired invite is an ordinary thing
+   * for a user to paste, and the route turns it into the documented failure.
+   */
+  async acceptGroupInvite(sessionId: number, code: string): Promise<string | null> {
+    this.require(sessionId);
+    const existing = await this.groupByInvite(sessionId, code);
+    if (existing) return existing.id;
+    if (!code.startsWith("SANDBOX")) return null;
+
+    const own = jidFor(sessionId);
+    const group: GroupRecord = {
+      creation: Math.floor(Date.now() / 1000),
+      desc: null,
+      id: `${100000000000 + sessionId}-${this.nextKeyId()}@g.us`,
+      owner: contactsFor(sessionId)[0]!.jid,
+      participants: [{ admin: "superadmin", id: contactsFor(sessionId)[0]!.jid }, { admin: null, id: own }],
+      subject: "Joined by invite",
+    };
+    this.world(sessionId).groups.push(group);
+    return group.id;
+  }
+
+  /** Only the supplied fields change, so a subject edit cannot clear a description. */
+  async updateGroupSettings(sessionId: number, jid: string, settings: GroupSettings) {
+    this.require(sessionId);
+    const group = this.world(sessionId).groups.find((g) => g.id === jid);
+    if (!group) throw new Error(`sandbox group ${jid} not found`);
+    if (settings.subject !== undefined) group.subject = settings.subject;
+    if (settings.description !== undefined) group.desc = settings.description;
   }
 
   /**

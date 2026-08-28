@@ -1,6 +1,14 @@
 import { Hono } from "hono";
 import type { Db } from "@wapi/db";
-import { ok, fail, directoryPage, putApiContactsBody } from "@wapi/contracts";
+import {
+  ok,
+  fail,
+  directoryPage,
+  putApiContactsBody,
+  putApiGroupsGroupIdParticipantsUpdateBody,
+  putApiGroupsGroupJidSettingsBody,
+  postApiGroupsInviteAcceptBody,
+} from "@wapi/contracts";
 import {
   contactToWire,
   groupToWire,
@@ -248,6 +256,123 @@ export function contactGroupRoutes(_db: Db) {
       if ("error" in jids) return c.json(fail(jids.error), 422);
       const { group } = await gateway.createGroup(sessionId, body.name, jids.jids);
       return c.json(ok(group), 201);
+    }),
+  );
+
+  /**
+   * POST /api/groups/{id}/leave.
+   *
+   * `data: {}` on success, exactly as documented — there is nothing useful to return, and an
+   * empty object is what their client destructures.
+   */
+  app.post("/groups/:groupId/leave", (c) =>
+    guard(c, async (sessionId) => {
+      await gateway.leaveGroup(sessionId, c.req.param("groupId"));
+      return c.json(ok({}));
+    }),
+  );
+
+  /**
+   * GET /api/groups/{jid}/invite-link — `inviteLink` at the **top level**.
+   *
+   * A sixth success envelope, beside `success` rather than under `data`. Nobody would design
+   * this; it is reproduced because their client reads it there.
+   */
+  app.get("/groups/:groupJid/invite-link", (c) =>
+    guard(c, async (sessionId) => {
+      const { code } = await gateway.groupInviteCode(sessionId, c.req.param("groupJid"));
+      if (!code) return c.json(fail("Failed to get group invite link."), 422);
+      // The engine returns the bare code; the URL prefix is presentation and belongs here.
+      return c.json({ inviteLink: `https://chat.whatsapp.com/${code}`, success: true });
+    }),
+  );
+
+  /** GET /api/groups/{jid}/picture — same nullable shape as a contact's. */
+  app.get("/groups/:groupJid/picture", (c) =>
+    guard(c, async (sessionId) => {
+      const { url } = await gateway.profilePicture(sessionId, c.req.param("groupJid"));
+      return c.json(ok({ imgUrl: url }));
+    }),
+  );
+
+  /**
+   * PUT /api/groups/{jid}/settings.
+   *
+   * Every field optional, and only the supplied ones are touched — `undefined` means "leave
+   * alone", which is a different thing from `false`. WhatsApp has no transaction across these,
+   * so a partial failure leaves earlier changes applied; the response echoes what was asked for
+   * rather than re-reading the group, matching their documented shape.
+   */
+  app.put("/groups/:groupJid/settings", (c) =>
+    guard(c, async (sessionId) => {
+      const parsed = putApiGroupsGroupJidSettingsBody.safeParse(await c.req.json().catch(() => ({})));
+      if (!parsed.success) return c.json(validationFailure(parsed.error), 422);
+      const b = parsed.data;
+
+      await gateway.updateGroupSettings(sessionId, c.req.param("groupJid"), {
+        announce: b.announce,
+        description: b.description,
+        joinApproval: b.joinApproval,
+        memberAdd: b.memberAdd,
+        restrict: b.restrict,
+        subject: b.subject,
+      });
+      return c.json(ok({ description: b.description ?? null, subject: b.subject }));
+    }),
+  );
+
+  /** POST /api/groups/invite/accept — join by code. */
+  app.post("/groups/invite/accept", (c) =>
+    guard(c, async (sessionId) => {
+      const parsed = postApiGroupsInviteAcceptBody.safeParse(await c.req.json().catch(() => ({})));
+      if (!parsed.success) return c.json(validationFailure(parsed.error), 422);
+
+      const { jid } = await gateway.acceptGroupInvite(sessionId, parsed.data.code);
+      if (!jid) return c.json(fail("Failed to accept group invite: Invalid invite code"), 422);
+      return c.json(ok({ id: jid }));
+    }),
+  );
+
+  /**
+   * GET /api/groups/invite/{code} — look before you leap.
+   *
+   * Registered after `/groups/invite/accept` would be ambiguous, so ordering matters: Hono
+   * matches in registration order and `invite/accept` would otherwise be read as an invite code.
+   */
+  app.get("/groups/invite/:inviteCode", (c) =>
+    guard(c, async (sessionId) => {
+      const { group } = await gateway.groupByInvite(sessionId, c.req.param("inviteCode"));
+      if (!group) return c.json(fail("Failed to get group invite info: Invalid or expired invite code"), 422);
+      return c.json(ok(groupToWire(group)));
+    }),
+  );
+
+  /** PUT /api/groups/{id}/participants/update — promote or demote. */
+  app.put("/groups/:groupId/participants/update", (c) =>
+    guard(c, async (sessionId) => {
+      const parsed = putApiGroupsGroupIdParticipantsUpdateBody.safeParse(
+        await c.req.json().catch(() => ({})),
+      );
+      if (!parsed.success) return c.json(validationFailure(parsed.error), 422);
+
+      const action = String(parsed.data.action).toLowerCase();
+      if (action !== "promote" && action !== "demote") {
+        return c.json(fail("The action field must be either promote or demote."), 422);
+      }
+      const list = parsed.data.participants as unknown[];
+      if (!list.length) {
+        return c.json(fail("The participants field is required and must not be empty."), 422);
+      }
+      const jids = resolveAll(list.map(String));
+      if ("error" in jids) return c.json(fail(jids.error), 422);
+
+      const results = await gateway.updateParticipants(
+        sessionId,
+        c.req.param("groupId"),
+        jids.jids,
+        action,
+      );
+      return c.json(ok(results.results));
     }),
   );
 

@@ -222,6 +222,33 @@ app.post("/rpc/sandbox-thread", async (c) => {
   return rpc(() => engine.sandboxThread(Number(sessionId)))(c);
 });
 
+app.post("/rpc/leave-group", async (c) => {
+  const { sessionId, jid } = await c.req.json();
+  return rpc(() => engine.leaveGroup(Number(sessionId), String(jid)).then(() => ({ ok: true })))(c);
+});
+
+app.post("/rpc/group-invite-code", async (c) => {
+  const { sessionId, jid } = await c.req.json();
+  return rpc(() => engine.groupInviteCode(Number(sessionId), String(jid)).then((code) => ({ code })))(c);
+});
+
+app.post("/rpc/group-by-invite", async (c) => {
+  const { sessionId, code } = await c.req.json();
+  return rpc(() => engine.groupByInvite(Number(sessionId), String(code)).then((group) => ({ group })))(c);
+});
+
+app.post("/rpc/accept-group-invite", async (c) => {
+  const { sessionId, code } = await c.req.json();
+  return rpc(() => engine.acceptGroupInvite(Number(sessionId), String(code)).then((jid) => ({ jid })))(c);
+});
+
+app.post("/rpc/group-settings", async (c) => {
+  const { sessionId, jid, settings } = await c.req.json();
+  return rpc(() =>
+    engine.updateGroupSettings(Number(sessionId), String(jid), settings ?? {}).then(() => ({ ok: true })),
+  )(c);
+});
+
 app.post("/rpc/save-contact", async (c) => {
   const { sessionId, jid, fullName } = await c.req.json();
   return rpc(() =>

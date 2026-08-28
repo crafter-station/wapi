@@ -104,6 +104,21 @@ class GroupParticipants:
     def __init__(self, http: Transport) -> None:
         self._http = http
 
+    def update(self, group_jid: str, participants: list[str], action: str) -> Any:
+        """Promote participants to admin, or demote them back.
+
+        ``action`` is ``"promote"`` or ``"demote"``. Same per-JID result shape as ``add``: the
+        request can succeed while an individual participant does not, so read each entry's
+        ``status`` rather than the HTTP code alone.
+        """
+        return data(
+            self._http.request(
+                "PUT",
+                f"/api/groups/{quote(group_jid)}/participants/update",
+                body={"action": action, "participants": participants},
+            )
+        )
+
     def list(self, group_jid: str) -> list[Any]:
         """Participants of a group."""
         return data(self._http.request("GET", f"/api/groups/{quote(group_jid)}/participants"))
@@ -137,6 +152,41 @@ class GroupsResource:
     def __init__(self, http: Transport) -> None:
         self._http = http
         self.participants = GroupParticipants(http)
+
+    def leave(self, group_jid: str) -> Any:
+        """Leave a group. Rejoining needs a fresh invite, so there is no undo."""
+        return data(self._http.request("POST", f"/api/groups/{quote(group_jid)}/leave"))
+
+    def invite_link(self, group_jid: str) -> str:
+        """The group's invite link.
+
+        This endpoint puts ``inviteLink`` at the *top level* rather than under ``data``, so
+        unlike every other method here it does not unwrap.
+        """
+        res = self._http.request("GET", f"/api/groups/{quote(group_jid)}/invite-link")
+        return str(res["inviteLink"])
+
+    def picture(self, group_jid: str) -> Any:
+        """A group's picture. ``imgUrl`` is ``None`` when there is none — a success, not an error."""
+        return data(self._http.request("GET", f"/api/groups/{quote(group_jid)}/picture"))
+
+    def update_settings(self, group_jid: str, **settings: Any) -> Any:
+        """Change a group's settings. Only the fields you pass are touched.
+
+        WhatsApp applies these as separate operations with no transaction, so a partial failure
+        can leave earlier fields changed. Requires admin rights in the group.
+        """
+        return data(
+            self._http.request("PUT", f"/api/groups/{quote(group_jid)}/settings", body=settings)
+        )
+
+    def by_invite(self, invite_code: str) -> Any:
+        """Inspect a group from an invite code without joining it."""
+        return data(self._http.request("GET", f"/api/groups/invite/{quote(invite_code)}"))
+
+    def accept_invite(self, code: str) -> Any:
+        """Join a group by invite code. Returns the group's JID."""
+        return data(self._http.request("POST", "/api/groups/invite/accept", body={"code": code}))
 
     def list(self) -> list[Any]:
         """Every group this session belongs to."""

@@ -10,6 +10,7 @@ import type {
   EngineIdentity,
   ContactRecord,
   GroupRecord,
+  GroupSettings,
   SendContent,
   SendOptions,
 } from "@wapi/core";
@@ -144,6 +145,21 @@ export const gateway = {
 
   syncContacts: (sessionId: number) =>
     post<{ ok: true }>("/rpc/sync-contacts", { sessionId }, DEADLINES.connect),
+
+  leaveGroup: (sessionId: number, jid: string) =>
+    post<{ ok: true }>("/rpc/leave-group", { sessionId, jid }),
+
+  groupInviteCode: (sessionId: number, jid: string) =>
+    post<{ code: string | null }>("/rpc/group-invite-code", { sessionId, jid }),
+
+  groupByInvite: (sessionId: number, code: string) =>
+    post<{ group: GroupRecord | null }>("/rpc/group-by-invite", { sessionId, code }),
+
+  acceptGroupInvite: (sessionId: number, code: string) =>
+    post<{ jid: string | null }>("/rpc/accept-group-invite", { sessionId, code }),
+
+  updateGroupSettings: (sessionId: number, jid: string, settings: GroupSettings) =>
+    post<{ ok: true }>("/rpc/group-settings", { sessionId, jid, settings }),
 
   saveContact: (sessionId: number, jid: string, fullName: string | null) =>
     post<{ ok: true }>("/rpc/save-contact", { sessionId, jid, fullName }),

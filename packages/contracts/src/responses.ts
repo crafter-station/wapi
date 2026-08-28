@@ -349,6 +349,27 @@ export const SUCCESS_RESPONSES: Record<string, SuccessResponse> = {
   getApiLidFromPnPn: { status: 200, schema: ok(z.object({ lid: z.string() })) },
   getApiPnFromLidLid: { status: 200, schema: ok(z.object({ pn: z.string() })) },
 
+  postApiGroupsGroupIdLeave: { status: 200, schema: ok(z.object({})) },
+  putApiGroupsGroupIdParticipantsUpdate: {
+    status: 200,
+    schema: ok(z.array(z.object({ jid: z.string(), status: z.string() }))),
+  },
+  getApiGroupsGroupJidInviteLink: {
+    status: 200,
+    /**
+     * `inviteLink` sits at the TOP level, beside `success` — a sixth success envelope, and not
+     * one anybody would design. Reproduced because their SDK reads it there.
+     */
+    schema: z.object({ inviteLink: z.string(), success: z.literal(true) }),
+  },
+  getApiGroupsGroupJidPicture: { status: 200, schema: ok(z.object({ imgUrl: z.string().nullable() })) },
+  putApiGroupsGroupJidSettings: {
+    status: 200,
+    schema: ok(z.object({ description: z.string().nullable().optional(), subject: z.string().optional() })),
+  },
+  postApiGroupsInviteAccept: { status: 200, schema: ok(z.object({ id: z.string() })) },
+  getApiGroupsInviteInviteCode: { status: 200, schema: ok(groupMetadata) },
+
   // -- groups
   getApiGroups: {
     status: 200,

@@ -56,6 +56,25 @@ export type SendContent =
 
 export type EngineIdentity = { id: string; name: string | null; lid: string | null };
 
+/**
+ * The mutable parts of a group.
+ *
+ * WhatsApp exposes these as five unrelated calls; the API documents them as one body, so the
+ * engine takes one object and the adapter fans it out. Undefined means "leave alone" — distinct
+ * from `false`, which is a real setting.
+ */
+export type GroupSettings = {
+  subject?: string;
+  description?: string;
+  /** Only admins may post. */
+  announce?: boolean;
+  /** Only admins may edit group info. */
+  restrict?: boolean;
+  joinApproval?: boolean;
+  /** Whether ordinary members may add participants. */
+  memberAdd?: boolean;
+};
+
 export type ContactRecord = {
   jid: string;
   name: string | null;
@@ -156,6 +175,24 @@ export interface WhatsAppEngine {
   groups(sessionId: number): Promise<GroupRecord[]>;
   groupMetadata(sessionId: number, jid: string): Promise<GroupRecord | null>;
   createGroup(sessionId: number, subject: string, participants: string[]): Promise<GroupRecord>;
+  /** Leave a group. Irreversible without a fresh invite, so callers should confirm first. */
+  leaveGroup(sessionId: number, jid: string): Promise<void>;
+  /**
+   * The group's invite link.
+   *
+   * Returns the bare code, not the URL — the `https://chat.whatsapp.com/` prefix is presentation
+   * and belongs to whoever renders it, not to the engine.
+   */
+  groupInviteCode(sessionId: number, jid: string): Promise<string | null>;
+  /** Metadata for a group from an invite code, without joining it. */
+  groupByInvite(sessionId: number, code: string): Promise<GroupRecord | null>;
+  /** Join a group by invite code. Resolves to the group's JID. */
+  acceptGroupInvite(sessionId: number, code: string): Promise<string | null>;
+  /**
+   * Update group settings. Every field is optional and only the supplied ones are touched, so a
+   * caller changing the subject cannot accidentally reset the description.
+   */
+  updateGroupSettings(sessionId: number, jid: string, settings: GroupSettings): Promise<void>;
   updateParticipants(
     sessionId: number,
     jid: string,

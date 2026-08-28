@@ -210,6 +210,92 @@ func (g *Groups) Create(ctx context.Context, subject string, participants []stri
 	return &out, unwrap(raw, &out)
 }
 
+// Leave leaves a group. Rejoining needs a fresh invite, so there is no undo.
+func (g *Groups) Leave(ctx context.Context, groupJID string) (json.RawMessage, error) {
+	raw, err := g.t.do(ctx, "POST", "/api/groups/"+escape(groupJID)+"/leave", nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	var out json.RawMessage
+	return out, unwrap(raw, &out)
+}
+
+// InviteLink returns the group's invite link.
+//
+// This endpoint puts inviteLink at the top level rather than under data, so unlike every other
+// method here it does not unwrap.
+func (g *Groups) InviteLink(ctx context.Context, groupJID string) (string, error) {
+	raw, err := g.t.do(ctx, "GET", "/api/groups/"+escape(groupJID)+"/invite-link", nil, nil)
+	if err != nil {
+		return "", err
+	}
+	var out struct {
+		InviteLink string `json:"inviteLink"`
+	}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return "", err
+	}
+	return out.InviteLink, nil
+}
+
+// Picture returns a group's picture. imgUrl is null when there is none — a success, not an error.
+func (g *Groups) Picture(ctx context.Context, groupJID string) (json.RawMessage, error) {
+	raw, err := g.t.do(ctx, "GET", "/api/groups/"+escape(groupJID)+"/picture", nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	var out json.RawMessage
+	return out, unwrap(raw, &out)
+}
+
+// UpdateSettings changes a group's settings. Only the fields present in settings are touched.
+//
+// WhatsApp applies these as separate operations with no transaction, so a partial failure can
+// leave earlier fields changed. Requires admin rights in the group.
+func (g *Groups) UpdateSettings(ctx context.Context, groupJID string, settings map[string]any) (json.RawMessage, error) {
+	raw, err := g.t.do(ctx, "PUT", "/api/groups/"+escape(groupJID)+"/settings", nil, settings)
+	if err != nil {
+		return nil, err
+	}
+	var out json.RawMessage
+	return out, unwrap(raw, &out)
+}
+
+// ByInvite inspects a group from an invite code without joining it.
+func (g *Groups) ByInvite(ctx context.Context, inviteCode string) (json.RawMessage, error) {
+	raw, err := g.t.do(ctx, "GET", "/api/groups/invite/"+escape(inviteCode), nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	var out json.RawMessage
+	return out, unwrap(raw, &out)
+}
+
+// AcceptInvite joins a group by invite code and returns the group's JID.
+func (g *Groups) AcceptInvite(ctx context.Context, code string) (json.RawMessage, error) {
+	raw, err := g.t.do(ctx, "POST", "/api/groups/invite/accept", nil, map[string]any{"code": code})
+	if err != nil {
+		return nil, err
+	}
+	var out json.RawMessage
+	return out, unwrap(raw, &out)
+}
+
+// Update promotes participants to admin, or demotes them back.
+//
+// action is "promote" or "demote". Same per-JID result shape as Add: the request can succeed
+// while an individual participant does not, so read each entry's status rather than the HTTP
+// code alone.
+func (p *GroupParticipants) Update(ctx context.Context, groupJID string, participants []string, action string) (json.RawMessage, error) {
+	raw, err := p.t.do(ctx, "PUT", "/api/groups/"+escape(groupJID)+"/participants/update", nil,
+		map[string]any{"action": action, "participants": participants})
+	if err != nil {
+		return nil, err
+	}
+	var out json.RawMessage
+	return out, unwrap(raw, &out)
+}
+
 // List returns a group's participants.
 func (p *GroupParticipants) List(ctx context.Context, groupJID string) ([]Participant, error) {
 	raw, err := p.t.do(ctx, "GET", "/api/groups/"+escape(groupJID)+"/participants", nil, nil)

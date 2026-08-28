@@ -259,6 +259,12 @@ export type PostApiGroupsResponse = {
   };
 };
 
+/** getApiGroupsGroupJidInviteLink. */
+export type GetApiGroupsGroupJidInviteLinkResponse = {
+  inviteLink: string;
+  success: true;
+};
+
 /** Group subject, description, owner and participants. */
 export type GetApiGroupsGroupJidMetadataResponse = {
   success: true;
@@ -291,6 +297,36 @@ export type GetApiGroupsGroupJidParticipantsResponse = {
     id: string;
     admin?: string | null;
   }[];
+};
+
+/** getApiGroupsGroupJidPicture. */
+export type GetApiGroupsGroupJidPictureResponse = {
+  success: true;
+  data: {
+    imgUrl: string | null;
+  };
+};
+
+/** getApiGroupsInviteInviteCode. */
+export type GetApiGroupsInviteInviteCodeResponse = {
+  success: true;
+  data: {
+    jid: string;
+    id?: string;
+    name?: string;
+    subject: string;
+    imgUrl?: string | null;
+    owner?: string | null;
+    creation?: number | null;
+    desc?: string | null;
+    participants: {
+      jid: string;
+      isAdmin: boolean;
+      isSuperAdmin: boolean;
+      id?: string;
+      admin?: string | null;
+    }[];
+  };
 };
 
 /** getApiLidFromPnPn. */
@@ -472,6 +508,12 @@ export type PostApiDecryptMediaResponse = {
   publicUrl: string;
 };
 
+/** postApiGroupsGroupIdLeave. */
+export type PostApiGroupsGroupIdLeaveResponse = {
+  success: true;
+  data: Record<string, unknown>;
+};
+
 /** Request body for `POST /api/groups/{groupJid}/participants/add`. */
 export type PostApiGroupsGroupJidParticipantsAddBody = {
   participants: unknown[];
@@ -500,6 +542,19 @@ export type PostApiGroupsGroupJidParticipantsRemoveResponse = {
     jid: string;
     message: string;
   }[];
+};
+
+/** Request body for `POST /api/groups/invite/accept`. */
+export type PostApiGroupsInviteAcceptBody = {
+  code: string;
+};
+
+/** postApiGroupsInviteAccept. */
+export type PostApiGroupsInviteAcceptResponse = {
+  success: true;
+  data: {
+    id: string;
+  };
 };
 
 /** Request body for `POST /api/messages/read`. */
@@ -592,6 +647,41 @@ export type PostApiWhatsappSessionsWhatsappSessionRestartResponse = {
   message: string;
 };
 
+/** Request body for `PUT /api/groups/{groupId}/participants/update`. */
+export type PutApiGroupsGroupIdParticipantsUpdateBody = {
+  action: string;
+  participants: unknown[];
+};
+
+/** putApiGroupsGroupIdParticipantsUpdate. */
+export type PutApiGroupsGroupIdParticipantsUpdateResponse = {
+  success: true;
+  data: {
+    jid: string;
+    status: string;
+  }[];
+};
+
+/** Request body for `PUT /api/groups/{groupJid}/settings`. */
+export type PutApiGroupsGroupJidSettingsBody = {
+  subject?: string;
+  description?: string;
+  announce?: boolean;
+  restrict?: boolean;
+  joinApproval?: boolean;
+  memberAdd?: boolean;
+  profilePicUrl?: string;
+};
+
+/** putApiGroupsGroupJidSettings. */
+export type PutApiGroupsGroupJidSettingsResponse = {
+  success: true;
+  data: {
+    description?: string | null;
+    subject?: string;
+  };
+};
+
 /** Request body for `POST /api/messages/react`. */
 export type PostApiMessagesReactBody = {
   key: {
@@ -674,8 +764,11 @@ export type Operations = {
   getApiContactsContactPhoneNumber: { method: "GET"; path: "/api/contacts/{contactPhoneNumber}"; status: 200 };
   getApiContactsContactPhoneNumberPicture: { method: "GET"; path: "/api/contacts/{contactPhoneNumber}/picture"; status: 200 };
   getApiGroups: { method: "GET"; path: "/api/groups"; status: 200 };
+  getApiGroupsGroupJidInviteLink: { method: "GET"; path: "/api/groups/{groupJid}/invite-link"; status: 200 };
   getApiGroupsGroupJidMetadata: { method: "GET"; path: "/api/groups/{groupJid}/metadata"; status: 200 };
   getApiGroupsGroupJidParticipants: { method: "GET"; path: "/api/groups/{groupJid}/participants"; status: 200 };
+  getApiGroupsGroupJidPicture: { method: "GET"; path: "/api/groups/{groupJid}/picture"; status: 200 };
+  getApiGroupsInviteInviteCode: { method: "GET"; path: "/api/groups/invite/{inviteCode}"; status: 200 };
   getApiLidFromPnPn: { method: "GET"; path: "/api/lid-from-pn/{pn}"; status: 200 };
   getApiMessagesMsgIdInfo: { method: "GET"; path: "/api/messages/{msgId}/info"; status: 200 };
   getApiOnWhatsappContactIdentifier: { method: "GET"; path: "/api/on-whatsapp/{contact_identifier}"; status: 200 };
@@ -690,8 +783,10 @@ export type Operations = {
   postApiContactsContactPhoneNumberUnblock: { method: "POST"; path: "/api/contacts/{contactPhoneNumber}/unblock"; status: 200 };
   postApiDecryptMedia: { method: "POST"; path: "/api/decrypt-media"; status: 200 };
   postApiGroups: { method: "POST"; path: "/api/groups"; status: 201 };
+  postApiGroupsGroupIdLeave: { method: "POST"; path: "/api/groups/{groupId}/leave"; status: 200 };
   postApiGroupsGroupJidParticipantsAdd: { method: "POST"; path: "/api/groups/{groupJid}/participants/add"; status: 200 };
   postApiGroupsGroupJidParticipantsRemove: { method: "POST"; path: "/api/groups/{groupJid}/participants/remove"; status: 200 };
+  postApiGroupsInviteAccept: { method: "POST"; path: "/api/groups/invite/accept"; status: 200 };
   postApiMessagesReact: { method: "POST"; path: "/api/messages/react"; status: 200 };
   postApiMessagesRead: { method: "POST"; path: "/api/messages/read"; status: 200 };
   postApiSandboxInbound: { method: "POST"; path: "/api/sandbox/inbound"; status: 200 };
@@ -705,5 +800,7 @@ export type Operations = {
   postApiWhatsappSessionsWhatsappSessionRegenerateKey: { method: "POST"; path: "/api/whatsapp-sessions/{whatsappSession}/regenerate-key"; status: 200 };
   postApiWhatsappSessionsWhatsappSessionRestart: { method: "POST"; path: "/api/whatsapp-sessions/{whatsappSession}/restart"; status: 200 };
   putApiContacts: { method: "PUT"; path: "/api/contacts"; status: 200 };
+  putApiGroupsGroupIdParticipantsUpdate: { method: "PUT"; path: "/api/groups/{groupId}/participants/update"; status: 200 };
+  putApiGroupsGroupJidSettings: { method: "PUT"; path: "/api/groups/{groupJid}/settings"; status: 200 };
   putApiWhatsappSessionsWhatsappSession: { method: "PUT"; path: "/api/whatsapp-sessions/{whatsappSession}"; status: 200 };
 };

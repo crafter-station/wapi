@@ -24,9 +24,15 @@ export const getApiGroupsBody = z.object({
   "limit": z.number().int().optional(),
 });
 
+export const getApiGroupsGroupJidInviteLinkParams = z.object({ "groupJid": z.string() });
+
 export const getApiGroupsGroupJidMetadataParams = z.object({ "groupJid": z.string() });
 
 export const getApiGroupsGroupJidParticipantsParams = z.object({ "groupJid": z.string() });
+
+export const getApiGroupsGroupJidPictureParams = z.object({ "groupJid": z.string() });
+
+export const getApiGroupsInviteInviteCodeParams = z.object({ "inviteCode": z.string() });
 
 export const getApiLidFromPnPnParams = z.object({ "pn": z.string() });
 
@@ -62,6 +68,8 @@ export const postApiGroupsBody = z.object({
   "participants": z.array(z.string()).optional(),
 });
 
+export const postApiGroupsGroupIdLeaveParams = z.object({ "groupId": z.string() });
+
 export const postApiGroupsGroupJidParticipantsAddParams = z.object({ "groupJid": z.string() });
 export const postApiGroupsGroupJidParticipantsAddBody = z.object({
   "participants": z.array(z.unknown()),
@@ -70,6 +78,10 @@ export const postApiGroupsGroupJidParticipantsAddBody = z.object({
 export const postApiGroupsGroupJidParticipantsRemoveParams = z.object({ "groupJid": z.string() });
 export const postApiGroupsGroupJidParticipantsRemoveBody = z.object({
   "participants": z.array(z.unknown()),
+});
+
+export const postApiGroupsInviteAcceptBody = z.object({
+  "code": z.string(),
 });
 
 export const postApiMessagesReadBody = z.object({
@@ -138,6 +150,23 @@ export const putApiContactsBody = z.object({
   "saveOnPrimaryAddressbook": z.boolean().optional(),
 });
 
+export const putApiGroupsGroupIdParticipantsUpdateParams = z.object({ "groupId": z.string() });
+export const putApiGroupsGroupIdParticipantsUpdateBody = z.object({
+  "action": z.string(),
+  "participants": z.array(z.unknown()),
+});
+
+export const putApiGroupsGroupJidSettingsParams = z.object({ "groupJid": z.string() });
+export const putApiGroupsGroupJidSettingsBody = z.object({
+  "subject": z.string().optional(),
+  "description": z.string().optional(),
+  "announce": z.boolean().optional(),
+  "restrict": z.boolean().optional(),
+  "joinApproval": z.boolean().optional(),
+  "memberAdd": z.boolean().optional(),
+  "profilePicUrl": z.string().optional(),
+});
+
 export const putApiWhatsappSessionsWhatsappSessionParams = z.object({ "whatsappSession": z.string() });
 export const putApiWhatsappSessionsWhatsappSessionBody = z.object({
   "name": z.string().optional(),
@@ -193,6 +222,13 @@ export const ROUTES = [
     body: getApiGroupsBody,
   },
   {
+    operationId: "getApiGroupsGroupJidInviteLink",
+    method: "GET",
+    path: "/api/groups/{groupJid}/invite-link",
+    pathParams: ["groupJid"],
+    body: undefined,
+  },
+  {
     operationId: "getApiGroupsGroupJidMetadata",
     method: "GET",
     path: "/api/groups/{groupJid}/metadata",
@@ -204,6 +240,20 @@ export const ROUTES = [
     method: "GET",
     path: "/api/groups/{groupJid}/participants",
     pathParams: ["groupJid"],
+    body: undefined,
+  },
+  {
+    operationId: "getApiGroupsGroupJidPicture",
+    method: "GET",
+    path: "/api/groups/{groupJid}/picture",
+    pathParams: ["groupJid"],
+    body: undefined,
+  },
+  {
+    operationId: "getApiGroupsInviteInviteCode",
+    method: "GET",
+    path: "/api/groups/invite/{inviteCode}",
+    pathParams: ["inviteCode"],
     body: undefined,
   },
   {
@@ -305,6 +355,13 @@ export const ROUTES = [
     body: postApiGroupsBody,
   },
   {
+    operationId: "postApiGroupsGroupIdLeave",
+    method: "POST",
+    path: "/api/groups/{groupId}/leave",
+    pathParams: ["groupId"],
+    body: undefined,
+  },
+  {
     operationId: "postApiGroupsGroupJidParticipantsAdd",
     method: "POST",
     path: "/api/groups/{groupJid}/participants/add",
@@ -317,6 +374,13 @@ export const ROUTES = [
     path: "/api/groups/{groupJid}/participants/remove",
     pathParams: ["groupJid"],
     body: postApiGroupsGroupJidParticipantsRemoveBody,
+  },
+  {
+    operationId: "postApiGroupsInviteAccept",
+    method: "POST",
+    path: "/api/groups/invite/accept",
+    pathParams: [],
+    body: postApiGroupsInviteAcceptBody,
   },
   {
     operationId: "postApiMessagesRead",
@@ -380,6 +444,20 @@ export const ROUTES = [
     path: "/api/contacts",
     pathParams: [],
     body: putApiContactsBody,
+  },
+  {
+    operationId: "putApiGroupsGroupIdParticipantsUpdate",
+    method: "PUT",
+    path: "/api/groups/{groupId}/participants/update",
+    pathParams: ["groupId"],
+    body: putApiGroupsGroupIdParticipantsUpdateBody,
+  },
+  {
+    operationId: "putApiGroupsGroupJidSettings",
+    method: "PUT",
+    path: "/api/groups/{groupJid}/settings",
+    pathParams: ["groupJid"],
+    body: putApiGroupsGroupJidSettingsBody,
   },
   {
     operationId: "putApiWhatsappSessionsWhatsappSession",
