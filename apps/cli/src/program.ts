@@ -1,4 +1,7 @@
 import { Command, CommanderError } from "commander";
+// Read rather than repeated: a binary that reports a different version from the release it came
+// in is a bug report pointing at the wrong code. Bun bundles this into the compiled executable.
+import pkg from "../package.json" with { type: "json" };
 import { registerApi } from "./commands/api.ts";
 import { registerAuth } from "./commands/auth.ts";
 import { registerContacts } from "./commands/contacts.ts";
@@ -22,7 +25,7 @@ export function buildProgram(): Command {
   program
     .name("wapi")
     .description("WhatsApp over HTTP — sessions, messages, contacts, groups, sandboxes")
-    .version("0.1.0")
+    .version(pkg.version)
     .option("--json", "machine-readable output")
     .option("--profile <name>", "use a named profile")
     .option("-y, --yes", "skip confirmation prompts")

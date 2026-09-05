@@ -13,7 +13,7 @@ pip install "git+https://github.com/crafter-station/wapi.git#subdirectory=sdk/py
 Pin a tag for anything you deploy; `main` moves:
 
 ```bash
-pip install "git+https://github.com/crafter-station/wapi.git@v0.1.0#subdirectory=sdk/python"
+pip install "git+https://github.com/crafter-station/wapi.git@v0.2.0#subdirectory=sdk/python"
 ```
 
 ```python
