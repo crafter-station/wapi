@@ -492,6 +492,46 @@ the artifact the Go and Python ports will also read.
 
 ---
 
+## The docs site
+
+`apps/web/content/docs` is 22 MDX pages served by Fumadocs at `/docs`. It replaced a single
+1,194-line TSX page; nothing links to the old `#anchor` URLs.
+
+**The API reference is a separate thing and stays that way.** Scalar renders `/openapi.json` at
+`api.wapi.crafter.run/docs`, generated from `packages/contracts`. The guides carry the reasoning
+and deep-link into it per operation; neither duplicates the other. Do not fold one into the other
+without a decision to do so.
+
+Three things are generated rather than written, and should stay that way:
+
+- The **CLI command table** (`components/command-table.tsx`) from `COVERAGE` joined against the
+  route contract. A hand-written list would be the fourth enumeration of the 57 operations and the
+  only unchecked one.
+- The **"operations covered"** block on each page, from the same `operations:` frontmatter the
+  guard reads, so page and guard cannot disagree.
+- **`llms.txt`**, from the page tree.
+
+`ops/check-docs-in-sync.mjs` fails CI when an operation is documented by no page, when a page
+claims an id that no longer exists, or when two pages claim the same one. The reference lists every
+endpoint automatically, so it is the *prose* that falls behind silently — this is the only thing
+that notices. It found ten session-lifecycle operations documented nowhere on its first run.
+
+**Traps, both found by running it:**
+
+- `proxy.ts` needs `"/docs(.*)"`, not `"/docs"`. An exact match let the index work while every page
+  below it redirected to Clerk. Same shape as the `/api/webhook-sink` and `webmanifest` bugs.
+- Fumadocs emits dual-theme shiki output but ships **no rule consuming `--shiki-dark`**, and
+  `globals.css` scopes its swap to `.code .shiki`, which is the site's own component. Without the
+  rule in `docs.css` every snippet renders light-on-dark. A Playwright test asserts the computed
+  token colour.
+
+`next-themes` is switched off (`theme.enabled: false`). This site themes on
+`prefers-color-scheme` with no `.dark` class; a toggle in the docs would disagree with the
+dashboard. Fumadocs' 26 `--color-fd-*` tokens are mapped onto the site's own in `docs.css`, so dark
+mode needs no second definition.
+
+---
+
 ## Verification layers
 
 Each catches something the others cannot. Do not collapse them.
@@ -504,9 +544,10 @@ Each catches something the others cannot. Do not collapse them.
    driven through a sandbox session. Envelopes, status codes, validation, pagination arithmetic
    and auth boundaries. Runs in CI on every push, so a broken envelope fails a check instead of
    a client.
-5. **Browser** (`apps/web/e2e`, Playwright) — the dashboard actually rendered. Public pages
-   signed out; signed in, every page including a full session workspace, driven against a real
-   empty database. Nothing else here opens a page: typecheck proves the TypeScript is sound and
+5. **Browser** (`apps/web/e2e`, Playwright) — the dashboard and the docs actually rendered. Public
+   pages signed out — including every docs page, looped rather than spot-checked, because after the
+   split the failures worth catching are per-page; signed in, every page including a full session
+   workspace, driven against a real empty database. Nothing else here opens a page: typecheck proves the TypeScript is sound and
    `next build` proves the routes compile, and neither can tell you a button does nothing or that
    a nav is unusable on a phone — both of which it found on its first run.
 6. **CLI** (`compat/cli.test.ts`) — the compiled `wapi` binary against the same booted stack,
