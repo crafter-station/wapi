@@ -42,6 +42,36 @@ if (projects.length === 0) {
 }
 
 /**
+ * Generate anything a project needs *before* typechecking it.
+ *
+ * `apps/web` imports its docs content from `.source`, which fumadocs-mdx generates from
+ * `source.config.ts` and which is gitignored because it is a build artifact. `next build` creates
+ * it, but typecheck runs before any build — so on a clean checkout the import resolved to nothing
+ * and CI failed with `Cannot find module '../../.source/server'` on a tree that typechecks fine
+ * locally, where a previous build had left the directory behind.
+ *
+ * Done here rather than as a `postinstall` in the app, because this script invokes `tsc` directly
+ * per project and never runs a workspace's own scripts — and because bun does not run lifecycle
+ * scripts for workspace packages by default, so a hook there would be silently skipped.
+ */
+for (const dir of projects) {
+  if (!existsSync(join(dir, "source.config.ts"))) continue;
+  const bin = ["fumadocs-mdx", "fumadocs-mdx.cmd", "fumadocs-mdx.exe", "fumadocs-mdx.bunx"]
+    .map((name) => join(root, "node_modules", ".bin", name))
+    .find(existsSync);
+  if (!bin) {
+    console.error(`${dir} needs fumadocs-mdx to generate .source — run \`bun install\` first`);
+    process.exit(1);
+  }
+  const gen = spawnSync(bin, [], { cwd: dir, stdio: "pipe" });
+  if (gen.status !== 0) {
+    console.error(`${dir} … FAILED to generate .source`);
+    console.error(String(gen.stderr || gen.stdout));
+    process.exit(1);
+  }
+}
+
+/**
  * Resolve the local tsc once rather than per project; `npx` would re-resolve every time.
  *
  * The shim's extension depends on the installer, not just the platform: npm writes `tsc.cmd`
