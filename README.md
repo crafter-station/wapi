@@ -86,6 +86,33 @@ sequenceDiagram
 
 ## From a terminal
 
+Each release attaches a binary with the Bun runtime inside it, so there is no runtime to install
+alongside and nothing to keep in step with it:
+
+```bash
+# Linux, x64
+curl -fsSL -o wapi https://github.com/crafter-station/wapi/releases/latest/download/wapi-linux-x64
+
+# macOS, Apple Silicon
+curl -fsSL -o wapi https://github.com/crafter-station/wapi/releases/latest/download/wapi-darwin-arm64
+xattr -d com.apple.quarantine wapi   # else Gatekeeper refuses an unsigned download
+
+chmod +x wapi && sudo mv wapi /usr/local/bin/
+wapi --version
+```
+
+Windows, in PowerShell — put `wapi.exe` anywhere on your `PATH`:
+
+```powershell
+irm https://github.com/crafter-station/wapi/releases/latest/download/wapi-windows-x64.exe -OutFile wapi.exe
+```
+
+`latest` follows the newest release; replace it with `download/v0.2.0` to pin one. Each release
+also carries `SHA256SUMS`, worth checking on a binary you did not watch being built. Working in
+this repo already? `bun apps/cli/src/index.ts` runs the same CLI without downloading anything.
+
+Then:
+
 ```bash
 wapi login                                   # approve a code in your browser
 wapi sandbox create --use                    # a fake number, no phone needed
@@ -98,8 +125,7 @@ Every one of the API's 57 operations has a command, and a guard fails CI when on
 credentials. `wapi api GET /api/status` reaches anything without a command yet, attaching the
 right credential by reading the route's declared scope.
 
-Binaries for Linux, macOS and Windows are attached to each release — no runtime to install. See
-[`apps/cli`](apps/cli).
+See [`apps/cli`](apps/cli) for how the commands are put together.
 
 ## No phone? Use a sandbox
 
