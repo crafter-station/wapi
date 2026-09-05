@@ -25,7 +25,8 @@ COPY apps/api/package.json apps/api/
 COPY apps/gateway/package.json apps/gateway/
 COPY apps/webhook-worker/package.json apps/webhook-worker/
 COPY apps/web/package.json apps/web/
-# The CLI is not deployed, but a frozen install needs every workspace manifest present.
+# The CLI is not deployed, but a frozen install needs every workspace manifest present — and
+# the web build imports one file from it, so `web-builder` copies the source too.
 COPY apps/cli/package.json apps/cli/
 COPY compat/package.json compat/
 COPY sdk/typescript/package.json sdk/typescript/
@@ -91,6 +92,11 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package.json tsconfig.base.json ./
 COPY packages ./packages
 COPY apps/web ./apps/web
+# The docs render the CLI's coverage table, so the web build imports `@wapi/cli/coverage` — one
+# file that declares which command covers which operation. Generating that page is the whole
+# reason it cannot drift, so the source has to be here. Builder stage only: nothing from apps/cli
+# reaches the runtime image, which copies just `.next/standalone`.
+COPY apps/cli ./apps/cli
 # Next inlines NEXT_PUBLIC_* at build time, so Clerk's publishable key must be present here.
 # It is publishable by definition; the secret key is injected at runtime only.
 ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY

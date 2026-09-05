@@ -87,6 +87,12 @@ jobs:
         # what it covers, and this checks the declaration against the contract in both directions.
         run: bun ops/check-docs-in-sync.mjs
 
+      - name: Web image contains what it imports
+        # CI never builds the Docker image, so a workspace the web build imports but the builder
+        # stage does not copy passes everything here and fails only in the deploy. That is exactly
+        # how `@wapi/cli/coverage` got through.
+        run: bun ops/check-docker-copies.mjs
+
       - name: CLI compiles to a binary
         # Typecheck does not prove `bun build --compile` succeeds, and compilation is where a Bun
         # CLI breaks — dynamic imports and `import.meta` behave differently once bundled. This is
