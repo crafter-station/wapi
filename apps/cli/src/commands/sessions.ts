@@ -92,6 +92,62 @@ export function registerSessions(program: Command): void {
     });
 
   sessions
+    .command("update")
+    .argument("[id]", "session id; defaults to the one in use")
+    .option("--name <name>", "rename it")
+    .option("--webhook-url <url>", "where deliveries go; pass an empty string to clear")
+    .option("--webhook-enabled <bool>", "turn delivery on or off")
+    .option("--webhook-events <list>", "comma-separated event names; empty means everything")
+    .option("--proxy-url <url>", "route this session through a proxy")
+    .option("--account-protection <bool>", "pace sends to one per five seconds")
+    .option("--log-messages <bool>", "store message content, not just metadata")
+    .description("Change a session's settings; only what you pass is touched")
+    .action(async (raw: string | undefined, opts: UpdateOptions) => {
+      const ctx = context(program.opts());
+      const id = raw ? Number(raw) : sessionId(ctx);
+
+      const body: Record<string, unknown> = {};
+      if (opts.name !== undefined) body["name"] = opts.name;
+      // An empty string is meaningful here — it is how you clear a webhook — so the check is
+      // `!== undefined` rather than truthiness, throughout.
+      if (opts.webhookUrl !== undefined) body["webhook_url"] = opts.webhookUrl;
+      if (opts.webhookEnabled !== undefined) body["webhook_enabled"] = bool(opts.webhookEnabled);
+      if (opts.webhookEvents !== undefined) {
+        body["webhook_events"] = opts.webhookEvents
+          .split(",")
+          .map((e) => e.trim())
+          .filter(Boolean);
+      }
+      if (opts.proxyUrl !== undefined) body["proxy_url"] = opts.proxyUrl;
+      if (opts.accountProtection !== undefined) {
+        body["account_protection"] = bool(opts.accountProtection);
+      }
+      if (opts.logMessages !== undefined) body["log_messages"] = bool(opts.logMessages);
+
+      if (!Object.keys(body).length) {
+        return info(dim("Nothing to change. Pass --name, --webhook-url, --proxy-url or a flag."));
+      }
+
+      const s = (await accountClient(ctx).sessions.update(
+        id,
+        body as Parameters<ReturnType<typeof accountClient>["sessions"]["update"]>[1],
+      )) as SessionRow;
+
+      emit(ctx.json, s, () => {
+        info(`${green("✓")} Updated session ${id}.`);
+        /**
+         * Webhook changes apply to the next delivery because the worker re-reads the session per
+         * job. `proxy_url` and `account_protection` are read when the socket is built, so they
+         * wait for a reconnect — worth saying, since the alternative is somebody watching an
+         * unchanged egress IP and concluding the field is broken.
+         */
+        if (body["proxy_url"] !== undefined || body["account_protection"] !== undefined) {
+          info(dim("  Proxy and account-protection take effect at the next connect."));
+        }
+      });
+    });
+
+  sessions
     .command("delete")
     .argument("[id]", "session id; defaults to the one in use")
     .description("Delete a session and its credentials")
@@ -241,6 +297,18 @@ export function registerSessions(program: Command): void {
       });
     });
 }
+
+const bool = (v: string) => v === "true" || v === "1" || v === "yes";
+
+type UpdateOptions = {
+  accountProtection?: string;
+  logMessages?: string;
+  name?: string;
+  proxyUrl?: string;
+  webhookEnabled?: string;
+  webhookEvents?: string;
+  webhookUrl?: string;
+};
 
 type SessionRow = { id: number; name?: string; phone_number?: string; status: string };
 type MessageLogRow = { created_at: string; id: string; status: string; to: string };

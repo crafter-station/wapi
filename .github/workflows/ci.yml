@@ -75,6 +75,18 @@ jobs:
         # silent, which is why it is checked rather than left to review.
         run: bun ops/check-sdk-in-sync.mjs
 
+      - name: CLI covers the API
+        # The same argument as the SDK guard, for the fourth client. A CLI silently missing
+        # `groups leave` is the same failure as an SDK missing it — and harder to notice, because
+        # nobody greps a CLI for what it cannot do.
+        run: bun ops/check-cli-in-sync.mjs
+
+      - name: CLI compiles to a binary
+        # Typecheck does not prove `bun build --compile` succeeds, and compilation is where a Bun
+        # CLI breaks — dynamic imports and `import.meta` behave differently once bundled. This is
+        # the artifact that ships.
+        run: bun build apps/cli/src/index.ts --compile --outfile /tmp/wapi
+
       - name: Every workspace manifest reaches the Docker deps stage
         # This exact failure shipped four times and only ever surfaced at deploy time.
         run: node ops/check-dockerfile-manifests.mjs
