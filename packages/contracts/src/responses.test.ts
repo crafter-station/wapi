@@ -47,6 +47,48 @@ describe("response schemas", () => {
     expect(EXTENSION_ROUTES.filter((r) => table[r.operationId] === undefined)).toEqual([]);
   });
 
+  /**
+   * Summaries.
+   *
+   * `buildOpenApiDocument` falls back to the operationId when none is written, which is worse than
+   * leaving the field empty: the reference looked populated, so nobody noticed that 26 of the 57
+   * endpoints answered "what does this do?" with `getApiGroupsGroupJidInviteLink`. Two more were
+   * written against ids that never existed — the path params make them `...PnPn` and `...LidLid` —
+   * so they sat in the table doing nothing. Both failures are invisible by eye and obvious here.
+   */
+  test("every operation has a written summary, not its own id echoed back", () => {
+    const doc = buildOpenApiDocument("https://api.wapi.crafter.run") as {
+      paths: Record<string, Record<string, { operationId: string; summary?: string }>>;
+    };
+
+    const echoed: string[] = [];
+    for (const [path, methods] of Object.entries(doc.paths)) {
+      for (const [method, op] of Object.entries(methods)) {
+        if (!op.summary || op.summary === op.operationId) {
+          echoed.push(`${method.toUpperCase()} ${path}`);
+        }
+      }
+    }
+    expect(echoed).toEqual([]);
+  });
+
+  test("and no summary is written for an operation that does not exist", () => {
+    const known = new Set<string>([
+      ...ROUTES.map((r) => r.operationId),
+      ...EXTENSION_ROUTES.map((r) => r.operationId),
+    ]);
+    const doc = buildOpenApiDocument("https://api.wapi.crafter.run") as {
+      paths: Record<string, Record<string, { operationId: string }>>;
+    };
+    const published = new Set<string>();
+    for (const methods of Object.values(doc.paths)) {
+      for (const op of Object.values(methods)) published.add(op.operationId);
+    }
+    // Every id the document publishes is a real route. A summary keyed on anything else is dead
+    // weight that reads as coverage.
+    expect([...published].filter((id) => !known.has(id))).toEqual([]);
+  });
+
   test("the published document has no empty success schema", () => {
     const doc = buildOpenApiDocument("https://api.wapi.crafter.run") as {
       paths: Record<string, Record<string, { responses: Record<string, unknown> }>>;

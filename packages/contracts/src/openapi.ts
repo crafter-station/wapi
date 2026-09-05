@@ -53,8 +53,8 @@ const SUMMARIES: Record<string, string> = {
   getApiContacts: "Contacts known to this session",
   getApiContactsContactPhoneNumber: "Fetch one contact",
   getApiOnWhatsappContactIdentifier: "Check whether a number is registered on WhatsApp",
-  getApiLidFromPn: "Resolve a phone number to its LID",
-  getApiPnFromLid: "Resolve a LID back to a phone number, where known",
+  getApiLidFromPnPn: "Resolve a phone number to its LID",
+  getApiPnFromLidLid: "Resolve a LID back to a phone number, where known — a miss is legitimate",
   getApiGroups: "Groups this session belongs to",
   postApiGroups: "Create a group",
   getApiGroupsGroupJidMetadata: "Group subject, description, owner and participants",
@@ -65,6 +65,40 @@ const SUMMARIES: Record<string, string> = {
   postApiSandboxScan: "Complete pairing on a sandbox session awaiting its fake QR",
   postApiGroupsGroupJidParticipantsAdd: "Add participants to a group",
   postApiGroupsGroupJidParticipantsRemove: "Remove participants from a group",
+
+  // -- messages -------------------------------------------------------------------------------
+  putApiMessagesMsgId: "Edit a sent message, within the short window WhatsApp allows",
+  deleteApiMessagesMsgId: "Delete a sent message for everyone, within WhatsApp's window",
+  postApiMessagesMessageResend: "Retry a message whose status is failed. Requires log_messages",
+  postApiSendPresenceUpdate: "Send a typing or recording indicator. Fire-and-forget",
+
+  // -- contacts -------------------------------------------------------------------------------
+  putApiContacts: "Save a contact's name in this session's address book, not on the phone",
+  getApiContactsContactPhoneNumberPicture: "A contact's profile picture URL, or null",
+  postApiContactsContactPhoneNumberBlock: "Block a contact",
+  postApiContactsContactPhoneNumberUnblock: "Unblock a contact",
+  getApiFetchUsernameContactIdentifier: "A contact's WhatsApp @username, if they have set one",
+
+  // -- groups ---------------------------------------------------------------------------------
+  getApiGroupsGroupJidPicture: "A group's picture URL, or null",
+  putApiGroupsGroupJidSettings: "Change a group's subject, description or restrictions",
+  putApiGroupsGroupIdParticipantsUpdate: "Promote or demote participants. Returns no per-participant status",
+  postApiGroupsGroupIdLeave: "Leave a group",
+  getApiGroupsGroupJidInviteLink: "A group's invite link. Returns inviteLink beside success, not under data",
+  getApiGroupsInviteInviteCode: "Inspect a group behind an invite code before joining it",
+  postApiGroupsInviteAccept: "Join a group using an invite code",
+
+  // -- session records ------------------------------------------------------------------------
+  getApiWhatsappSessionsWhatsappSessionSessionLogs: "Connection events for a session: pairing, drops and reconnects",
+
+  // -- wapi extensions ------------------------------------------------------------------------
+  postApiTokens: "Mint a Personal Access Token. Shown once and never again",
+  getApiTokens: "List this account's Personal Access Tokens, without their values",
+  deleteApiTokensToken: "Revoke a Personal Access Token",
+  getApiAuditLogs: "Paginated record of every authenticated API call on this account",
+  getApiAuditLogsAuditLog: "One audit record in full, including the request body where stored",
+  getApiDispatches: "Webhook delivery attempts, with status and attempt count",
+  getApiSandboxThread: "The conversation on a sandbox session, in both directions",
 };
 
 /** Routes whose credential is the account-scoped token rather than a session key. */
