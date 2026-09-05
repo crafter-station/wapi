@@ -1,0 +1,19 @@
+{
+  "name": "@wapi/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "wapi": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "wapi": "bun src/index.ts",
+    "build": "bun build src/index.ts --compile --outfile dist/wapi"
+  },
+  "dependencies": {
+    "@wapi/sdk": "workspace:*",
+    "commander": "^15.0.0",
+    "@wapi/contracts": "workspace:*"
+  }
+}

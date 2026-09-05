@@ -24,6 +24,18 @@
         "zod": "^4.4.3",
       },
     },
+    "apps/cli": {
+      "name": "@wapi/cli",
+      "version": "0.0.0",
+      "bin": {
+        "wapi": "./src/index.ts"
+      },
+      "dependencies": {
+        "@wapi/contracts": "workspace:*",
+        "@wapi/sdk": "workspace:*",
+        "commander": "^15.0.0",
+      },
+    },
     "apps/gateway": {
       "name": "@wapi/gateway",
       "version": "0.0.0",
@@ -498,6 +510,8 @@
 
     "@wapi/baileys-auth": ["@wapi/baileys-auth@workspace:packages/baileys-auth"],
 
+    "@wapi/cli": ["@wapi/cli@workspace:apps/cli"],
+
     "@wapi/compat": ["@wapi/compat@workspace:compat"],
 
     "@wapi/contracts": ["@wapi/contracts@workspace:packages/contracts"],
@@ -567,6 +581,8 @@
     "color-name": ["color-name@1.1.4", "", {}, "sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA=="],
 
     "comma-separated-tokens": ["comma-separated-tokens@2.0.3", "", {}, "sha512-Fu4hJdvzeylCfQPp9SGWidpzrMs7tTrlu6Vb8XGaRGck8QSNZJJp538Wrb60Lax4fPwR64ViY468OIUTbRlGZg=="],
+
+    "commander": ["commander@15.0.0", "", {}, "sha512-z67u4ZhzCL/Tydu1lJARtEZYWbWaN7oYLHbsuzocr6y4N6WZAagG3RQ4FW61V1/0+jImpj293XfrcYnd1qxtPg=="],
 
     "content-type": ["content-type@2.1.0", "", {}, "sha512-mj7UPXE0jaqaOsukNZRUEfEi2AcL7C/vwmwcHV0O97eO1E1pxBZuyjlZrx5seTaNBg1U6+o35wpa35Qfcc+7ag=="],
 

@@ -25,6 +25,8 @@ COPY apps/api/package.json apps/api/
 COPY apps/gateway/package.json apps/gateway/
 COPY apps/webhook-worker/package.json apps/webhook-worker/
 COPY apps/web/package.json apps/web/
+# The CLI is not deployed, but a frozen install needs every workspace manifest present.
+COPY apps/cli/package.json apps/cli/
 COPY compat/package.json compat/
 COPY sdk/typescript/package.json sdk/typescript/
 RUN bun install --frozen-lockfile
