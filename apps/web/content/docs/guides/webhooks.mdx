@@ -1,0 +1,91 @@
+---
+title: Webhooks
+description: Receiving as it happens — two signature schemes, and how to verify either.
+operations:
+  - getApiDispatches
+---
+
+Set a webhook URL on a session and wapi POSTs events to it, retrying up to five times with
+exponential backoff. Configure it under **Settings** on the session, or with the API.
+
+## Configure
+
+```bash
+curl -X PUT https://api.wapi.crafter.run/api/whatsapp-sessions/1 \
+  -H "Authorization: Bearer $PAT" \
+  -H 'Content-Type: application/json' \
+  -d '{"webhook_url":"https://your.app/hook",
+       "webhook_enabled":true,
+       "webhook_events":["messages.received","session.status"]}'
+```
+
+An **empty `webhook_events` array means "send everything"**, which is not the same as an absent
+one meaning nothing.
+
+Note this takes a Personal Access Token, not a session key — it configures a session rather than
+acting through one.
+
+## Two signature schemes
+
+By default `X-Webhook-Signature` carries the webhook secret **itself**, and you compare strings.
+That is WasenderAPI's scheme, reproduced so their clients work unchanged.
+
+Turning on **HMAC** in Settings switches the header to HMAC-SHA256 over the raw request body. Prefer
+it: it proves the payload was not altered, and it never puts the secret on the wire.
+
+<Callout title="HMAC is a wapi addition">
+
+It is not part of the cloned interface, so it is not a field on the sessions endpoint. Turn it on
+under Settings for the session in the dashboard.
+
+</Callout>
+
+## Receive and verify
+
+```javascript
+// Accepts either scheme, so enabling HMAC later needs no redeploy.
+// Read the RAW body: express.json() consumes the stream, leaving
+// nothing to compute a hash over.
+app.post("/hook", express.raw({ type: "*/*" }), (req, res) => {
+  const secret = process.env.WAPI_WEBHOOK_SECRET;
+  const sent = req.headers["x-webhook-signature"];
+  const hmac = crypto.createHmac("sha256", secret)
+                     .update(req.body).digest("hex");
+  if (sent !== secret && sent !== hmac) return res.sendStatus(401);
+
+  const { event, data } = JSON.parse(req.body);
+  if (event === "messages.received") {
+    console.log(data.key.remoteJid, data.message?.conversation);
+  }
+  // Acknowledge fast; do the work asynchronously.
+  res.json({ received: true });
+});
+```
+
+Two things in there are the whole lesson. **Read the raw body** — any JSON middleware consumes the
+stream and leaves you nothing to hash. And **acknowledge fast**: wapi retries on a non-2xx, so slow
+handlers turn into duplicate deliveries.
+
+## Inspecting deliveries
+
+`GET /api/dispatches` returns what wapi tried to send, with status and attempt count — the first
+place to look when your handler is not being called. A dispatch that shows attempts and failures
+is a problem at your end; no dispatch at all means the event never matched
+`webhook_events`, or the webhook is disabled.
+
+## Media in a payload arrives encrypted
+
+An inbound `imageMessage` carries a CDN link whose bytes are ciphertext. Pass the node to
+`/api/decrypt-media` — see [Media](/docs/guides/media).
+
+## Proving your handler works
+
+You do not need a real conversation, or a second phone. A [sandbox](/docs/sandbox) can be made to
+*receive* a message, which fires a genuine, signed delivery at your endpoint:
+
+```bash
+wapi sandbox inbound "hello from a fake human"
+```
+
+That is the shortest path from "I have a webhook handler" to "I have watched it run" — see
+[Testing webhooks](/docs/sandbox/testing-webhooks).

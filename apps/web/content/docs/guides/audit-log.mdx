@@ -1,0 +1,38 @@
+---
+title: Audit log
+description: Every API call, on the record — who called what, with which credential, and what came back.
+operations:
+  - getApiAuditLogs
+  - getApiAuditLogsAuditLog
+---
+
+wapi records every authenticated API call: the method and path, the credential that made it, the
+status returned, and when. It is account-scoped and read with a
+[Personal Access Token](/docs/authentication).
+
+```bash
+curl "https://api.wapi.crafter.run/api/audit-logs?page=1&limit=50" -H "Authorization: Bearer $PAT"
+curl https://api.wapi.crafter.run/api/audit-logs/1234 -H "Authorization: Bearer $PAT"
+```
+
+The list is paginated in the `{ items, pagination }` shape described in
+[Groups & contacts](/docs/guides/groups-and-contacts#pagination). The single-record endpoint
+returns the full detail, including the request body where one was recorded.
+
+## What it is for
+
+Three things, in practice:
+
+- **Proving something happened.** A message somebody swears was never sent has a row, with a
+  status and a timestamp.
+- **Finding which credential did it.** Every row names the token or session key used, so a
+  surprising call can be traced to the machine holding that credential.
+- **Watching a token you are about to revoke.** Before revoking, look at what has been using it.
+
+The dashboard renders the same data under [Audit](/audit), with filters by session and status.
+
+## What it does not store
+
+Not a copy of every message. Message content lives in message logs, and only when `log_messages`
+is on for the session — see [Managing sessions](/docs/guides/sessions). The audit log is about
+*calls*, not conversations.

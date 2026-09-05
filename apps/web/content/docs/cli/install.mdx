@@ -1,0 +1,93 @@
+---
+title: Install
+description: One binary with the runtime inside it. Nothing to install alongside.
+---
+
+`wapi` is a single executable with the Bun runtime compiled into it. There is no Node to install,
+no `npm install -g`, and nothing to keep in step with it — which is also why the binaries are
+large.
+
+## Download
+
+<Tabs items={["Linux", "macOS", "Windows"]}>
+<Tab value="Linux">
+
+```bash
+curl -fsSL -o wapi https://github.com/crafter-station/wapi/releases/latest/download/wapi-linux-x64
+chmod +x wapi && sudo mv wapi /usr/local/bin/
+wapi --version
+```
+
+</Tab>
+<Tab value="macOS">
+
+```bash
+curl -fsSL -o wapi https://github.com/crafter-station/wapi/releases/latest/download/wapi-darwin-arm64
+xattr -d com.apple.quarantine wapi   # else Gatekeeper refuses an unsigned download
+chmod +x wapi && sudo mv wapi /usr/local/bin/
+wapi --version
+```
+
+Apple Silicon. There is no Intel build.
+
+</Tab>
+<Tab value="Windows">
+
+```powershell
+irm https://github.com/crafter-station/wapi/releases/latest/download/wapi-windows-x64.exe -OutFile wapi.exe
+```
+
+Put `wapi.exe` anywhere on your `PATH`.
+
+</Tab>
+</Tabs>
+
+`latest` follows the newest release; replace it with `download/v0.2.0` to pin one. Each release
+also carries `SHA256SUMS`, worth checking on a binary you did not watch being built.
+
+Working in the repo already? `bun apps/cli/src/index.ts` runs the same CLI without downloading
+anything.
+
+## Log in
+
+```bash
+wapi login
+```
+
+It prints a short code and opens your browser. Approve the code while signed in to the dashboard,
+and the CLI stores a Personal Access Token.
+
+The two halves are separate on purpose: the short code is what a human types, and a
+high-entropy poll token — which never leaves your machine — is the only thing that can collect the
+credential. Guessing the short code lets somebody approve *your* pending request into *their*
+account, which authenticates your CLI as them, so the CLI prints which account it landed in. It
+never yields a token.
+
+<Callout title="One token does everything">
+
+Session keys are fetched from the PAT on demand, so there is no second credential to manage. The
+token appears on your [tokens page](/tokens) named after the machine, and revoking it there signs
+that machine out.
+
+</Callout>
+
+## Point it somewhere else
+
+```bash
+wapi --profile staging sessions list
+WAPI_BASE_URL=http://localhost:3001 WAPI_TOKEN=$PAT wapi status
+```
+
+Config lives in `~/.wapi/config/config.json`, written `0600`. Environment variables override it,
+which is what makes the CLI usable in CI with no interactive login — see
+[Using it in CI](/docs/sandbox/in-ci).
+
+## Try it without a phone
+
+```bash
+wapi sandbox create --use
+wapi sessions connect
+wapi send --to +99900000001001 --text "hello"
+```
+
+See [Sandbox](/docs/sandbox).

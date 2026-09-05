@@ -1,0 +1,42 @@
+---
+title: Commands
+description: Every API operation has a command, and a guard fails CI when one does not.
+---
+
+All 57 operations have a command. The table below is **generated** from the CLI's coverage table
+joined against the route contract, so it cannot describe a command that does not exist, and a new
+endpoint appears here as soon as it is covered.
+
+Two guards keep that true: `ops/check-cli-in-sync.mjs` checks both directions — every operation is
+claimed, and every claimed command resolves in the real command tree — and `compat/cli.test.ts`
+runs the compiled binary against a live stack, because a coverage table can say `groups leave`
+without that command going anywhere near the leave endpoint.
+
+## Selecting a session
+
+Session-scoped commands act on the session you pinned:
+
+```bash
+wapi use 3                    # pin it
+wapi send --to +51... --text "hi"
+wapi groups list --session 5  # or override per call
+```
+
+Account-scoped commands take a session id as a positional argument instead
+(`wapi sessions connect 3`), because they act *on* a session rather than through it.
+
+## The escape hatch
+
+```bash
+wapi api GET /api/status
+wapi api POST /api/send-message --data '{"to":"+51...","text":"hi"}'
+```
+
+Reaches anything without a command yet, attaching the right credential by reading the route's
+declared scope. It deliberately counts for nothing in the coverage table — if the escape hatch
+counted, the guard would pass on day one and forever, and there would be no pressure to build the
+surface beside it.
+
+## Every command
+
+<CommandTable />

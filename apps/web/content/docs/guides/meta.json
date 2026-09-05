@@ -1,0 +1,4 @@
+{
+  "title": "Guides",
+  "pages": ["sessions", "sending-messages", "media", "groups-and-contacts", "session-activity", "webhooks", "errors", "audit-log"]
+}

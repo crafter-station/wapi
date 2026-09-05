@@ -1,0 +1,70 @@
+---
+title: Errors
+description: Failures come back in two different shapes, and which one tells you where it failed.
+---
+
+Failures come back in one of two forms, and **which shape you get tells you where the failure
+happened**. This mirrors the interface being cloned rather than tidying it up, because their SDK
+branches on it.
+
+## Route-level — uses `error`
+
+Decided inside a handler:
+
+```json
+{ "success": false,
+  "error": "Your Whatsapp Session is not connected please connect your session first." }
+```
+
+## Validation and auth — uses `message`
+
+Decided by middleware, before a handler ran:
+
+```json
+{ "success": false,
+  "message": "Validation failed",
+  "errors": { "to": ["The to field is required."] } }
+```
+
+`errors` is keyed by field, and each value is an array — a single field can fail more than one
+rule.
+
+## A third shape: 429
+
+A rate-limit response has **no `success` key at all**:
+
+```json
+{ "message": "Too Many Attempts.", "retry_after": 30 }
+```
+
+Code that checks `body.success === false` to detect failure will read a 429 as a success. Check
+the status code first.
+
+## Rate-limit headers
+
+On every response, not just a 429:
+
+| Header | Meaning |
+| --- | --- |
+| `X-RateLimit-Limit` | Requests allowed in the window |
+| `X-RateLimit-Remaining` | How many are left |
+| `X-RateLimit-Reset` | When the window resets |
+
+## Common statuses
+
+| Status | Meaning | What to do |
+| --- | --- | --- |
+| `401` | Missing or invalid credential | Check the header is `Authorization: Bearer …` |
+| `403` | Wrong *type* of credential | See [Authentication](/docs/authentication) |
+| `409` | Session not connected | Connect it; poll `GET /api/status` |
+| `422` | Validation failed | Read `errors`, keyed by field |
+| `429` | Rate limited | Wait `retry_after` seconds |
+| `503` | WhatsApp briefly unavailable | Retry with backoff |
+
+## Retrying safely
+
+`503` and `429` are safe to retry. `422` and `403` are not — they will fail identically.
+
+The dangerous case is a **timeout on a send**, which is neither. The request failed, but the
+message may well have gone out. Reconcile with `GET /api/messages/{msgId}/info` rather than
+re-sending; see [Sending messages](/docs/guides/sending-messages).

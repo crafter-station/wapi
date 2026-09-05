@@ -1,0 +1,45 @@
+---
+title: Introduction
+description: WhatsApp over HTTP. A self-hosted clone of the WasenderAPI surface, with a sandbox so you can build against it without a phone.
+---
+
+wapi puts a stable REST API in front of WhatsApp. There is no official API for personal
+accounts — the only way in is to drive a real WhatsApp client — so wapi does that and gives you
+57 HTTP endpoints, three SDKs, a CLI and webhooks on top of it.
+
+It is a **fidelity clone of the WasenderAPI surface**: 46 of those endpoints match theirs path for
+path, envelope for envelope, including the parts that are inconsistent. Their published SDK works
+against wapi unmodified — you change the base URL and nothing else.
+
+## Start without a phone number
+
+Linking a real number needs a phone, a QR scan, and an account you are willing to have banned.
+A **sandbox session** needs none of them: a fake number on a fake WhatsApp that pairs itself in
+seconds, runs through the same routes and the same code as a real session, and can be made to
+*receive* messages so your webhook handler gets a genuine signed delivery to prove itself against.
+
+It is also the only safe place to rehearse the writes — creating a group, promoting a participant,
+blocking a contact — because on a real number every one of those touches real people.
+
+<Cards>
+  <Card title="Sandbox" href="/docs/sandbox" description="A fake number and a fake WhatsApp. The fastest way to see wapi work." />
+  <Card title="Quickstart" href="/docs/quickstart" description="Link a real number and send your first message." />
+  <Card title="Command line" href="/docs/cli/install" description="One binary, every operation, no runtime to install." />
+  <Card title="API reference" href="https://api.wapi.crafter.run/docs" description="All 57 endpoints, with schemas and a playground." />
+</Cards>
+
+## Pick a language
+
+<Cards>
+  <Card title="TypeScript" href="/docs/sdks/typescript" description="Generated types, hand-written surface, zero dependencies." />
+  <Card title="Python" href="/docs/sdks/python" description="Standard library only. Same surface." />
+  <Card title="Go" href="/docs/sdks/go" description="net/http only, a nested module in this repo." />
+  <Card title="Their SDK" href="/docs/sdks/wasenderapi" description="Already using WasenderAPI? Change the base URL." />
+</Cards>
+
+## What to read first
+
+Two credentials do different jobs and are not interchangeable — that is the thing people get wrong
+first, so [Authentication](/docs/authentication) is worth five minutes before anything else. After
+that, [Sending messages](/docs/guides/sending-messages) covers the endpoint you will use most, and
+[Errors](/docs/guides/errors) explains why failures come back in two different shapes on purpose.

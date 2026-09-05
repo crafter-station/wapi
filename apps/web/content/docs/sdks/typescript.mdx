@@ -1,0 +1,59 @@
+---
+title: TypeScript
+description: A typed client with no runtime dependencies, vendored rather than installed.
+---
+
+`@wapi/sdk` wraps the whole surface with **no runtime dependencies** — it uses global `fetch`, so
+Node 18+, Bun and Deno all work. It exists mostly so you do not have to remember which of the six
+success envelopes a given endpoint uses.
+
+## Vendor it rather than installing it
+
+npm cannot install a subdirectory of a git repository, and this client lives inside a monorepo —
+so `npm install github:crafter-station/wapi` would fetch the root package, not the SDK. Since the
+client is dependency-free source, copying it in is a real channel rather than a workaround:
+
+```bash
+npx giget@latest gh:crafter-station/wapi/sdk/typescript/src src/wapi
+#   import { WapiClient } from "./wapi/index.js";
+```
+
+Append `#v0.2.0` to that spec to pin a tag for anything you deploy.
+
+## Use it
+
+```javascript
+import { WapiClient } from "@wapi/sdk";
+
+const wapi = new WapiClient({ apiKey: process.env.WAPI_KEY });
+
+const { msgId } = await wapi.messages.send({ to: "+51999888777", text: "hello" });
+const groups = await wapi.groups.list();
+const meta = await wapi.groups.metadata(groups[0].jid);
+```
+
+The client unwraps envelopes for you: `send` returns the `data` object rather than
+`{ success, data }`. Failures throw, carrying the status and the parsed body, so the per-field
+`errors` map from a `422` is reachable on the caught error instead of being lost.
+
+## Two clients, two credentials
+
+```javascript
+// Account-level work needs a Personal Access Token.
+const admin = new WapiClient({ apiKey: process.env.WAPI_PAT });
+const sessions = await admin.sessions.list();
+
+// Session-level work needs that session's own key.
+const wapi = new WapiClient({ apiKey: sessions[0].api_key });
+await wapi.messages.send({ to: "+51999888777", text: "hello" });
+```
+
+That is the whole reason there are two constructions rather than one client with a mode flag. See
+[Authentication](/docs/authentication).
+
+## Keep it on the server
+
+Never construct this in a client component. The key grants full control of a WhatsApp account, and
+anything in a browser bundle is world-readable — call it from a server route or a server action.
+The [agent skill](/docs/sdks/agent-skill) ships a `server-only` wrapper that turns a mistake here
+into a build error rather than a leaked credential.

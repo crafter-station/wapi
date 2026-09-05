@@ -1,0 +1,65 @@
+---
+title: Scripting
+description: --json on everything, exit codes that mean something, and destructive commands that refuse to guess.
+---
+
+## JSON out
+
+`--json` works on every command, so output composes with `jq` instead of being screen-scraped:
+
+```bash
+wapi sessions list --json | jq -r '.[] | select(.status=="connected") | .id'
+wapi contacts list --json | jq -r '.[].phoneNumber'
+wapi sandbox thread --json | jq '.[] | select(.from_me == false)'
+```
+
+Without `--json` the same commands print tables meant for a person. Nothing parses cleanly by
+accident, which is the point.
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Success |
+| `1` | The request failed |
+| `2` | Usage error — unknown command, missing flag, refused confirmation |
+| `3` | Credentials — no token, or it was rejected |
+
+`2` and `3` are distinct from `1` on purpose. A script that retries on failure should retry a `1`,
+back off on a `503`, and **stop** on a `3` — retrying a bad credential just makes the same mistake
+faster. Commander exits `1` on a usage error by default; the CLI overrides that so the contract
+holds in the case scripts hit most.
+
+```bash
+wapi status --json || echo "exit $?"
+```
+
+## Destructive commands refuse to guess
+
+Deleting a session or leaving a group asks first, and takes `-y` to skip the prompt.
+
+**Off a terminal without `-y` it fails rather than proceeding.** That is deliberate: auto-confirming
+inside a script is how a scheduled job deletes a live session at three in the morning. If you mean
+it, say so:
+
+```bash
+wapi sessions delete 5 --yes
+```
+
+## Reconciling a timed-out send
+
+The one thing worth building into any script that sends:
+
+```bash
+out=$(wapi send --to "$N" --text "$MSG" --json) || {
+  # A timeout is not proof the message failed to arrive.
+  # Check before re-sending, or somebody gets it twice.
+  wapi messages info "$LAST_ID" --json
+  exit 1
+}
+```
+
+## In CI
+
+`WAPI_TOKEN` and `WAPI_BASE_URL` in the environment are enough — no interactive login, no config
+file. See [Using it in CI](/docs/sandbox/in-ci).

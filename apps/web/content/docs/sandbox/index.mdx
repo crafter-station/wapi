@@ -1,0 +1,78 @@
+---
+title: Sandbox
+description: A fake number on a fake WhatsApp — the same routes, the same code, no phone.
+operations:
+  - postApiSandboxSessions
+  - postApiSandboxScan
+  - getApiSandboxThread
+---
+
+Linking a real number needs a phone, a QR scan, and an account you are willing to have banned.
+A sandbox session needs none of them.
+
+It is a fake number on a fake WhatsApp that **pairs itself**, goes through the same routes and the
+same code as a real session, and behaves like one to everything above it. The engine behind it
+implements the same interface as the real WhatsApp client, which is what makes it worth trusting:
+your code cannot tell the difference, because there is nothing above the engine that knows.
+
+## Create one
+
+```bash
+curl -X POST https://api.wapi.crafter.run/api/sandbox/sessions \
+  -H "Authorization: Bearer $PAT" -H 'Content-Type: application/json' \
+  -d '{"name":"my sandbox"}'
+```
+
+Or, in one line:
+
+```bash
+wapi sandbox create --use
+wapi sessions connect
+```
+
+It pairs in a few seconds. Fake numbers live in the unassigned `+999` range, so one can never
+collide with a real number.
+
+## What it gives you
+
+- **A small directory** — five invented contacts and two groups, so list calls return something
+  real rather than an empty array.
+- **Sends that land** — messages you send appear in a thread you can read back.
+- **Inbound messages**, on demand. This is the point: see
+  [Testing webhooks](/docs/sandbox/testing-webhooks).
+
+```bash
+wapi sandbox thread          # the conversation so far
+wapi sandbox thread -f       # tail it while your handler runs
+```
+
+## The safe place to rehearse writes
+
+Creating a group, adding or promoting participants, leaving, blocking a contact — on a real
+number every one of those touches real people, and group changes are the highest ban risk there
+is.
+
+On a sandbox they are all invented, and **the read-back still works**: a created group is listed
+by `GET /api/groups`, an invite code from `invite-link` is accepted by `invite/accept`, and a name
+saved with `PUT /api/contacts` shows up in the directory. So you can prove your code is correct
+without proving it on somebody's real group.
+
+## In the dashboard
+
+A sandbox session gets its own **Sandbox** tab: the invented contacts, the conversation as it
+happens, and a box to write a message *as* one of those contacts. It is the fastest way to watch
+a webhook handler run.
+
+## Two deliberate differences
+
+<Callout type="warn" title="Swap in a real session before shipping">
+
+`account_protection` pacing is ignored — a real session waits about five seconds per send, a
+sandbox does not. And `decrypt-media` returns a fixed PNG rather than decrypting anything.
+
+Do not tune retry, timing or media-processing logic against a sandbox.
+
+</Callout>
+
+A sandbox also cannot reach a real session, and a real session cannot reach a sandbox. Both
+engines assert it rather than trusting the caller.

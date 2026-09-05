@@ -1,0 +1,176 @@
+---
+title: Sending messages
+description: One endpoint sends every message type. Which field you set decides what goes out.
+operations:
+  - postApiSendMessage
+  - getApiMessagesMsgIdInfo
+  - putApiMessagesMsgId
+  - deleteApiMessagesMsgId
+  - postApiMessagesMessageResend
+  - postApiMessagesRead
+  - postApiMessagesReact
+---
+
+`POST /api/send-message` handles everything. There is no separate route for images, and none for
+groups. Which content field you set decides what gets sent — and setting **two** is an error
+rather than a silent preference for one of them.
+
+## The minimal call
+
+```bash
+curl -X POST https://api.wapi.crafter.run/api/send-message \
+  -H "Authorization: Bearer $KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"to":"+51999888777","text":"hello"}'
+```
+
+```json
+{ "success": true,
+  "data": { "msgId": 100024, "jid": "+51999888777", "status": "in_progress" } }
+```
+
+## Every content type
+
+<Tabs items={["Text", "Image", "Document", "Location", "Poll", "Contact", "Reply", "Mentions"]}>
+<Tab value="Text">
+```json
+{ "to": "+51999888777", "text": "hello" }
+```
+</Tab>
+<Tab value="Image">
+```json
+{ "to": "+51999888777",
+  "imageUrl": "https://example.com/photo.jpg",
+  "text": "optional caption" }
+```
+`text` alongside media is a caption, not a second message.
+</Tab>
+<Tab value="Document">
+```json
+{ "to": "+51999888777",
+  "documentUrl": "https://example.com/invoice.pdf",
+  "fileName": "invoice.pdf" }
+```
+</Tab>
+<Tab value="Location">
+```json
+{ "to": "+51999888777",
+  "location": { "latitude": -12.0464, "longitude": -77.0428, "name": "Lima" } }
+```
+</Tab>
+<Tab value="Poll">
+```json
+{ "to": "+51999888777",
+  "poll": { "question": "Ship on Friday?",
+            "options": ["Yes", "No", "Needs discussion"],
+            "multiSelect": false } }
+```
+</Tab>
+<Tab value="Contact">
+```json
+{ "to": "+51999888777",
+  "contact": { "name": "Ada Lovelace", "phone": "+51999111222" } }
+```
+</Tab>
+<Tab value="Reply">
+```json
+{ "to": "+51999888777",
+  "text": "answering your question",
+  "replyTo": 100024 }
+```
+`replyTo` takes the integer `msgId` a previous send returned.
+</Tab>
+<Tab value="Mentions">
+```json
+{ "to": "120363000000000000@g.us",
+  "text": "@51999888777 can you confirm?",
+  "mentions": ["+51999888777"] }
+```
+The number must appear in the text *and* in `mentions`; WhatsApp highlights only what both agree on.
+</Tab>
+</Tabs>
+
+Media types not shown above follow the same pattern: `videoUrl`, `audioUrl`, `stickerUrl`.
+
+## Recipients
+
+`to` accepts any of these, and sending to a group is the same call with a group JID:
+
+| Form | Example |
+| --- | --- |
+| Phone number, any readable form | `+51999888777`, `51999888777` |
+| WhatsApp JID | `51999888777@s.whatsapp.net` |
+| Group JID | `120363000000000000@g.us` |
+| Channel JID | `120363000000000000@newsletter` |
+
+Use [`GET /api/groups`](/docs/guides/groups-and-contacts) to find a group's JID.
+
+## Reactions
+
+A **wapi extension**. WasenderAPI reports reactions over webhooks but has no endpoint to send one,
+so their SDK never calls this.
+
+```bash
+curl -X POST https://api.wapi.crafter.run/api/messages/react \
+  -H "Authorization: Bearer $KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"key":{"id":"3EB0...","remoteJid":"51999888777@s.whatsapp.net","fromMe":false},
+       "emoji":"👍"}'
+```
+
+Addressed by **WhatsApp key, not `msgId`** — you mostly react to messages somebody else sent, and
+those have no `msgId` because wapi never assigned one. Take the key from the webhook payload.
+
+An empty `emoji` removes the reaction. That is WhatsApp's convention rather than a second endpoint.
+
+## Read receipts
+
+```json
+{ "keys": [{ "id": "3EB0...", "remoteJid": "51999888777@s.whatsapp.net", "fromMe": false }] }
+```
+
+Also keyed by WhatsApp key, for the same reason. Marking read is visible to the sender if they
+have read receipts enabled, and silently does nothing if they don't.
+
+## Editing and deleting
+
+`PUT /api/messages/{msgId}` and `DELETE /api/messages/{msgId}`, both addressed by the integer
+`msgId` a send returned.
+
+WhatsApp allows each only for a short window afterwards and gives no way to ask how long is left,
+so **a refusal here is ordinary rather than a bug**. An edit is a *new* message that supersedes
+the old one, so it comes back with a fresh key while keeping the original `msgId`.
+
+## Resending
+
+`POST /api/messages/{msgId}/resend` retries, and only for messages whose status is `failed`.
+
+That restriction is worth understanding rather than working around. A send that timed out is
+recorded as `in_progress` precisely because nobody knows whether it arrived — resending one of
+those is how somebody receives the same message twice. It also needs `log_messages` to have been
+on, since otherwise there is no stored content to send again.
+
+<Callout type="warn" title="If a send times out, reconcile — never re-send blindly">
+
+The request failing is not the same as the message not arriving. Call
+`GET /api/messages/{msgId}/info` and look at `status`: `0` error, `1` pending, `2` sent,
+`3` delivered, `4` read.
+
+</Callout>
+
+## What goes wrong
+
+| Status | Meaning |
+| --- | --- |
+| `422` | Two content fields set, or none. Body carries `errors` keyed by field. |
+| `403` | You sent a Personal Access Token; this needs a session key. |
+| `503` | The session is not connected. Check `GET /api/status`. |
+| `429` | Rate limited. This body has no `success` key — see [Errors](/docs/guides/errors). |
+
+## Pacing
+
+Sessions with `account_protection` on wait about five seconds between sends. This is real
+protection rather than throttling for its own sake: WhatsApp bans accounts that behave like
+software, and a burst of instant messages is the clearest possible signal. A
+[sandbox](/docs/sandbox) ignores the pacing, which is why you should never tune retry or timing
+logic against one.

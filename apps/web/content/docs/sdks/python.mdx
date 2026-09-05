@@ -1,0 +1,70 @@
+---
+title: Python
+description: The same surface, standard library only, installable straight from git.
+---
+
+Standard library only — no `requests`, no dependencies at all. pip understands git subdirectories,
+so unlike the TypeScript client this is an ordinary install.
+
+```bash
+pip install "git+https://github.com/crafter-station/wapi.git#subdirectory=sdk/python"
+
+# Pin a tag for anything you deploy:
+pip install "git+https://github.com/crafter-station/wapi.git@v0.2.0#subdirectory=sdk/python"
+```
+
+## Use it
+
+```python
+from wapi import WapiClient
+import os
+
+client = WapiClient(api_key=os.environ["WAPI_KEY"])
+
+result = client.messages.send(to="+51999888777", text="hello")
+print(result["msgId"])
+```
+
+Media and options are keyword arguments:
+
+```python
+client.messages.send(
+    to="+51999888777",
+    image_url="https://example.com/photo.jpg",
+    text="a caption",
+)
+```
+
+## Groups and contacts
+
+```python
+groups = client.groups.list()
+meta = client.groups.metadata(groups[0]["jid"])
+client.groups.participants.add(groups[0]["jid"], ["+51999888777"])
+
+page = client.contacts.page(page=1, limit=50)
+
+lid = client.contacts.lid.from_phone("+51999888777")
+pn = client.contacts.lid.to_phone(lid)   # None when unknown
+```
+
+`to_phone` returning `None` is a legitimate answer rather than an error — LID resolution only
+works reliably in one direction. See [Groups & contacts](/docs/guides/groups-and-contacts#lids).
+
+## Errors
+
+```python
+try:
+    client.sessions.list()          # needs a PAT, not a session key
+except WapiError as e:
+    print(e.status)                 # 403
+    print(e.body)                   # the parsed envelope
+
+try:
+    client.messages.send(to="not-a-number", text="hi")
+except WapiError as e:
+    print(e.body["errors"])         # keyed by field
+```
+
+Both failure envelopes reach you as the same exception type with the parsed body attached, so you
+branch on `status` rather than guessing which shape arrived. See [Errors](/docs/guides/errors).

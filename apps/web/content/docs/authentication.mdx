@@ -1,0 +1,102 @@
+---
+title: Authentication
+description: Two credentials, two jobs, one header — and using the wrong one is a 403.
+operations:
+  - postApiTokens
+  - getApiTokens
+  - deleteApiTokensToken
+---
+
+Both credentials travel in the same header:
+
+```http
+Authorization: Bearer <token>
+```
+
+They are **not** interchangeable. Every one of the 57 operations declares which one it needs, and
+sending the other returns `403` — not `401`. That distinction is deliberate: `401` means the
+credential was missing or invalid, `403` means it was valid but of the wrong kind.
+
+## Session API key
+
+Scoped to one session. Used by everything that acts *as* a WhatsApp account: sending, contacts,
+groups, media, presence, sandbox traffic. Find it on the session's page in the dashboard.
+
+The key **is** the session selector. That is why `GET /api/status` takes no session id in the path
+— there is no ambiguity about which session you mean, because the credential already said. This
+is the single most useful thing to internalise about the API surface: session-scoped routes never
+name a session, because naming one would be redundant and would let a key act outside its scope.
+
+## Personal Access Token
+
+Account-level. Used for everything *about* sessions rather than *through* them: creating,
+updating and deleting them, connecting and disconnecting, setting a proxy, regenerating keys,
+reading audit logs, minting further tokens.
+
+Mint one under [Tokens](/tokens), or from the CLI:
+
+```bash
+wapi tokens create "my laptop"
+```
+
+<Callout type="warn" title="Shown once">
+
+The token is displayed at creation and never again — only a hash is stored, so wapi genuinely
+cannot show it to you later. Lose it and you revoke it and mint another.
+
+</Callout>
+
+## Which one do I need?
+
+| You want to | Credential |
+| --- | --- |
+| Send a message, read contacts, manage groups | Session API key |
+| Upload or decrypt media | Session API key |
+| Create, connect, delete a session | Personal Access Token |
+| Regenerate a session key, set a proxy | Personal Access Token |
+| Read audit logs, mint or revoke tokens | Personal Access Token |
+| Create a sandbox session | Personal Access Token |
+| Send *into* a sandbox | Session API key |
+
+The reference marks each endpoint, and the [CLI commands](/docs/cli/commands) table lists the
+required credential for all 57 in one place.
+
+## One token is usually enough
+
+`GET /api/whatsapp-sessions/{id}` returns the session's `api_key` to a PAT holder. So a program
+holding one Personal Access Token can fetch whichever session key it needs on demand — which is
+exactly what the CLI does, and why `wapi login` stores a single credential rather than one per
+session.
+
+The trade is that a PAT is strictly more powerful than a session key. Give a service the session
+key when the session is all it should ever touch.
+
+## What a wrong credential looks like
+
+```json
+{ "success": false, "message": "This endpoint requires a Personal Access Token." }
+```
+
+Note the shape: `message`, not `error`. `401` and `403` come from middleware and carry the
+framework's envelope, while a `503` decided inside a handler carries `error` instead. That
+inconsistency is WasenderAPI's, reproduced deliberately — see [Errors](/docs/guides/errors).
+
+## Keeping them out of the browser
+
+Both credentials grant full control of a WhatsApp account. Neither belongs in client-side code:
+a `NEXT_PUBLIC_` variable is world-readable, and so is anything in a client component's bundle.
+
+Call wapi from a server route, a server action, or a background worker, and let the browser talk
+to *your* server. wapi's own dashboard follows this rule — it never holds a Personal Access
+Token, which is why the CLI's device-flow login lives on the dashboard rather than the API.
+
+## Revoking
+
+```bash
+wapi tokens list
+wapi tokens revoke <id>
+```
+
+Revocation takes effect on the next request. Rotating a *session* key instead — the
+`regenerate-key` operation — invalidates the old one immediately and is the right move when a
+session key has leaked but the session itself is fine.

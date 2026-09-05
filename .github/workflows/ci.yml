@@ -81,6 +81,12 @@ jobs:
         # nobody greps a CLI for what it cannot do.
         run: bun ops/check-cli-in-sync.mjs
 
+      - name: Docs cover the API
+        # The reference lists every endpoint automatically, so it is the prose that falls behind
+        # silently — a new route ships documented by nobody and nothing notices. Each page declares
+        # what it covers, and this checks the declaration against the contract in both directions.
+        run: bun ops/check-docs-in-sync.mjs
+
       - name: CLI compiles to a binary
         # Typecheck does not prove `bun build --compile` succeeds, and compilation is where a Bun
         # CLI breaks — dynamic imports and `import.meta` behave differently once bundled. This is

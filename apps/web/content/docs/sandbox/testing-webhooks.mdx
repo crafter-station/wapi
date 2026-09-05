@@ -1,0 +1,60 @@
+---
+title: Testing webhooks
+description: Make a fake contact message you, and watch your real handler run.
+operations:
+  - postApiSandboxInbound
+---
+
+Webhook handlers are hard to test because they need somebody to send you something. A sandbox
+removes that: you can make an invented contact message you, and what your endpoint receives is a
+**genuine, signed delivery** through the real dispatch path — not a mock.
+
+## The whole loop
+
+```bash
+wapi sandbox create --use
+wapi sessions connect
+
+# Point the session at your handler.
+wapi sessions update --webhook-url https://your.app/hook --webhook-enabled
+
+# Make a fake contact send you something.
+wapi sandbox inbound "hello from a fake human"
+```
+
+Your endpoint gets a `messages.received` event, with a real `X-Webhook-Signature`, retried on
+failure like any other delivery. Verification code that works here works in production, because
+it is the same code path.
+
+Over HTTP directly:
+
+```bash
+curl -X POST https://api.wapi.crafter.run/api/sandbox/inbound \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"text":"hello from a fake human"}'
+```
+
+## Watching it happen
+
+```bash
+wapi sandbox thread -f
+```
+
+Tails the conversation while your handler runs, so you can see the inbound message and your
+reply land in order.
+
+If your endpoint is not being called, `GET /api/dispatches` shows what wapi tried to send and how
+many attempts it made — see [Webhooks](/docs/guides/webhooks#inspecting-deliveries).
+
+## Testing locally
+
+Your handler has to be reachable from wapi. A tunnel (`ngrok`, `cloudflared`) pointed at your dev
+server is enough; set the tunnel URL as the webhook URL and change it back afterwards.
+
+## What this does and does not prove
+
+**Does:** your signature verification, your event routing, your raw-body handling, your
+acknowledgement timing, your retry behaviour under a non-2xx.
+
+**Does not:** anything about real media. Inbound sandbox media is a fixed PNG, so
+`decrypt-media` will not exercise your image pipeline. See [Media](/docs/guides/media).

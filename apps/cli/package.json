@@ -15,5 +15,8 @@
     "@wapi/sdk": "workspace:*",
     "commander": "^15.0.0",
     "@wapi/contracts": "workspace:*"
+  },
+  "exports": {
+    "./coverage": "./src/coverage.ts"
   }
 }

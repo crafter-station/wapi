@@ -1,0 +1,64 @@
+---
+title: Go
+description: net/http only, a nested module, and functional send options.
+---
+
+Zero dependencies, `net/http` only. Go resolves subdirectory modules natively, so this is an
+ordinary install rather than a vendoring step.
+
+```bash
+go get github.com/crafter-station/wapi/sdk/go@v0.2.0
+```
+
+<Callout title="Why the repository carries two tags">
+
+`@main` moves, so pin a tag for anything you deploy. Go resolves a module in a subdirectory
+through a **path-prefixed** tag: the repository carries `sdk/go/v0.2.0` alongside `v0.2.0`, and
+that is what makes the line above work.
+
+</Callout>
+
+## Use it
+
+```go
+import wapi "github.com/crafter-station/wapi/sdk/go"
+
+client := wapi.New(os.Getenv("WAPI_KEY"))
+
+res, err := client.Messages.Send(ctx, "+51999888777", wapi.Text("hello"))
+fmt.Println(res.MsgID)
+```
+
+Send options are **functional**, so setting two content fields is visible at the call site rather
+than buried in a struct where the conflict stays invisible until the server rejects it:
+
+```go
+client.Messages.Send(ctx, to,
+    wapi.Image("https://example.com/photo.jpg"),
+    wapi.Caption("a caption"),
+)
+```
+
+## Groups and contacts
+
+```go
+groups, err := client.Groups.List(ctx)
+meta, err := client.Groups.Metadata(ctx, groups[0].JID)
+
+page, err := client.Contacts.Page(ctx, 1, 50)
+```
+
+## Errors
+
+```go
+res, err := client.Sessions.List(ctx)
+
+var apiErr *wapi.Error
+if errors.As(err, &apiErr) {
+    fmt.Println(apiErr.Status)   // 403
+    fmt.Println(apiErr.Fields)   // per-field errors from a 422
+}
+```
+
+`Fields` is populated only for a validation failure, since that is the only envelope carrying
+them — see [Errors](/docs/guides/errors).

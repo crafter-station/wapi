@@ -1,0 +1,59 @@
+---
+title: Using it in CI
+description: A WhatsApp integration test that runs unattended, on every push.
+---
+
+The reason a sandbox exists is that a real number cannot be part of a test suite. It needs a
+phone, it can be banned, and every write touches somebody. A sandbox has none of those problems,
+so the whole surface can be exercised on every push.
+
+This is not hypothetical — it is how wapi tests itself. `compat/cli.test.ts` drives the compiled
+binary against a booted stack, entirely on sandbox sessions.
+
+## The shape
+
+```bash
+# 1. Create a throwaway sandbox and select it.
+wapi sandbox create --name "ci-$GITHUB_RUN_ID" --use --json
+
+# 2. It pairs itself; no QR, no waiting on a human.
+wapi sessions connect
+
+# 3. Exercise whatever you are testing.
+wapi send --to "$FAKE_NUMBER" --text "from CI"
+wapi sandbox inbound "a reply"
+wapi sandbox thread --json | jq '.[] | select(.text=="a reply") | .from_me'
+
+# 4. Clean up.
+wapi sessions delete --yes
+```
+
+Every command takes `--json`, so assertions are `jq` expressions rather than screen-scraping.
+Exit codes are `0` success, `1` failure, `2` usage, `3` credentials — see
+[Scripting](/docs/cli/scripting).
+
+## Getting a credential into CI
+
+Mint a Personal Access Token and store it as a secret:
+
+```bash
+wapi tokens create "ci"
+```
+
+Then `WAPI_TOKEN` and `WAPI_BASE_URL` in the environment are all the CLI needs — no interactive
+login, no config file. One PAT is enough for everything, because session keys are fetched from it
+on demand.
+
+## Isolation between runs
+
+Name each sandbox after the run and delete it at the end. Sessions are cheap, and a shared one
+means two concurrent runs writing into the same thread and asserting on each other's messages.
+
+If a run dies before cleanup, the leftover sandboxes are harmless — they are fake numbers holding
+no real state — but a periodic sweep of sessions named `ci-*` keeps the list readable.
+
+## What not to test here
+
+Timing and pacing. A sandbox ignores `account_protection`, so a test that asserts sends are five
+seconds apart will pass here and tell you nothing about production. The same goes for anything
+that decrypts real media.

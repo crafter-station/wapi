@@ -1,0 +1,127 @@
+---
+title: Quickstart
+description: From zero to a sent message, with a real number or a fake one.
+---
+
+## 1. Get a connected session
+
+Two ways, and the second needs no phone.
+
+<Tabs items={["Real number", "Sandbox"]}>
+<Tab value="Real number">
+
+Open the [dashboard](/sessions), create a session, press **Connect**, and scan the QR with
+WhatsApp → Settings → Linked devices. The code refreshes about every twenty seconds and updates
+live. Once it shows **connected**, copy the session API key from that page.
+
+</Tab>
+<Tab value="Sandbox">
+
+```bash
+curl -X POST https://api.wapi.crafter.run/api/sandbox/sessions \
+  -H "Authorization: Bearer $PAT" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"my sandbox"}'
+```
+
+It pairs itself. No phone, no QR, nothing to ban — and the response carries the session API key
+you use below. See [Sandbox](/docs/sandbox).
+
+</Tab>
+</Tabs>
+
+## 2. Send something
+
+<Tabs items={["curl", "JavaScript", "Python"]}>
+<Tab value="curl">
+
+```bash
+curl -X POST https://api.wapi.crafter.run/api/send-message \
+  -H "Authorization: Bearer $KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"to":"+51999888777","text":"hello from wapi"}'
+```
+
+</Tab>
+<Tab value="JavaScript">
+
+```javascript
+const res = await fetch("https://api.wapi.crafter.run/api/send-message", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${process.env.WAPI_KEY}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({ to: "+51999888777", text: "hello from wapi" }),
+});
+
+const { data } = await res.json();
+console.log(data.msgId); // 100024
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+import os, requests
+
+r = requests.post(
+    "https://api.wapi.crafter.run/api/send-message",
+    headers={"Authorization": f"Bearer {os.environ['WAPI_KEY']}"},
+    json={"to": "+51999888777", "text": "hello from wapi"},
+)
+print(r.json()["data"]["msgId"])  # 100024
+```
+
+</Tab>
+</Tabs>
+
+## 3. Read the response
+
+```json
+{ "success": true,
+  "data": { "msgId": 100024, "jid": "+51999888777", "status": "in_progress" } }
+```
+
+Every send returns an integer `msgId` from wapi's own sequence — **not** WhatsApp's message id.
+You use it for `replyTo` and for `GET /api/messages/{msgId}/info`, which returns both identifiers
+side by side:
+
+```json
+{
+  "success": true,
+  "data": {
+    "remoteJid": "51999888777@s.whatsapp.net",
+    "id": "3EB0A9C1...",
+    "msgId": 100024,
+    "key": { "id": "3EB0A9C1...", "fromMe": true,
+             "remoteJid": "51999888777@s.whatsapp.net" },
+    "message": { "conversation": "hello from wapi" },
+    "messageTimestamp": "1787537909",
+    "status": 2
+  }
+}
+```
+
+<Callout title="Two fields on /info that catch people out">
+
+Both follow WhatsApp's own record rather than wapi's.
+
+`messageTimestamp` is a **string**, because it is a protobuf 64-bit integer and JSON cannot hold
+one as a number. `status` is WhatsApp's numeric acknowledgement — `0` error, `1` pending, `2` sent,
+`3` delivered, `4` read — not the word a send returns.
+
+</Callout>
+
+## What `status: "in_progress"` means
+
+A send returns as soon as wapi has accepted the message, not when WhatsApp has delivered it.
+That is why there is a `msgId` to reconcile with: if a send times out, the request failed, which
+is **not** the same as the message not arriving. Check `/info` before re-sending — the instinct to
+just run it again is how the same message reaches a customer twice.
+
+## Next
+
+- [Authentication](/docs/authentication) — which of the two credentials this key was
+- [Sending messages](/docs/guides/sending-messages) — media, replies, reactions, edits
+- [Webhooks](/docs/guides/webhooks) — receiving, rather than sending

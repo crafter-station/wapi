@@ -1,11 +1,43 @@
+import { readdirSync, statSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 
 /**
- * The two pages a signed-out visitor can reach.
+ * What a signed-out visitor can reach: the landing page and the whole documentation tree.
  *
- * Deliberately assertions about behaviour rather than screenshots. A snapshot of this docs page
- * would fail on every copy change and pass on a broken copy button, which is the wrong way round.
+ * Deliberately assertions about behaviour rather than screenshots. A snapshot would fail on every
+ * copy change and pass on a broken copy button, which is the wrong way round.
+ *
+ * The docs checks run over *every* page rather than a representative one. When the docs were a
+ * single page that distinction did not exist; now that they are a tree, the failures worth
+ * catching are per-page — one guide that overflows on a phone, one that throws during hydration —
+ * and a spot check on the index would find none of them.
  */
+
+/**
+ * Every docs URL, read off the content directory.
+ *
+ * Derived rather than listed, so a page added without a test is impossible. The mapping mirrors
+ * the loader's: `index.mdx` is the directory itself, anything else is its filename.
+ */
+function docsUrls(): string[] {
+  // ES module scope: `__dirname` does not exist, and Playwright loads these as modules.
+  const root = join(dirname(fileURLToPath(import.meta.url)), "..", "content", "docs");
+  const urls: string[] = [];
+  const walk = (dir: string, prefix: string) => {
+    for (const entry of readdirSync(dir)) {
+      const path = join(dir, entry);
+      if (statSync(path).isDirectory()) walk(path, `${prefix}/${entry}`);
+      else if (entry === "index.mdx") urls.push(prefix || "/docs");
+      else if (entry.endsWith(".mdx")) urls.push(`${prefix}/${entry.replace(/\.mdx$/, "")}`);
+    }
+  };
+  walk(root, "/docs");
+  return urls;
+}
+
+const DOCS_URLS = docsUrls();
 
 /**
  * Nothing in this app should be writing to the console in normal operation, so anything that
@@ -47,66 +79,113 @@ test.describe("the landing page", () => {
   });
 });
 
-test.describe("the docs page", () => {
-  test("renders its endpoint reference", async ({ page }) => {
-    const errors = collectConsoleErrors(page);
-    await page.goto("/docs");
-
-    await expect(page).toHaveTitle(/wapi/i);
-    // The page exists to document endpoints; if none rendered, it built but is useless.
-    await expect(page.getByText("/api/send-message").first()).toBeVisible();
-    expect(errors).toEqual([]);
+test.describe("the docs site", () => {
+  test("has pages to test at all", () => {
+    // A glob that silently returns nothing would make every loop below vacuously pass.
+    expect(DOCS_URLS.length).toBeGreaterThan(15);
+    expect(DOCS_URLS).toContain("/docs");
   });
 
-  test("every code block offers a copy button, and it copies", async ({ page, context }) => {
-    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-    await page.goto("/docs");
+  for (const url of DOCS_URLS) {
+    test(`${url} renders for a signed-out reader`, async ({ page }) => {
+      const errors = collectConsoleErrors(page);
+      const response = await page.goto(url);
 
-    const copyButtons = page.getByRole("button", { name: /copy/i });
-    // Built in this repo and never once clicked before this test existed.
-    expect(await copyButtons.count()).toBeGreaterThan(0);
+      expect(response?.status()).toBe(200);
+      /**
+       * The docs are public in `proxy.ts`. The matcher there was `"/docs"` — an exact match — so
+       * when the docs became a tree every page below the root redirected to Clerk while the index
+       * kept working. Asserting per page is what makes that visible.
+       */
+      expect(page.url()).not.toContain("sign-in");
+      await expect(page.locator("main")).toBeVisible();
+      expect(errors).toEqual([]);
+    });
 
-    await copyButtons.first().click();
-    /**
-     * Wait for the button to say so before reading the clipboard.
-     *
-     * `writeText` is awaited inside the click handler, so reading immediately after the click
-     * races it and returns an empty string. Waiting on the label is also the better assertion:
-     * it is the confirmation a person actually looks for, and the component has a `failed` state
-     * that this would catch.
-     */
-    await expect(copyButtons.first()).toHaveText("copied");
-    const clipboard = await page.evaluate(() => navigator.clipboard.readText());
-    expect(clipboard.length).toBeGreaterThan(0);
-  });
+    test(`${url} does not scroll sideways on a phone`, async ({ browser }) => {
+      const page = await browser.newPage({ viewport: { height: 844, width: 390 } });
+      await page.goto(url);
 
-  test("survives a dark-mode viewer", async ({ browser }) => {
-    // The theme is driven by prefers-color-scheme, so it has a whole second set of colours that
-    // nothing else exercises.
+      const overflows = await page.evaluate(
+        () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+      );
+      // Wide code blocks and tables are supposed to scroll inside their own container, not drag
+      // the page. The generated command table is four columns of paths, so it is the likeliest
+      // offender and it is on one of these pages.
+      expect(overflows).toBe(false);
+      await page.close();
+    });
+  }
+
+  test("survives a dark-mode reader, and so does its code", async ({ browser }) => {
     const page = await browser.newPage({ colorScheme: "dark" });
     const errors = collectConsoleErrors(page);
-    await page.goto("/docs");
+    await page.goto("/docs/quickstart");
 
-    await expect(page.locator("body")).toBeVisible();
     const background = await page
       .locator("body")
       .evaluate((el) => getComputedStyle(el).backgroundColor);
     // A transparent body means the page inherits whatever is behind it, which is how a dark-mode
     // page ends up with black text on a black ground.
     expect(background).not.toBe("rgba(0, 0, 0, 0)");
+
+    /**
+     * Code colour, specifically.
+     *
+     * Fumadocs emits dual-theme shiki output but ships no rule that consumes `--shiki-dark`,
+     * because it expects a `.dark` class this site does not have — so without the swap in
+     * `docs.css` every snippet renders in light colours on a dark ground. It is legible enough in
+     * a screenshot to be missed and unreadable in practice, which is exactly what a test is for.
+     */
+    const token = page.locator("pre .shiki span, .shiki span").first();
+    await expect(token).toBeVisible();
+    const colour = await token.evaluate((el) => getComputedStyle(el).color);
+    const dark = await token.evaluate((el) =>
+      getComputedStyle(el).getPropertyValue("--shiki-dark").trim(),
+    );
+    // The variable has to exist, and the rendered colour has to be the dark one rather than the
+    // light one sitting beside it.
+    expect(dark).not.toBe("");
+    expect(colour).not.toBe("rgb(36, 41, 46)");
+
     expect(errors).toEqual([]);
     await page.close();
   });
 
-  test("does not scroll sideways on a phone", async ({ browser }) => {
-    const page = await browser.newPage({ viewport: { height: 844, width: 390 } });
-    await page.goto("/docs");
+  test("every code block offers a copy button, and it copies", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto("/docs/quickstart");
 
-    const overflows = await page.evaluate(
-      () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
-    );
-    // Wide code blocks are supposed to scroll inside their own container, not drag the page.
-    expect(overflows).toBe(false);
-    await page.close();
+    /**
+     * The component behind this changed — these are Fumadocs' code blocks now, not the site's own
+     * — so the test follows the behaviour rather than the implementation. It exists because that
+     * button had never once been clicked before somebody wrote a test for it.
+     */
+    const copyButtons = page.getByRole("button", { name: /copy/i });
+    expect(await copyButtons.count()).toBeGreaterThan(0);
+
+    await copyButtons.first().click();
+    await expect
+      .poll(async () => (await page.evaluate(() => navigator.clipboard.readText())).length)
+      .toBeGreaterThan(0);
+  });
+
+  test("search finds a page by its prose", async ({ page }) => {
+    // The index is built from the same page tree the sidebar renders. If they disagree, a page is
+    // reachable and unfindable, or findable and gone.
+    const res = await page.request.get("/api/search?query=webhook");
+    expect(res.status()).toBe(200);
+    const results = (await res.json()) as { url: string }[];
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.some((r) => r.url.includes("/docs/guides/webhooks"))).toBe(true);
+  });
+
+  test("llms.txt lists the tree", async ({ page }) => {
+    const res = await page.request.get("/llms.txt");
+    expect(res.status()).toBe(200);
+    const text = await res.text();
+    // Generated from the page tree, so it should name pages rather than being a stub.
+    expect(text).toContain("/docs/guides/sending-messages");
+    expect(text).toContain("/docs/sandbox");
   });
 });

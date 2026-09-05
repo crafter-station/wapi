@@ -1,0 +1,52 @@
+---
+title: Their SDK, unmodified
+description: Already using WasenderAPI? Change the base URL. That is the migration.
+---
+
+wapi implements the WasenderAPI interface closely enough that their **published npm client works
+against it with no changes**. That is covered by an automated test suite rather than being an
+aspiration: 46 routes are cloned path for path and envelope for envelope, including the parts that
+are inconsistent.
+
+```javascript
+import { createWasender } from "wasenderapi";
+
+// Third argument is the base URL. That is the whole migration.
+const wa = createWasender(
+  process.env.WAPI_KEY,
+  undefined,
+  "https://api.wapi.crafter.run/api",
+);
+
+await wa.sendText({ to: "+51999888777", text: "hello" });
+const groups = await wa.getGroups();
+```
+
+## What fidelity means here
+
+The inconsistencies are reproduced rather than tidied, because their client depends on them:
+
+- **Six success envelopes**, not one. `invite-link` puts `inviteLink` beside `success` rather than
+  under `data`.
+- **Three failure envelopes.** Route-level errors use `error`; validation and auth use `message`;
+  a `429` has no `success` key at all.
+- **Two pagination shapes.** `?paginated=true` changes `data` from an array into
+  `{ items, pagination }`.
+- **Asymmetric keys.** `GET /api/contacts` keys on `jid`; `GET /api/contacts/{number}` keys on
+  `id`.
+
+If you are writing new code rather than migrating, prefer one of
+[wapi's own SDKs](/docs/sdks/typescript) — they unwrap all of this for you.
+
+## What wapi adds
+
+Eleven endpoints WasenderAPI does not have: reactions, sandbox sessions, token management, audit
+logs, and webhook dispatch inspection. They sit under the same auth and the same envelopes, so
+their client ignores them harmlessly.
+
+## The reference
+
+The per-endpoint reference, with every field and response shape, is generated from the same
+contract the server validates against —
+[api.wapi.crafter.run/docs](https://api.wapi.crafter.run/docs). The raw spec is at
+[/openapi.json](https://api.wapi.crafter.run/openapi.json).

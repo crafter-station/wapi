@@ -1,0 +1,128 @@
+---
+title: Groups & contacts
+description: Reading the address book, writing to groups, and what a LID is.
+operations:
+  - getApiContacts
+  - getApiContactsContactPhoneNumber
+  - getApiContactsContactPhoneNumberPicture
+  - putApiContacts
+  - postApiContactsContactPhoneNumberBlock
+  - postApiContactsContactPhoneNumberUnblock
+  - getApiOnWhatsappContactIdentifier
+  - getApiLidFromPnPn
+  - getApiPnFromLidLid
+  - getApiGroups
+  - postApiGroups
+  - getApiGroupsGroupJidMetadata
+  - getApiGroupsGroupJidParticipants
+  - getApiGroupsGroupJidPicture
+  - getApiGroupsGroupJidInviteLink
+  - getApiGroupsInviteInviteCode
+  - postApiGroupsInviteAccept
+  - postApiGroupsGroupJidParticipantsAdd
+  - postApiGroupsGroupJidParticipantsRemove
+  - putApiGroupsGroupIdParticipantsUpdate
+  - putApiGroupsGroupJidSettings
+  - postApiGroupsGroupIdLeave
+---
+
+<Callout type="warn" title="Group writes are the highest ban risk">
+
+Higher than send volume, in the research this project is built on. Creating a group, adding or
+promoting participants, leaving, blocking — each one touches real people on a real account.
+Rehearse every one of them on a [sandbox](/docs/sandbox) first, where the participants are
+invented and the read-back still works.
+
+</Callout>
+
+## Reading contacts
+
+```bash
+# The whole address book, learned from traffic.
+curl https://api.wapi.crafter.run/api/contacts -H "Authorization: Bearer $KEY"
+
+# One contact.
+curl https://api.wapi.crafter.run/api/contacts/+51999888777 -H "Authorization: Bearer $KEY"
+
+# Is a number on WhatsApp at all?
+curl https://api.wapi.crafter.run/api/on-whatsapp/+51999888777 -H "Authorization: Bearer $KEY"
+```
+
+`imgUrl` and `status` are **always `null` in a list**. A picture and an "about" string are
+per-contact fetches, so a list call never makes N of them. Ask for the contact individually, or
+call the picture endpoint, if you need either.
+
+One asymmetry to know about: a list is keyed on `jid`, while `GET /api/contacts/{number}` returns
+`id`. That is WasenderAPI's inconsistency, reproduced rather than tidied.
+
+## Pagination
+
+Both `/api/contacts` and `/api/groups` take `?paginated=true`, which **changes the response
+shape** — `data` becomes `{ items, pagination }` instead of an array:
+
+```bash
+curl "https://api.wapi.crafter.run/api/contacts?paginated=true&page=1&limit=20" \
+  -H "Authorization: Bearer $KEY"
+```
+
+```json
+{ "success": true,
+  "data": { "items": [ ... ],
+            "pagination": { "page": 1, "limit": 20, "total": 38, "totalPages": 2 } } }
+```
+
+`limit` defaults to 20 and caps at 500. `totalPages` is `ceil(total / limit)`, and `page` echoes
+what you asked for.
+
+## Writing to contacts
+
+Contacts can be blocked, unblocked, and given a saved name:
+
+```bash
+curl -X PUT https://api.wapi.crafter.run/api/contacts \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"jid":"51999888777@s.whatsapp.net","name":"Ada"}'
+```
+
+That name is **wapi's**, not WhatsApp's. It does not appear on the linked phone.
+
+## Groups
+
+Groups can be created, left, renamed and re-described; participants added, removed, promoted and
+demoted; invite links read, inspected before joining, and accepted.
+
+```bash
+curl https://api.wapi.crafter.run/api/groups -H "Authorization: Bearer $KEY"
+curl https://api.wapi.crafter.run/api/groups/<jid>/metadata -H "Authorization: Bearer $KEY"
+curl https://api.wapi.crafter.run/api/groups/<jid>/participants -H "Authorization: Bearer $KEY"
+```
+
+To send *to* a group, use its JID as `to` on the ordinary send endpoint — see
+[Sending messages](/docs/guides/sending-messages).
+
+### Three shapes that disagree
+
+Reproduced deliberately, because their SDK depends on them:
+
+| Endpoint | Returns |
+| --- | --- |
+| `participants/add`, `participants/remove` | Per-participant array of `{status, jid, message}` |
+| `participants/update` (promote/demote) | `{participants: [jid]}` — **no status at all** |
+| `invite-link` | `inviteLink` beside `success`, *not* under `data` — the sixth success envelope |
+
+On `participants/update`, compare what you sent against what came back: that is the only way to
+spot a partial failure, because nothing reports one.
+
+## LIDs
+
+Group participants and inbound senders often appear as `…@lid` rather than a phone number. That is
+WhatsApp's newer identity format — **not an error**, and not something wapi introduced.
+
+```bash
+curl https://api.wapi.crafter.run/api/lid-from-pn/+51999888777 -H "Authorization: Bearer $KEY"
+curl https://api.wapi.crafter.run/api/pn-from-lid/46274715893950@lid -H "Authorization: Bearer $KEY"
+```
+
+`pn-from-lid` resolves where a mapping has been *observed*. A miss is legitimate: resolution only
+works reliably in one direction, so write code that copes with `null` rather than treating it as
+a failure.

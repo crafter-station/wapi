@@ -1,0 +1,89 @@
+---
+title: Managing sessions
+description: Creating, connecting, restarting and deleting the WhatsApp accounts wapi drives.
+operations:
+  - getApiWhatsappSessions
+  - getApiWhatsappSessionsWhatsappSession
+  - postApiWhatsappSessions
+  - putApiWhatsappSessionsWhatsappSession
+  - deleteApiWhatsappSessionsWhatsappSession
+  - postApiWhatsappSessionsWhatsappSessionConnect
+  - postApiWhatsappSessionsWhatsappSessionDisconnect
+  - postApiWhatsappSessionsWhatsappSessionRestart
+  - postApiWhatsappSessionsWhatsappSessionRegenerateKey
+  - getApiWhatsappSessionsWhatsappSessionQrcode
+---
+
+A **session** is one linked WhatsApp account. Everything on this page takes a
+[Personal Access Token](/docs/authentication) rather than a session key, because these operations
+are *about* a session rather than acting through it.
+
+## Create
+
+```bash
+curl -X POST https://api.wapi.crafter.run/api/whatsapp-sessions \
+  -H "Authorization: Bearer $PAT" -H 'Content-Type: application/json' \
+  -d '{"name":"support line","phone_number":"+51999888777"}'
+```
+
+The response carries the session's `id` and its `api_key` — that key is the credential for every
+session-scoped call.
+
+Useful fields you can set here or later with `PUT`:
+
+| Field | Effect |
+| --- | --- |
+| `account_protection` | Paces sends ~5s apart. Leave it on for real numbers. |
+| `log_messages` | Stores message content. Required for `resend` to work. |
+| `webhook_url`, `webhook_enabled`, `webhook_events` | See [Webhooks](/docs/guides/webhooks) |
+| `proxy` | Route this session's WhatsApp traffic through a proxy |
+
+## Connect and pair
+
+```bash
+curl -X POST https://api.wapi.crafter.run/api/whatsapp-sessions/1/connect -H "Authorization: Bearer $PAT"
+curl https://api.wapi.crafter.run/api/whatsapp-sessions/1/qrcode -H "Authorization: Bearer $PAT"
+```
+
+Scan the QR with WhatsApp → Settings → Linked devices. It refreshes about every twenty seconds,
+so fetch it again rather than reusing a stale one.
+
+Then poll `GET /api/status` — with the **session key**, not the PAT — until it reports
+`connected`. Sending before then returns `409`.
+
+<Callout title="A sandbox skips all of this">
+
+`POST /api/sandbox/sessions` creates a session that pairs itself, with no phone and no QR. See
+[Sandbox](/docs/sandbox).
+
+</Callout>
+
+## Restart, disconnect, delete
+
+```bash
+curl -X POST https://api.wapi.crafter.run/api/whatsapp-sessions/1/restart    -H "Authorization: Bearer $PAT"
+curl -X POST https://api.wapi.crafter.run/api/whatsapp-sessions/1/disconnect -H "Authorization: Bearer $PAT"
+curl -X DELETE https://api.wapi.crafter.run/api/whatsapp-sessions/1          -H "Authorization: Bearer $PAT"
+```
+
+**Restart** drops and rebuilds the socket, keeping stored credentials — it reconnects on its own,
+though not instantly. **Disconnect** closes the socket and leaves it closed. **Delete** removes the
+session *and its credentials*, so the number has to be paired again from scratch.
+
+Reconnection after a restart is not instant. Poll `GET /api/status` until `connected` before
+running anything that sends, or you will get a misleading `409`.
+
+## Rotating the key
+
+```bash
+curl -X POST https://api.wapi.crafter.run/api/whatsapp-sessions/1/regenerate-key -H "Authorization: Bearer $PAT"
+```
+
+The old key stops working immediately. This is the right response to a leaked session key — the
+session itself, and the WhatsApp pairing, are untouched.
+
+## Reading history
+
+`GET /api/whatsapp-sessions/{id}/message-logs` and `/session-logs` return what the session sent and
+what happened to its connection. Both are PAT-scoped, and `message-logs` is only populated when
+`log_messages` is on.

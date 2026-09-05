@@ -33,6 +33,7 @@ jobs:
           bun run typecheck
           bun ops/check-cli-in-sync.mjs
           bun ops/check-sdk-in-sync.mjs
+          bun ops/check-docs-in-sync.mjs
 
       - name: Compile
         # Bun cross-compiles from one runner, so three platforms need one job rather than a matrix

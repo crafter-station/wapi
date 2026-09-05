@@ -1,0 +1,98 @@
+/*
+ * Fumadocs, wearing this site's clothes.
+ *
+ * Every one of Fumadocs' 26 `--color-fd-*` tokens is redefined here in terms of the site's own
+ * tokens. Because those already flip under `@media (prefers-color-scheme: dark)` in `globals.css`,
+ * mapping through `var()` means dark mode needs no second block here — one definition covers both,
+ * and the docs can never drift from the dashboard's palette the way a copied set of hex values
+ * would.
+ *
+ * Fumadocs normally expresses dark with a `.dark` class driven by `next-themes`, which the layout
+ * disables. Nothing applies that class, so these values are the only ones that ever apply.
+ */
+:root {
+  --color-fd-background: var(--background);
+  --color-fd-foreground: var(--foreground);
+  --color-fd-muted: var(--muted);
+  --color-fd-muted-foreground: var(--muted-foreground);
+  --color-fd-border: var(--border);
+  --color-fd-ring: var(--ring);
+
+  --color-fd-card: var(--card);
+  --color-fd-card-foreground: var(--foreground);
+  --color-fd-popover: var(--card);
+  --color-fd-popover-foreground: var(--foreground);
+
+  --color-fd-primary: var(--primary);
+  --color-fd-primary-foreground: var(--primary-foreground);
+  --color-fd-secondary: var(--muted);
+  --color-fd-secondary-foreground: var(--foreground);
+  --color-fd-accent: var(--muted);
+  --color-fd-accent-foreground: var(--foreground);
+
+  --color-fd-overlay: rgb(10 10 10 / 0.45);
+
+  /*
+   * Status colours, deliberately achromatic.
+   *
+   * `docs/design-reference.md` records that `--destructive` is the only chromatic token in the
+   * system and that status is otherwise carried by weight, fill and border. Fumadocs ships blue
+   * `info`, amber `warning` and green `success` callouts; taking them would put four new hues into
+   * a palette built around having none. Error keeps the one chromatic token because a destructive
+   * signal is exactly what it is for.
+   */
+  --color-fd-error: var(--destructive);
+  --color-fd-warning: var(--foreground);
+  --color-fd-success: var(--foreground);
+  --color-fd-info: var(--muted-foreground);
+  --color-fd-idea: var(--muted-foreground);
+
+  --color-fd-diff-add: var(--muted);
+  --color-fd-diff-add-symbol: var(--foreground);
+  --color-fd-diff-remove: var(--muted);
+  --color-fd-diff-remove-symbol: var(--muted-foreground);
+}
+
+/*
+ * The signature, carried over.
+ *
+ * `globals.css` sets one italic phrase per heading in Georgia; MDX headings cannot carry a
+ * `.title` class, so the same rule is bound to `em` inside docs headings. It is the whole reason
+ * these pages read as the same product as the landing page rather than as stock Fumadocs.
+ */
+#nd-docs-layout h1 em,
+#nd-docs-layout h2 em,
+#nd-docs-layout h3 em {
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.045em;
+}
+
+/*
+ * Code colours, in both schemes.
+ *
+ * Fumadocs' MDX pipeline emits dual-theme shiki output — `--shiki-light` and `--shiki-dark` as
+ * inline custom properties on every token — but ships no rule that consumes them, because it
+ * normally relies on a `.dark` class this site does not have. `globals.css` already does this
+ * swap, but scoped to `.code .shiki`, which is the site's own code component; MDX blocks are not
+ * inside it.
+ *
+ * Without these two rules every snippet in the docs renders in light colours, including on a dark
+ * background — which is legible enough in a screenshot to be missed and unreadable in practice.
+ */
+#nd-docs-layout .shiki,
+#nd-docs-layout .shiki span {
+  color: var(--shiki-light, inherit);
+  font-style: var(--shiki-light-font-style, inherit);
+  font-weight: var(--shiki-light-font-weight, inherit);
+}
+
+@media (prefers-color-scheme: dark) {
+  #nd-docs-layout .shiki,
+  #nd-docs-layout .shiki span {
+    color: var(--shiki-dark, inherit);
+    font-style: var(--shiki-dark-font-style, inherit);
+    font-weight: var(--shiki-dark-font-weight, inherit);
+  }
+}

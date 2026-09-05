@@ -32,8 +32,20 @@ const isPublic = createRouteMatcher([
    * `/cli` page, which is protected like everything else.
    */
   "/api/cli/(.*)",
-  // Documentation is public; requiring sign-in to read a getting-started guide is absurd.
-  "/docs",
+  /**
+   * Documentation is public; requiring sign-in to read a getting-started guide is absurd.
+   *
+   * The pattern must be `(.*)`, not a bare `/docs`. While the docs were one page that was the
+   * same thing; the moment they became a tree, every page below the root 307'd to sign-in and
+   * only the index still worked. That is the third time this exact matcher shape has bitten in
+   * this file — see `/api/webhook-sink` and `webmanifest` below.
+   */
+  "/docs(.*)",
+  // The docs' own search backend and machine-readable index. Both are read by the public docs
+  // pages, so gating them behind sign-in breaks search for signed-out readers — silently, since
+  // a 307 to Clerk looks to the search box like an empty result set.
+  "/api/search",
+  "/llms.txt",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

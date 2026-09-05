@@ -1,0 +1,39 @@
+---
+title: Agent skill
+description: Let your coding agent wire wapi up correctly the first time.
+---
+
+If you build with Claude Code, Cursor, Copilot or another agent, install the `wapi-nextjs` skill:
+
+```bash
+npx skills@latest add crafter-station/wapi --skill=wapi-nextjs
+```
+
+It carries a server-only client, a webhook route handler, and notes on the parts of this API that
+are **not guessable from the endpoint names** — so your agent writes the integration correctly
+instead of inferring it.
+
+## What it knows that an agent would otherwise get wrong
+
+- Which of the two credentials each call needs, and that using the wrong one is a `403` rather
+  than a `401`.
+- That inbound media arrives encrypted and has to go through `decrypt-media` before the bytes mean
+  anything.
+- That a webhook handler must read the **raw** body, because JSON middleware consumes the stream
+  and leaves nothing to verify a signature against.
+- That neither credential may reach the browser, enforced with `server-only` so a mistake becomes
+  a build error rather than a leaked key.
+- That a sandbox is how you prove a handler works, instead of waiting for somebody to message you.
+
+## It does not ship its own client
+
+Earlier versions did, which meant a second implementation of the same surface drifting away from
+the first. It now vendors the [TypeScript SDK](/docs/sdks/typescript) and adds only the Next.js
+parts: the server-only wrapper and the route handler.
+
+<Callout type="warn">
+
+[Read a skill before you run it](https://github.com/crafter-station/wapi/tree/main/.claude/skills/wapi-nextjs)
+— skills execute with your agent's permissions.
+
+</Callout>

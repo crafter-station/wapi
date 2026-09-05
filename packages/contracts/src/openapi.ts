@@ -72,7 +72,14 @@ const PAT_ONLY = new Set(
   ROUTES.filter((r) => r.path.startsWith("/api/whatsapp-sessions")).map((r) => r.operationId),
 );
 
-const tagFor = (path: string): string => {
+/**
+ * Which reference section an operation belongs to.
+ *
+ * Exported because the docs site deep-links into the generated reference, and a Scalar anchor is
+ * `#tag/<tag>/<operationId>`. Deriving the tag a second time over there would be a second copy of
+ * this list, silently wrong the first time a path prefix moved.
+ */
+export const tagFor = (path: string): string => {
   if (path.startsWith("/api/whatsapp-sessions") || path === "/api/status" || path === "/api/user")
     return "Sessions";
   if (path.startsWith("/api/groups")) return "Groups";

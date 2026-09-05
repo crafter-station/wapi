@@ -1,0 +1,64 @@
+---
+title: Session activity
+description: Presence, identity, usernames, and the paper trail a session leaves.
+operations:
+  - getApiStatus
+  - getApiUser
+  - getApiFetchUsernameContactIdentifier
+  - postApiSendPresenceUpdate
+  - getApiWhatsappSessionsWhatsappSessionMessageLogs
+  - getApiWhatsappSessionsWhatsappSessionSessionLogs
+---
+
+## Is it connected?
+
+```bash
+curl https://api.wapi.crafter.run/api/status -H "Authorization: Bearer $KEY"
+```
+
+No session id in the path — the key already said which session you mean. See
+[Authentication](/docs/authentication).
+
+## Who am I?
+
+```bash
+curl https://api.wapi.crafter.run/api/user -H "Authorization: Bearer $KEY"
+```
+
+```json
+{ "success": true, "data": { "id": "51999888777@s.whatsapp.net", "lid": "…@lid", "name": "Ada" } }
+```
+
+The identity field is `id`, **not `jid`** — worth stating because reading the wrong one gives you
+`undefined` for a perfectly healthy session rather than an error.
+
+## Typing indicators
+
+```bash
+curl -X POST https://api.wapi.crafter.run/api/send-presence-update \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"jid":"+51999888777","type":"composing"}'
+```
+
+`type` is one of `unavailable`, `available`, `composing`, `recording`, `paused`.
+
+This is **fire-and-forget**. WhatsApp acknowledges nothing, so a `200` means the frame left — not
+that anybody saw it. There is no way to find out whether it was displayed.
+
+## Usernames
+
+```bash
+curl https://api.wapi.crafter.run/api/fetch-username/+51999888777 -H "Authorization: Bearer $KEY"
+```
+
+Returns `{ "username": null }` for most accounts, inside a `200`. Absence is a **success**: most
+people have not set one, and WhatsApp offers no way to distinguish "no username" from "not
+allowed to see it".
+
+## Logs
+
+`GET /api/whatsapp-sessions/{id}/message-logs` — what the session sent, with delivery status.
+Needs `log_messages` on, and a **Personal Access Token**.
+
+`GET /api/whatsapp-sessions/{id}/session-logs` — connection events: pairing, drops, reconnects.
+The first place to look when a session keeps disconnecting.

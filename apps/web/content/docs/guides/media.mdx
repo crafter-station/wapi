@@ -1,0 +1,103 @@
+---
+title: Media
+description: Upload, send by URL, and decrypt what arrives — inbound media is encrypted.
+operations:
+  - postApiUpload
+  - postApiDecryptMedia
+---
+
+Media is sent **by URL**. `imageUrl`, `videoUrl`, `audioUrl`, `documentUrl` and `stickerUrl` are
+fetched server-side when the message goes out, so whatever you point at has to still resolve at
+send time — not just when you make the call.
+
+If you don't already host the file, upload it first and use the URL you get back. That one is
+permanent.
+
+## Uploading
+
+<Tabs items={["Binary", "Base64"]}>
+<Tab value="Binary">
+
+```bash
+curl -X POST https://api.wapi.crafter.run/api/upload \
+  -H "Authorization: Bearer $KEY" \
+  -H 'Content-Type: image/png' \
+  --data-binary @photo.png
+```
+
+```json
+{ "success": true, "publicUrl": "https://api.wapi.crafter.run/media/<uuid>/photo.png" }
+```
+
+</Tab>
+<Tab value="Base64">
+
+```bash
+curl -X POST https://api.wapi.crafter.run/api/upload \
+  -H "Authorization: Bearer $KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"base64":"iVBORw0KGgo...","mimetype":"image/png","fileName":"photo.png"}'
+```
+
+</Tab>
+</Tabs>
+
+Then send it:
+
+```json
+{ "to": "+51999888777",
+  "imageUrl": "https://api.wapi.crafter.run/media/<uuid>/photo.png",
+  "text": "optional caption" }
+```
+
+Uploads cap at **16 MB**.
+
+## Inbound media is encrypted
+
+This is the part that surprises people. WhatsApp hands out a CDN link plus a `mediaKey`, and the
+bytes behind that link are **useless without decryption** — download them directly and you get
+ciphertext, not an image.
+
+Take the `imageMessage` node (or `videoMessage`, `audioMessage`, `documentMessage`,
+`stickerMessage`) from the webhook payload and post it straight through:
+
+```bash
+curl -X POST https://api.wapi.crafter.run/api/decrypt-media \
+  -H "Authorization: Bearer $KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"data":{"messages":{"message":{"imageMessage":{ ...from webhook... }}}}}'
+```
+
+```json
+{ "success": true,
+  "publicUrl": "https://api.wapi.crafter.run/media/<uuid>.jpg?expires=1750000000&sig=<hmac>" }
+```
+
+You do not need to unwrap the webhook payload — pass the node as it arrived.
+
+## Two kinds of URL
+
+The difference matters when you decide what to store.
+
+| | Upload | Decrypt |
+| --- | --- | --- |
+| Shape | `/media/<uuid>/<name>` | `/media/<uuid>.jpg?expires=…&sig=…` |
+| Lifetime | Permanent | **One hour** |
+| Safe to store? | Yes | No — store the bytes, not the link |
+
+A decrypted URL is signed and expires. If you need to keep inbound media, fetch it and put it in
+your own storage within the hour; persisting the link gives you a dead reference tomorrow.
+
+## What goes wrong
+
+| Status | Meaning |
+| --- | --- |
+| `422` | Neither a body nor a recognisable media node. |
+| `413` | Over 16 MB. |
+| `503` | Storage is not configured on this deployment. `GET /health` reports it. |
+
+## In a sandbox
+
+`decrypt-media` returns a fixed PNG rather than doing real decryption — there is no real
+ciphertext to decrypt. That is enough to exercise your handler's *plumbing*, but it means a
+sandbox cannot tell you whether your image processing works on real WhatsApp media.
