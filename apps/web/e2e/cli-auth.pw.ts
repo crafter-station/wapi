@@ -63,6 +63,23 @@ test("a terminal can be authorised from the browser, and the token works", async
   expect((await replay.json())["status"]).toBe("expired");
 });
 
+test("the approval URL points at the public host, not the container's", async ({ request }) => {
+  /**
+   * Deriving it from `req.url` works perfectly on localhost and gives `https://0.0.0.0:3000` in
+   * production, because behind Traefik the request URL carries the bind address — so the CLI
+   * printed a link nobody could open. It shipped, and was found by calling the deployed endpoint.
+   *
+   * Forwarding a host is the only way to reproduce a proxy locally, which is why this test sends
+   * the header rather than trusting the happy path.
+   */
+  const res = await request.post("/api/cli/start", {
+    data: { hostname: "proxy-check" },
+    headers: { "x-forwarded-host": "wapi.example.com", "x-forwarded-proto": "https" },
+  });
+  const { verification_url } = (await res.json()) as { verification_url: string };
+  expect(verification_url).toMatch(/^https:\/\/wapi\.example\.com\/cli\?code=/);
+});
+
 test("an unknown poll token is indistinguishable from a spent one", async ({ request }) => {
   // Both answer `expired`, deliberately: neither should tell a guesser they are close.
   const res = await request.post("/api/cli/poll", { data: { poll_token: "0".repeat(64) } });

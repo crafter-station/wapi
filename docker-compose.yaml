@@ -91,6 +91,9 @@ services:
       # because the edge is part of what it is checking.
       API_INTERNAL_URL: http://api:3001
       API_PUBLIC_URL: https://api.wapi.crafter.run
+      # Where the CLI is told to send people to approve a login. Derived from the request it would
+      # be the container's bind address, which is not a URL anybody can open.
+      WEB_PUBLIC_URL: https://wapi.crafter.run
     expose:
       - "3000"
     depends_on:

@@ -46,7 +46,22 @@ export async function POST(req: Request) {
     await close();
   }
 
-  const origin = new URL(req.url).origin;
+  /**
+   * The public origin, not the one this process is bound to.
+   *
+   * `new URL(req.url).origin` gave `https://0.0.0.0:3000` in production, because behind Traefik
+   * the request URL carries the container's bind address — so the CLI printed a link nobody could
+   * open. Found by calling the deployed endpoint rather than trusting it.
+   *
+   * Configuration first, then what the proxy forwarded, then the request as a last resort. The
+   * `x-forwarded-*` headers are trustworthy here specifically because nothing reaches this
+   * process except through Traefik.
+   */
+  const forwardedHost = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  const forwardedProto = req.headers.get("x-forwarded-proto") ?? "https";
+  const origin =
+    process.env["WEB_PUBLIC_URL"] ??
+    (forwardedHost ? `${forwardedProto}://${forwardedHost}` : new URL(req.url).origin);
   return Response.json({
     expires_in: TTL_MS / 1000,
     // Seconds between polls. The CLI honours it; the poll endpoint also enforces a floor.
