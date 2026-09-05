@@ -16,6 +16,14 @@ operations:
 curl https://api.wapi.crafter.run/api/status -H "Authorization: Bearer $KEY"
 ```
 
+```json
+{ "success": true, "data": { "status": "connected" } }
+```
+
+The states you will see are `need_scan` (waiting for a QR to be scanned), `connecting`,
+`connected` and `disconnected`. Only `connected` will accept a send; everything else answers
+`409`, which is why anything automated should poll this rather than assume.
+
 No session id in the path — the key already said which session you mean. See
 [Authentication](/docs/authentication).
 
@@ -54,6 +62,16 @@ curl https://api.wapi.crafter.run/api/fetch-username/+51999888777 -H "Authorizat
 Returns `{ "username": null }` for most accounts, inside a `200`. Absence is a **success**: most
 people have not set one, and WhatsApp offers no way to distinguish "no username" from "not
 allowed to see it".
+
+## What goes wrong
+
+| Symptom | Cause |
+| --- | --- |
+| `/api/status` says `disconnected` | The socket dropped. See connection events in session logs below |
+| `/api/user` returns `undefined` for identity | You read `jid`; the field is `id` |
+| A presence update seems to do nothing | It is fire-and-forget. There is no acknowledgement to read |
+| `fetch-username` returns `null` | Expected. Most accounts have not set one |
+| `message-logs` is empty | `log_messages` is off for that session |
 
 ## Logs
 

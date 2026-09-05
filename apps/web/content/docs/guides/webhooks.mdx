@@ -66,6 +66,53 @@ Two things in there are the whole lesson. **Read the raw body** — any JSON mid
 stream and leaves you nothing to hash. And **acknowledge fast**: wapi retries on a non-2xx, so slow
 handlers turn into duplicate deliveries.
 
+## The payload
+
+```json
+{
+  "event": "messages.received",
+  "sessionId": 1,
+  "timestamp": 1787537909,
+  "data": {
+    "key": { "id": "3EB0...", "remoteJid": "46274715893950@lid",
+             "remoteJidAlt": "51999888777@s.whatsapp.net", "fromMe": false },
+    "message": { "conversation": "hello" },
+    "pushName": "Ada"
+  }
+}
+```
+
+Three things in there are worth knowing before you write the handler.
+
+`remoteJid` is often a **LID** rather than a phone number, with the phone number in `remoteJidAlt`
+where WhatsApp supplied one. Code that assumes a phone number will break on real traffic — see
+[LIDs](/docs/guides/groups-and-contacts#lids).
+
+`message` is WhatsApp's own node, so a text message is `message.conversation` while a media
+message is `message.imageMessage` (or `videoMessage`, `documentMessage`, …) and carries no
+readable text at all. Reach for `?.` rather than assuming a shape.
+
+`key` is what you pass to [react](/docs/guides/sending-messages#reactions) and
+[read receipts](/docs/guides/sending-messages#read-receipts). Inbound messages have no `msgId`,
+because wapi never assigned one — the key is the only handle you get.
+
+## Which events to subscribe to
+
+There are twenty-two. The ones that matter in practice:
+
+| Event | Fires on |
+| --- | --- |
+| `messages.received` | Inbound only |
+| `messages.upsert` | Everything, including your own sends |
+| `message.sent` | A message you sent going out |
+| `messages.update` | Delivery and read receipts |
+| `session.status` | Connection changes |
+| `qrcode.updated` | During pairing |
+
+`messages-personal`, `messages-group` and `messages-newsletter` are **filtered views** of
+`messages.received` rather than separate events, so subscribe to one of those if you only care
+about a single chat kind — and do not subscribe to both, or you will handle each message twice.
+
 ## Inspecting deliveries
 
 `GET /api/dispatches` returns what wapi tried to send, with status and attempt count — the first
@@ -77,6 +124,20 @@ is a problem at your end; no dispatch at all means the event never matched
 
 An inbound `imageMessage` carries a CDN link whose bytes are ciphertext. Pass the node to
 `/api/decrypt-media` — see [Media](/docs/guides/media).
+
+## What goes wrong
+
+| Symptom | Cause |
+| --- | --- |
+| No dispatch recorded at all | The event is not in `webhook_events`, or `webhook_enabled` is false |
+| Dispatch recorded, attempts climbing | Your endpoint returned a non-2xx, or timed out |
+| Signature never matches | JSON middleware consumed the body before you hashed it |
+| Handler runs twice for one message | Subscribed to `messages.received` *and* a filtered view, or acknowledged too slowly |
+| `remoteJid` is not a phone number | It is a LID. Expected — read `remoteJidAlt` |
+
+wapi retries up to five times with exponential backoff, then gives up. A dispatch that exhausted
+its attempts is not redelivered later, so a handler that was down for an hour has genuinely missed
+those messages.
 
 ## Proving your handler works
 

@@ -26,6 +26,22 @@ curl -X POST https://api.wapi.crafter.run/api/whatsapp-sessions \
   -d '{"name":"support line","phone_number":"+51999888777"}'
 ```
 
+```json
+{
+  "success": true,
+  "data": {
+    "id": 3,
+    "name": "support line",
+    "phone_number": "+51999888777",
+    "status": "need_scan",
+    "api_key": "wapi_sk_...",
+    "account_protection": true,
+    "log_messages": false,
+    "webhook_enabled": false
+  }
+}
+```
+
 The response carries the session's `id` and its `api_key` — that key is the credential for every
 session-scoped call.
 
@@ -72,6 +88,19 @@ session *and its credentials*, so the number has to be paired again from scratch
 
 Reconnection after a restart is not instant. Poll `GET /api/status` until `connected` before
 running anything that sends, or you will get a misleading `409`.
+
+## What goes wrong
+
+| Status | Meaning |
+| --- | --- |
+| `403` | You sent a session key. Everything on this page needs a PAT |
+| `409` | Acting on a session in the wrong state — connecting one already connected |
+| `422` | A phone number in a form WhatsApp rejected |
+
+The one that wastes the most time is not an error at all: a `connect` returns before pairing has
+finished, and a `restart` returns before the socket is back. Both are asynchronous. Poll
+`GET /api/status` until it reports `connected` rather than sending immediately and reading the
+`409` as a real failure.
 
 ## Rotating the key
 

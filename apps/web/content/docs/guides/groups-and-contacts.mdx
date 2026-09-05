@@ -113,6 +113,21 @@ Reproduced deliberately, because their SDK depends on them:
 On `participants/update`, compare what you sent against what came back: that is the only way to
 spot a partial failure, because nothing reports one.
 
+## What goes wrong
+
+| Status | Meaning |
+| --- | --- |
+| `403` | A group write with a Personal Access Token; these need the session key |
+| `404` | The JID is not a group this session belongs to |
+| `422` | A phone number in a form WhatsApp rejected, or an empty participant list |
+| `503` | Session not connected |
+
+Two silent failures matter more than any of those. `participants/update` returns **no status per
+participant**, so a promote that WhatsApp refused looks identical to one it accepted — compare what
+you sent against what came back. And adding somebody whose privacy settings forbid it succeeds at
+the API level and does nothing on WhatsApp; the per-participant `status` on `participants/add` is
+where that shows up.
+
 ## LIDs
 
 Group participants and inbound senders often appear as `…@lid` rather than a phone number. That is

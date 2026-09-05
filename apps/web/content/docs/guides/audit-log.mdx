@@ -19,6 +19,38 @@ The list is paginated in the `{ items, pagination }` shape described in
 [Groups & contacts](/docs/guides/groups-and-contacts#pagination). The single-record endpoint
 returns the full detail, including the request body where one was recorded.
 
+## What a record looks like
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      { "id": 8412, "method": "POST", "path": "/api/send-message",
+        "status": 200, "credential": "session:3", "ip": "203.0.113.9",
+        "created_at": "2026-09-05T21:14:02.331Z" }
+    ],
+    "pagination": { "page": 1, "limit": 50, "total": 1284, "totalPages": 26 }
+  }
+}
+```
+
+`credential` names the *kind* and the identity — `session:3` for a session key, `pat:12` for a
+Personal Access Token — never the credential itself. There is nothing in this table that could be
+replayed as a credential if it leaked, which is deliberate.
+
+`status` is the response wapi returned, so a run of `403`s from one credential is a program
+holding the wrong kind of token, and a run of `503`s is a session that was not connected.
+
+## Filtering
+
+```bash
+curl "https://api.wapi.crafter.run/api/audit-logs?page=1&limit=50&status=422"   -H "Authorization: Bearer $PAT"
+```
+
+Filter by `status` to find failures, or by session to scope it to one number. The dashboard's
+[Audit](/audit) view is the same data with the filters as chips.
+
 ## What it is for
 
 Three things, in practice:
@@ -30,6 +62,14 @@ Three things, in practice:
 - **Watching a token you are about to revoke.** Before revoking, look at what has been using it.
 
 The dashboard renders the same data under [Audit](/audit), with filters by session and status.
+
+## What goes wrong
+
+| Symptom | Cause |
+| --- | --- |
+| `403` | You sent a session key. This is account-scoped, so it needs a PAT |
+| Empty list on a busy account | `page` is past `totalPages`; check `pagination.total` |
+| A call you made is absent | Unauthenticated requests are not recorded — a `401` never reached the log |
 
 ## What it does not store
 
