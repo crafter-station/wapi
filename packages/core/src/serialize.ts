@@ -51,14 +51,6 @@ export function sessionDetailToWire(s: WhatsappSession) {
   };
 }
 
-/** Safety controls omitted by the cloned detail shape. */
-export function sessionSettingsToWire(s: WhatsappSession) {
-  return {
-    read_incoming_messages: s.readIncomingMessages,
-    ignore_groups: s.ignoreGroups,
-  };
-}
-
 /** A decrypt failure must not 500 the whole request — surface null and log upstream. */
 function safeDecrypt(v: string | null | undefined): string | null {
   if (!v) return null;

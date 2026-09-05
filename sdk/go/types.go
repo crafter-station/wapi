@@ -39,12 +39,6 @@ type SessionDetail struct {
 	WebhookSecret *string `json:"webhook_secret"`
 }
 
-// SessionSettings are the safety controls omitted by the cloned session detail.
-type SessionSettings struct {
-	ReadIncomingMessages bool `json:"read_incoming_messages"`
-	IgnoreGroups         bool `json:"ignore_groups"`
-}
-
 // SendResult is what a send returns. MsgID is wapi's own integer sequence, not WhatsApp's id —
 // WhatsApp's is Key.ID on the record returned by Messages.Info.
 type SendResult struct {

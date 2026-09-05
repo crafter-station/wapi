@@ -48,7 +48,6 @@ client.SendPresence(ctx, jid, "composing")            // typing indicator
 client.FetchUsername(ctx, jid)                        // usually null
 
 client.Sessions.List(ctx)                             // PAT
-client.Sessions.Settings(ctx, 3)                      // effective wapi-only controls
 client.Sessions.Connection.Connect(ctx, 3)
 client.Sessions.Keys.Regenerate(ctx, 3)               // old key dies immediately
 client.Sessions.Logs.Messages(ctx, 3, 1)              // what was sent

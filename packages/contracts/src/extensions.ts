@@ -72,12 +72,6 @@ export const postApiSandboxScanBody = z.object({});
 
 export const EXTENSION_ROUTES = [
   {
-    method: "GET",
-    operationId: "getApiWhatsappSessionsWhatsappSessionSettings",
-    path: "/api/whatsapp-sessions/{whatsappSession}/settings",
-    pathParams: ["whatsappSession"] as string[],
-  },
-  {
     body: postApiMessagesReactBody,
     method: "POST",
     operationId: "postApiMessagesReact",

@@ -363,10 +363,9 @@ without scanning a QR — by a different route. That would be a wapi extension, 
 an open decision rather than an oversight.
 
 Current extensions: `POST /api/messages/react` (they emit `messages.reaction` as a webhook but
-document no way to send one), `GET /api/whatsapp-sessions/{id}/settings` (the two safety controls
-omitted by the cloned detail shape), the three `/api/sandbox/*` controls, and
-`webhook_hmac`, which is dashboard-only. `/health` reports the cloned count and the extension
-count separately, so the cloned-route claim stays true.
+document no way to send one), the three `/api/sandbox/*` controls, and `webhook_hmac`, which is
+dashboard-only. `/health` reports the cloned count and the extension count separately, so "29
+routes" stays a true claim about fidelity.
 
 ---
 
