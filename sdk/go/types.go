@@ -39,6 +39,22 @@ type SessionDetail struct {
 	WebhookSecret *string `json:"webhook_secret"`
 }
 
+// SessionSettings are wapi's effective persisted controls, without session credentials.
+type SessionSettings struct {
+	AccountProtection    bool     `json:"account_protection"`
+	LogMessages          bool     `json:"log_messages"`
+	ReadIncomingMessages bool     `json:"read_incoming_messages"`
+	AutoRejectCalls      bool     `json:"auto_reject_calls"`
+	AlwaysOnline         bool     `json:"always_online"`
+	IgnoreGroups         bool     `json:"ignore_groups"`
+	IgnoreChannels       bool     `json:"ignore_channels"`
+	IgnoreBroadcasts     bool     `json:"ignore_broadcasts"`
+	ProxyURL             *string  `json:"proxy_url"`
+	WebhookURL           *string  `json:"webhook_url"`
+	WebhookEnabled       bool     `json:"webhook_enabled"`
+	WebhookEvents        []string `json:"webhook_events"`
+}
+
 // SendResult is what a send returns. MsgID is wapi's own integer sequence, not WhatsApp's id —
 // WhatsApp's is Key.ID on the record returned by Messages.Info.
 type SendResult struct {

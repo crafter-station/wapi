@@ -767,6 +767,25 @@ export type PutApiGroupsGroupJidSettingsResponse = {
   };
 };
 
+/** Fetch a session's effective persisted settings. */
+export type GetApiWhatsappSessionsWhatsappSessionSettingsResponse = {
+  success: true;
+  data: {
+    account_protection: boolean;
+    log_messages: boolean;
+    read_incoming_messages: boolean;
+    auto_reject_calls: boolean;
+    always_online: boolean;
+    ignore_groups: boolean;
+    ignore_channels: boolean;
+    ignore_broadcasts: boolean;
+    proxy_url: string | null;
+    webhook_url: string | null;
+    webhook_enabled: boolean;
+    webhook_events: string[] | null;
+  };
+};
+
 /** Request body for `POST /api/messages/react`. */
 export type PostApiMessagesReactBody = {
   key: {
@@ -867,6 +886,7 @@ export type Operations = {
   getApiWhatsappSessionsWhatsappSessionMessageLogs: { method: "GET"; path: "/api/whatsapp-sessions/{whatsappSession}/message-logs"; status: 200 };
   getApiWhatsappSessionsWhatsappSessionQrcode: { method: "GET"; path: "/api/whatsapp-sessions/{whatsappSession}/qrcode"; status: 200 };
   getApiWhatsappSessionsWhatsappSessionSessionLogs: { method: "GET"; path: "/api/whatsapp-sessions/{whatsappSession}/session-logs"; status: 200 };
+  getApiWhatsappSessionsWhatsappSessionSettings: { method: "GET"; path: "/api/whatsapp-sessions/{whatsappSession}/settings"; status: 200 };
   postApiContactsContactPhoneNumberBlock: { method: "POST"; path: "/api/contacts/{contactPhoneNumber}/block"; status: 200 };
   postApiContactsContactPhoneNumberUnblock: { method: "POST"; path: "/api/contacts/{contactPhoneNumber}/unblock"; status: 200 };
   postApiDecryptMedia: { method: "POST"; path: "/api/decrypt-media"; status: 200 };

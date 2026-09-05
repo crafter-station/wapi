@@ -65,6 +65,21 @@ const sessionDetail = sessionSummary.extend({
   webhook_secret: z.string().nullable(),
 });
 
+const sessionSettings = z.object({
+  account_protection: z.boolean(),
+  log_messages: z.boolean(),
+  read_incoming_messages: z.boolean(),
+  auto_reject_calls: z.boolean(),
+  always_online: z.boolean(),
+  ignore_groups: z.boolean(),
+  ignore_channels: z.boolean(),
+  ignore_broadcasts: z.boolean(),
+  proxy_url: z.string().nullable(),
+  webhook_url: z.string().nullable(),
+  webhook_enabled: z.boolean(),
+  webhook_events: z.array(z.string()).nullable(),
+});
+
 /**
  * Contacts come in two shapes, and the difference is theirs, not ours.
  *
@@ -217,6 +232,10 @@ export const SUCCESS_RESPONSES: Record<string, SuccessResponse> = {
   getApiWhatsappSessions: { status: 200, schema: ok(z.array(sessionSummary)) },
   postApiWhatsappSessions: { status: 201, schema: ok(sessionDetail) },
   getApiWhatsappSessionsWhatsappSession: { status: 200, schema: ok(sessionDetail) },
+  getApiWhatsappSessionsWhatsappSessionSettings: {
+    status: 200,
+    schema: ok(sessionSettings),
+  },
   putApiWhatsappSessionsWhatsappSession: { status: 200, schema: ok(sessionDetail) },
   deleteApiWhatsappSessionsWhatsappSession: { status: 204 },
   postApiWhatsappSessionsWhatsappSessionRegenerateKey: {

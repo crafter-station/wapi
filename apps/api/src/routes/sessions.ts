@@ -7,6 +7,7 @@ import {
   generateWebhookSecret,
   hashToken,
   sessionDetailToWire,
+  sessionSettingsToWire,
   sessionToWire,
   validateProxy,
   validationFailure,
@@ -83,6 +84,13 @@ export function sessionRoutes(db: Db) {
     const row = await findOwned(db, c.get("auth").accountId, c.req.param("whatsappSession"));
     if (!row) return c.json(fail("The specified session was not found."), 404);
     return c.json(ok(sessionDetailToWire(row)));
+  });
+
+  /** GET /api/whatsapp-sessions/{id}/settings — wapi extension for effective settings. */
+  app.get("/whatsapp-sessions/:whatsappSession/settings", async (c) => {
+    const row = await findOwned(db, c.get("auth").accountId, c.req.param("whatsappSession"));
+    if (!row) return c.json(fail("The specified session was not found."), 404);
+    return c.json(ok(sessionSettingsToWire(row)));
   });
 
   /** PUT /api/whatsapp-sessions/{id} — update. This is where proxy_url is set. */
@@ -198,4 +206,3 @@ async function findOwned(db: Db, accountId: number, idParam: string) {
     .limit(1);
   return row ?? null;
 }
-

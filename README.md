@@ -144,6 +144,10 @@ would not be.
 That claim is a test suite, not an aspiration: response schemas are checked against the
 provider's own documented examples, and again against live responses.
 
+WAPI-specific capabilities remain separate from that cloned surface. In particular,
+`GET /api/whatsapp-sessions/{id}/settings` exposes effective persisted controls that the cloned
+session-detail response omits, without returning the session credential or webhook secret.
+
 ## Clients
 
 Zero runtime dependencies either side. Types are generated from the OpenAPI document so they
