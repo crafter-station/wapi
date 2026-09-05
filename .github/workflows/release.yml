@@ -62,12 +62,22 @@ jobs:
           body: |
             ## wapi CLI
 
-            Download the binary for your machine, make it executable, and put it on your `PATH`:
-
             ```bash
+            # Linux, x64
             curl -fsSL -o wapi https://github.com/crafter-station/wapi/releases/download/${{ github.ref_name }}/wapi-linux-x64
+
+            # macOS, Apple Silicon
+            curl -fsSL -o wapi https://github.com/crafter-station/wapi/releases/download/${{ github.ref_name }}/wapi-darwin-arm64
+            xattr -d com.apple.quarantine wapi   # else Gatekeeper refuses an unsigned download
+
             chmod +x wapi && sudo mv wapi /usr/local/bin/
             wapi login
+            ```
+
+            Windows, in PowerShell — put `wapi.exe` anywhere on your `PATH`:
+
+            ```powershell
+            irm https://github.com/crafter-station/wapi/releases/download/${{ github.ref_name }}/wapi-windows-x64.exe -OutFile wapi.exe
             ```
 
             Verify a download against `SHA256SUMS` if you did not watch it being built.
