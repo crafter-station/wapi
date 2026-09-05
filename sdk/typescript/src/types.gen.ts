@@ -31,7 +31,7 @@ export type ThrottleFailure = {
   retry_after: number;
 };
 
-/** deleteApiMessagesMsgId. */
+/** Delete a sent message for everyone, within WhatsApp's window. */
 export type DeleteApiMessagesMsgIdResponse = {
   message: string;
   success: true;
@@ -42,7 +42,7 @@ export type PutApiMessagesMsgIdBody = {
   text: string;
 };
 
-/** putApiMessagesMsgId. */
+/** Edit a sent message, within the short window WhatsApp allows. */
 export type PutApiMessagesMsgIdResponse = {
   success: true;
   data: {
@@ -163,7 +163,7 @@ export type PutApiContactsBody = {
   saveOnPrimaryAddressbook?: boolean;
 };
 
-/** putApiContacts. */
+/** Save a contact's name in this session's address book, not on the phone. */
 export type PutApiContactsResponse = {
   success: true;
   data: {
@@ -188,7 +188,7 @@ export type GetApiContactsContactPhoneNumberResponse = {
   };
 };
 
-/** getApiContactsContactPhoneNumberPicture. */
+/** A contact's profile picture URL, or null. */
 export type GetApiContactsContactPhoneNumberPictureResponse = {
   success: true;
   data: {
@@ -196,7 +196,7 @@ export type GetApiContactsContactPhoneNumberPictureResponse = {
   };
 };
 
-/** getApiFetchUsernameContactIdentifier. */
+/** A contact's WhatsApp @username, if they have set one. */
 export type GetApiFetchUsernameContactIdentifierResponse = {
   success: true;
   data: {
@@ -291,7 +291,7 @@ export type PostApiGroupsResponse = {
   };
 };
 
-/** getApiGroupsGroupJidInviteLink. */
+/** A group's invite link. Returns inviteLink beside success, not under data. */
 export type GetApiGroupsGroupJidInviteLinkResponse = {
   inviteLink: string;
   success: true;
@@ -331,7 +331,7 @@ export type GetApiGroupsGroupJidParticipantsResponse = {
   }[];
 };
 
-/** getApiGroupsGroupJidPicture. */
+/** A group's picture URL, or null. */
 export type GetApiGroupsGroupJidPictureResponse = {
   success: true;
   data: {
@@ -339,7 +339,7 @@ export type GetApiGroupsGroupJidPictureResponse = {
   };
 };
 
-/** getApiGroupsInviteInviteCode. */
+/** Inspect a group behind an invite code before joining it. */
 export type GetApiGroupsInviteInviteCodeResponse = {
   success: true;
   data: {
@@ -362,7 +362,7 @@ export type GetApiGroupsInviteInviteCodeResponse = {
   };
 };
 
-/** getApiLidFromPnPn. */
+/** Resolve a phone number to its LID. */
 export type GetApiLidFromPnPnResponse = {
   success: true;
   data: {
@@ -393,7 +393,7 @@ export type GetApiOnWhatsappContactIdentifierResponse = {
   };
 };
 
-/** getApiPnFromLidLid. */
+/** Resolve a LID back to a phone number, where known — a miss is legitimate. */
 export type GetApiPnFromLidLidResponse = {
   success: true;
   data: {
@@ -520,7 +520,7 @@ export type GetApiWhatsappSessionsWhatsappSessionSessionLogsQuery = {
   per_page?: number;
 };
 
-/** getApiWhatsappSessionsWhatsappSessionSessionLogs. */
+/** Connection events for a session: pairing, drops and reconnects. */
 export type GetApiWhatsappSessionsWhatsappSessionSessionLogsResponse = {
   success: true;
   data: {
@@ -545,7 +545,7 @@ export type GetApiWhatsappSessionsWhatsappSessionSessionLogsResponse = {
   };
 };
 
-/** postApiContactsContactPhoneNumberBlock. */
+/** Block a contact. */
 export type PostApiContactsContactPhoneNumberBlockResponse = {
   success: true;
   data: {
@@ -553,7 +553,7 @@ export type PostApiContactsContactPhoneNumberBlockResponse = {
   };
 };
 
-/** postApiContactsContactPhoneNumberUnblock. */
+/** Unblock a contact. */
 export type PostApiContactsContactPhoneNumberUnblockResponse = {
   success: true;
   data: {
@@ -572,7 +572,7 @@ export type PostApiDecryptMediaResponse = {
   publicUrl: string;
 };
 
-/** postApiGroupsGroupIdLeave. */
+/** Leave a group. */
 export type PostApiGroupsGroupIdLeaveResponse = {
   success: true;
   data: Record<string, unknown>;
@@ -613,7 +613,7 @@ export type PostApiGroupsInviteAcceptBody = {
   code: string;
 };
 
-/** postApiGroupsInviteAccept. */
+/** Join a group using an invite code. */
 export type PostApiGroupsInviteAcceptResponse = {
   success: true;
   data: {
@@ -621,7 +621,7 @@ export type PostApiGroupsInviteAcceptResponse = {
   };
 };
 
-/** postApiMessagesMessageResend. */
+/** Retry a message whose status is failed. Requires log_messages. */
 export type PostApiMessagesMessageResendResponse = {
   message: string;
   success: true;
@@ -675,7 +675,7 @@ export type PostApiSendPresenceUpdateBody = {
   delayMs?: number;
 };
 
-/** postApiSendPresenceUpdate. */
+/** Send a typing or recording indicator. Fire-and-forget. */
 export type PostApiSendPresenceUpdateResponse = {
   success: true;
   data: {
@@ -739,7 +739,7 @@ export type PutApiGroupsGroupIdParticipantsUpdateBody = {
   participants: unknown[];
 };
 
-/** putApiGroupsGroupIdParticipantsUpdate. */
+/** Promote or demote participants. Returns no per-participant status. */
 export type PutApiGroupsGroupIdParticipantsUpdateResponse = {
   success: true;
   data: {
@@ -758,7 +758,7 @@ export type PutApiGroupsGroupJidSettingsBody = {
   profilePicUrl?: string;
 };
 
-/** putApiGroupsGroupJidSettings. */
+/** Change a group's subject, description or restrictions. */
 export type PutApiGroupsGroupJidSettingsResponse = {
   success: true;
   data: {
@@ -842,7 +842,7 @@ export type PostApiTokensBody = {
   name: string;
 };
 
-/** postApiTokens. */
+/** Mint a Personal Access Token. Shown once and never again. */
 export type PostApiTokensResponse = {
   success: true;
   data: {
@@ -853,7 +853,7 @@ export type PostApiTokensResponse = {
   };
 };
 
-/** getApiTokens. */
+/** List this account's Personal Access Tokens, without their values. */
 export type GetApiTokensResponse = {
   success: true;
   data: {
@@ -865,7 +865,7 @@ export type GetApiTokensResponse = {
   }[];
 };
 
-/** deleteApiTokensToken. */
+/** Revoke a Personal Access Token. */
 export type DeleteApiTokensTokenResponse = {
   message: string;
   success: true;
@@ -878,7 +878,7 @@ export type GetApiAuditLogsQuery = {
   session_id?: number;
 };
 
-/** getApiAuditLogs. */
+/** Paginated record of every authenticated API call on this account. */
 export type GetApiAuditLogsResponse = {
   success: true;
   data: {
@@ -909,7 +909,7 @@ export type GetApiAuditLogsResponse = {
   };
 };
 
-/** getApiAuditLogsAuditLog. */
+/** One audit record in full, including the request body where stored. */
 export type GetApiAuditLogsAuditLogResponse = {
   success: true;
   data: {
@@ -935,7 +935,7 @@ export type GetApiDispatchesQuery = {
   per_page?: number;
 };
 
-/** getApiDispatches. */
+/** Webhook delivery attempts, with status and attempt count. */
 export type GetApiDispatchesResponse = {
   success: true;
   data: {
@@ -965,7 +965,7 @@ export type GetApiDispatchesResponse = {
   };
 };
 
-/** getApiSandboxThread. */
+/** The conversation on a sandbox session, in both directions. */
 export type GetApiSandboxThreadResponse = {
   success: true;
   data: {
