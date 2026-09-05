@@ -119,12 +119,6 @@ class SessionsResource:
         """
         return data(self._http.request("GET", f"/api/whatsapp-sessions/{session_id}"))
 
-    def settings(self, session_id: int) -> Any:
-        """Safety controls omitted by the cloned session detail."""
-        return data(
-            self._http.request("GET", f"/api/whatsapp-sessions/{session_id}/settings")
-        )
-
     def create(self, **fields: Any) -> Any:
         """Create a session and issue its API key.
 

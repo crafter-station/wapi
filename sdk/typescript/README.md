@@ -81,7 +81,7 @@ message was undelivered — retrying sends twice. Reconcile with `messages.info(
 ```
 wapi.status() user() sendPresence() fetchUsername()
 
-wapi.sessions.list() get() settings() create() update() delete()
+wapi.sessions.list() get() create() update() delete()
 wapi.sessions.connection.connect() disconnect() restart() qrCode()
 wapi.sessions.keys.regenerate()
 wapi.sessions.logs.messages() activity()

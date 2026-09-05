@@ -65,11 +65,6 @@ const sessionDetail = sessionSummary.extend({
   webhook_secret: z.string().nullable(),
 });
 
-const sessionSettings = z.object({
-  read_incoming_messages: z.boolean(),
-  ignore_groups: z.boolean(),
-});
-
 /**
  * Contacts come in two shapes, and the difference is theirs, not ours.
  *
@@ -222,10 +217,6 @@ export const SUCCESS_RESPONSES: Record<string, SuccessResponse> = {
   getApiWhatsappSessions: { status: 200, schema: ok(z.array(sessionSummary)) },
   postApiWhatsappSessions: { status: 201, schema: ok(sessionDetail) },
   getApiWhatsappSessionsWhatsappSession: { status: 200, schema: ok(sessionDetail) },
-  getApiWhatsappSessionsWhatsappSessionSettings: {
-    status: 200,
-    schema: ok(sessionSettings),
-  },
   putApiWhatsappSessionsWhatsappSession: { status: 200, schema: ok(sessionDetail) },
   deleteApiWhatsappSessionsWhatsappSession: { status: 204 },
   postApiWhatsappSessionsWhatsappSessionRegenerateKey: {

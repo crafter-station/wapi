@@ -767,15 +767,6 @@ export type PutApiGroupsGroupJidSettingsResponse = {
   };
 };
 
-/** Fetch safety controls omitted by session detail. */
-export type GetApiWhatsappSessionsWhatsappSessionSettingsResponse = {
-  success: true;
-  data: {
-    read_incoming_messages: boolean;
-    ignore_groups: boolean;
-  };
-};
-
 /** Request body for `POST /api/messages/react`. */
 export type PostApiMessagesReactBody = {
   key: {
@@ -876,7 +867,6 @@ export type Operations = {
   getApiWhatsappSessionsWhatsappSessionMessageLogs: { method: "GET"; path: "/api/whatsapp-sessions/{whatsappSession}/message-logs"; status: 200 };
   getApiWhatsappSessionsWhatsappSessionQrcode: { method: "GET"; path: "/api/whatsapp-sessions/{whatsappSession}/qrcode"; status: 200 };
   getApiWhatsappSessionsWhatsappSessionSessionLogs: { method: "GET"; path: "/api/whatsapp-sessions/{whatsappSession}/session-logs"; status: 200 };
-  getApiWhatsappSessionsWhatsappSessionSettings: { method: "GET"; path: "/api/whatsapp-sessions/{whatsappSession}/settings"; status: 200 };
   postApiContactsContactPhoneNumberBlock: { method: "POST"; path: "/api/contacts/{contactPhoneNumber}/block"; status: 200 };
   postApiContactsContactPhoneNumberUnblock: { method: "POST"; path: "/api/contacts/{contactPhoneNumber}/unblock"; status: 200 };
   postApiDecryptMedia: { method: "POST"; path: "/api/decrypt-media"; status: 200 };
