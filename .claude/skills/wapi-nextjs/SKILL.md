@@ -53,6 +53,10 @@ sandbox all of it is invented, and the read-back works: a created group is liste
 `POST /api/groups/invite/accept`, and a name saved with `PUT /api/contacts` shows up in the
 directory.
 
+If you have a shell, the `wapi` CLI does all of this in one line each — `wapi sandbox create
+--use`, `wapi sessions connect`, `wapi sandbox inbound "hello"` — and `wapi sandbox thread -f`
+tails the fake conversation while your handler runs. Binaries are attached to each release.
+
 If you have a browser, the dashboard gives a sandbox its own **Sandbox** tab: the invented
 contacts, the conversation as it happens, and a box to write a message *as* one of those contacts.
 It is the fastest way to watch your webhook handler run.

@@ -52,6 +52,7 @@ export default function DocsPage() {
               ["session", "Session activity"],
               ["webhooks", "Webhooks"],
               ["sandbox", "Sandbox"],
+              ["cli", "Command line"],
               ["errors", "Errors"],
               ["audit", "Audit log"],
               ["typescript", "TypeScript SDK"],
@@ -689,6 +690,64 @@ await wapi.sandbox.inbound("and a reply");      // fires your webhook`,
               and a box to write a message <em>as</em> one of those contacts. It is the shortest
               path from &ldquo;I have a webhook handler&rdquo; to &ldquo;I have watched it
               run&rdquo;.
+            </p>
+          </S>
+
+          {/* ----------------------------------------------------------- cli */}
+          <S id="cli" kicker="Command line" title={<>The whole API, <em>from a terminal.</em></>}>
+            <p>
+              <code>wapi</code> is a single binary with no runtime to install — the same 57
+              operations this page documents, one command each, plus an escape hatch for anything
+              that lands before its command does.
+            </p>
+            <Code
+              tabs={[
+                {
+                  label: "Install", lang: "bash",
+                  code: `curl -fsSL -o wapi https://github.com/crafter-station/wapi/releases/latest/download/wapi-linux-x64
+chmod +x wapi && sudo mv wapi /usr/local/bin/
+
+# macOS: wapi-darwin-arm64   Windows: wapi-windows-x64.exe`,
+                },
+                {
+                  label: "First run", lang: "bash",
+                  code: `wapi login                    # prints a code, opens your browser to approve it
+wapi sandbox create --use     # a fake number — no phone, nothing to ban
+wapi sessions connect         # pairs itself in a few seconds
+
+wapi send --to +51999888777 --text "hello"
+wapi sandbox inbound "and a reply"   # fires your webhook, for real
+wapi sandbox thread -f               # tail the conversation while your handler runs`,
+                },
+                {
+                  label: "Scripting", lang: "bash",
+                  code: `# --json on anything, and it composes with jq.
+wapi sessions list --json | jq -r '.[] | select(.status=="connected") | .id'
+
+# Exit codes: 0 success, 1 failure, 2 usage, 3 credentials.
+wapi status --json || echo "exit $?"
+
+# Anything without a command yet — the right credential is attached for you.
+wapi api GET /api/groups`,
+                },
+              ]}
+            />
+            <p className="mt-5">
+              <strong>One token does everything.</strong> <code>wapi login</code> approves a code
+              in your browser and stores a Personal Access Token; session keys are fetched from it
+              on demand, so there is no second credential to manage. The token appears on your
+              tokens page named after the machine, and revoking it there signs that machine out.
+            </p>
+            <p>
+              <strong>Destructive commands refuse to guess.</strong> Deleting a session or leaving
+              a group asks first, takes <code>-y</code>, and off a terminal without{" "}
+              <code>-y</code> it <em>fails</em> rather than proceeding — auto-confirming inside a
+              script is how a scheduled job deletes something at three in the morning.
+            </p>
+            <p>
+              Point it at your own deployment with <code>--profile</code> or{" "}
+              <code>WAPI_BASE_URL</code>. Config lives in{" "}
+              <code>~/.wapi/config/config.json</code>.
             </p>
           </S>
 

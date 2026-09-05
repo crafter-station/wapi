@@ -51,6 +51,19 @@ Add `REDIS_URL` and a running `apps/webhook-worker` and the webhook-delivery tes
 hosts its own sink, fabricates an inbound message and waits for the signed POST. Without Redis it
 skips, because there is no worker and therefore no delivery.
 
+The CLI runs from source in-repo, and compiles to the binary that ships:
+
+```bash
+bun run --cwd apps/cli wapi --help
+bun build apps/cli/src/index.ts --compile --outfile /tmp/wapi   # what CI and releases build
+
+bun ops/check-cli-in-sync.mjs        # does every operation have a command?
+WAPI_CLI_BIN=/tmp/wapi WAPI_PAT=… bun test compat/cli.test.ts
+```
+
+On Windows, Git Bash rewrites `/api/...` arguments before the process sees them. The CLI recovers
+and warns; `MSYS_NO_PATHCONV=1` stops it happening.
+
 Browser tests need Chromium and real Clerk keys, both one-time:
 
 ```bash
@@ -77,6 +90,7 @@ like success, and is worth reading before changing anything there.
 | `packages/db` | — | Drizzle schema + migrations |
 | `packages/baileys-auth` | — | Postgres-backed `AuthenticationState` |
 | `compat/` | — | SDK-compat, fidelity (sandbox) and live integration suites |
+| `apps/cli` | Bun | `wapi` — one command per operation, compiled to a binary |
 | `apps/web/e2e` | — | Playwright — the only thing that renders a page |
 | `sdk/typescript` | — | TypeScript client. Types generated, surface hand-written |
 | `sdk/python` | — | Python client. Stdlib only, same surface, snake_case |
@@ -238,6 +252,43 @@ a change takes effect on the next connect — a live socket cannot be re-pointed
 it, and `account_protection` works the same way. An unusable proxy refuses the connect rather than
 falling back to a direct one; falling back is the failure a proxy user would least want and least
 likely notice.
+
+---
+
+## The CLI
+
+`apps/cli` is a **pure API client**. It holds one Personal Access Token and nothing else: a PAT
+can read any session's detail, and that response carries the session key, so the CLI fetches keys
+on demand and caches them. There is no second credential, no `--key` flag, and no `regenerate` in
+the happy path. It therefore works against the hosted deployment and against a stack you booted,
+selected by profile — `~/.wapi/config/config.json`, plaintext at `0600`, env vars beating the file.
+
+**Login is a device flow, and it lives on the dashboard** (`apps/web/src/app/cli`), not the public
+API, so the cloned surface stays credential-only. Short code for the human, high-entropy poll token
+for the terminal; approving mints an ordinary PAT named `cli@<hostname>` that shows on the tokens
+page and revokes like any other.
+
+Two guards, and they answer different questions:
+
+- `ops/check-cli-in-sync.mjs` — does a command *exist* for every operation? Both directions: every
+  operation claimed, and every claimed command resolving in the real tree. The mapping is one
+  table in `apps/cli/src/coverage.ts`, like `SCOPES` in `generate.ts`.
+- `compat/cli.test.ts` — do the commands *do what their names say*? It drives the **compiled
+  binary** against a booted stack and asserts on what the server did. A coverage table can lie;
+  only running the commands catches it.
+
+**`wapi api` is deliberately not coverage.** The guard fails if anyone declares it. If the escape
+hatch counted, the check would pass on day one and forever.
+
+Rules worth keeping: commands mirror the SDK's nouns exactly, with `wapi send` as the single
+alias; format never changes with the terminal (`--json` is explicit, colour follows the TTY);
+exit `3` is reserved for credential problems, because this API's `403` reads like a permissions
+failure and is really a configuration one; and destructive commands **refuse off a TTY** without
+`-y` rather than guessing.
+
+`wapi doctor` runs entirely client-side. That is why the operator routes have no doctor endpoint:
+every check is an ordinary call a session key can make, and a check you just ran is already in
+front of you.
 
 ---
 
@@ -458,14 +509,17 @@ Each catches something the others cannot. Do not collapse them.
    empty database. Nothing else here opens a page: typecheck proves the TypeScript is sound and
    `next build` proves the routes compile, and neither can tell you a button does nothing or that
    a nav is unusable on a phone — both of which it found on its first run.
-6. **Live integration** (`compat/integration.test.ts`) — real HTTP against production,
+6. **CLI** (`compat/cli.test.ts`) — the compiled `wapi` binary against the same booted stack,
+   asserting on what the server did rather than on exit codes. The only check that catches a
+   coverage table claiming a command that does nothing.
+7. **Live integration** (`compat/integration.test.ts`) — real HTTP against production,
    including parsing live responses with the schemas `/openapi.json` publishes. This is what
    catches a handler drifting from its own documentation.
 
-The line between 4 and 6 is **what a test proves**, not what is convenient. Anything a fake can
+The line between 4 and 7 is **what a test proves**, not what is convenient. Anything a fake can
 fail belongs in 4, where it runs before deploy. Anything only a real linked number can fail —
 Baileys pairing, a message reaching a phone, WhatsApp resolving a number or a LID, a real
-encrypted media node — belongs in 6 and must never be moved. A fake cannot catch what a fake
+encrypted media node — belongs in 7 and must never be moved. A fake cannot catch what a fake
 does not do.
 
 **Group mutations live in 4 and stay there.** Exercising them for real means creating a real group

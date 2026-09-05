@@ -84,6 +84,23 @@ sequenceDiagram
     K-->>C: POST your webhook_url
 ```
 
+## From a terminal
+
+```bash
+wapi login                                   # approve a code in your browser
+wapi sandbox create --use                    # a fake number, no phone needed
+wapi sessions connect                        # pairs itself in a few seconds
+wapi send --to +51999888777 --text "hello"
+```
+
+Every one of the API's 57 operations has a command, and a guard fails CI when one does not.
+`--json` on anything makes it composable with `jq`; exit codes are `0` success, `2` usage, `3`
+credentials. `wapi api GET /api/status` reaches anything without a command yet, attaching the
+right credential by reading the route's declared scope.
+
+Binaries for Linux, macOS and Windows are attached to each release — no runtime to install. See
+[`apps/cli`](apps/cli).
+
 ## No phone? Use a sandbox
 
 Linking a real number needs a phone, a QR scan, and a number you are willing to have banned. A
@@ -214,6 +231,7 @@ an account-protection mode paces sends. Neither is a guarantee.
 | `apps/gateway` | Node 22 — Baileys sockets, internal RPC only |
 | `apps/webhook-worker` | BullMQ — delivery with retry and backoff |
 | `apps/web` | Next.js 16 — dashboard, guide, Clerk auth |
+| `apps/cli` | Bun — `wapi`, covering all 57 operations |
 | `packages/contracts` | Zod contracts + the emitted OpenAPI document |
 | `packages/core` | shared logic, `WhatsAppEngine` and `Storage` interfaces |
 | `packages/db` | Drizzle schema and migrations |

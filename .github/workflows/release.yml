@@ -1,0 +1,81 @@
+name: Release
+
+# Tags only. A release is a deliberate act, not something a push to main should produce.
+on:
+  push:
+    tags: ["v*"]
+
+# The workflow creates a release and uploads to it; nothing else needs write access.
+permissions:
+  contents: write
+
+jobs:
+  cli:
+    name: CLI binaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          # Pinned to match CI. A binary built by a different Bun than the one the tests ran
+          # under is not the artifact those tests passed against.
+          bun-version: 1.2.23
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Guards
+        # A tag can be pushed without a green CI run on that commit, so the checks that matter for
+        # this artifact run again here. Cheap, and the alternative is shipping a CLI that does not
+        # cover the API it claims to.
+        run: |
+          bun run typecheck
+          bun ops/check-cli-in-sync.mjs
+
+      - name: Compile
+        # Bun cross-compiles from one runner, so three platforms need one job rather than a matrix
+        # of three. Named by platform-arch rather than by Bun's target string, because the person
+        # downloading knows which machine they are on and not what `bun-darwin-arm64` means.
+        run: |
+          mkdir -p dist
+          bun build apps/cli/src/index.ts --compile --target=bun-linux-x64    --outfile dist/wapi-linux-x64
+          bun build apps/cli/src/index.ts --compile --target=bun-darwin-arm64 --outfile dist/wapi-darwin-arm64
+          bun build apps/cli/src/index.ts --compile --target=bun-windows-x64  --outfile dist/wapi-windows-x64.exe
+          ls -la dist
+
+      - name: Check the native one actually runs
+        # The two cross-compiled binaries cannot be executed here, so this proves only the Linux
+        # one — but a build that produces a file which is not a program is the failure worth
+        # catching, and it fails the same way on all three when it happens.
+        run: |
+          chmod +x dist/wapi-linux-x64
+          ./dist/wapi-linux-x64 --version
+
+      - name: Checksums
+        # So somebody can verify a download they did not watch being built.
+        run: cd dist && sha256sum wapi-* > SHA256SUMS
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          body: |
+            ## wapi CLI
+
+            Download the binary for your machine, make it executable, and put it on your `PATH`:
+
+            ```bash
+            curl -fsSL -o wapi https://github.com/crafter-station/wapi/releases/download/${{ github.ref_name }}/wapi-linux-x64
+            chmod +x wapi && sudo mv wapi /usr/local/bin/
+            wapi login
+            ```
+
+            Verify a download against `SHA256SUMS` if you did not watch it being built.
+
+            Nothing to install alongside it — the Bun runtime is inside the binary, which is why
+            they are large.
+          fail_on_unmatched_files: true
+          files: |
+            dist/wapi-linux-x64
+            dist/wapi-darwin-arm64
+            dist/wapi-windows-x64.exe
+            dist/SHA256SUMS
