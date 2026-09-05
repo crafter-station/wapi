@@ -704,10 +704,18 @@ await wapi.sandbox.inbound("and a reply");      // fires your webhook`,
               tabs={[
                 {
                   label: "Install", lang: "bash",
-                  code: `curl -fsSL -o wapi https://github.com/crafter-station/wapi/releases/latest/download/wapi-linux-x64
-chmod +x wapi && sudo mv wapi /usr/local/bin/
+                  code: `# Linux, x64
+curl -fsSL -o wapi https://github.com/crafter-station/wapi/releases/latest/download/wapi-linux-x64
 
-# macOS: wapi-darwin-arm64   Windows: wapi-windows-x64.exe`,
+# macOS, Apple Silicon
+curl -fsSL -o wapi https://github.com/crafter-station/wapi/releases/latest/download/wapi-darwin-arm64
+xattr -d com.apple.quarantine wapi   # else Gatekeeper refuses an unsigned download
+
+chmod +x wapi && sudo mv wapi /usr/local/bin/
+wapi --version
+
+# Windows, in PowerShell:
+#   irm https://github.com/crafter-station/wapi/releases/latest/download/wapi-windows-x64.exe -OutFile wapi.exe`,
                 },
                 {
                   label: "First run", lang: "bash",
@@ -733,6 +741,11 @@ wapi api GET /api/groups`,
               ]}
             />
             <p className="mt-5">
+              <code>latest</code> follows the newest release; swap it for{" "}
+              <code>download/v0.2.0</code> to pin one. Each release also carries{" "}
+              <code>SHA256SUMS</code>, worth checking on a binary you did not watch being built.
+            </p>
+            <p>
               <strong>One token does everything.</strong> <code>wapi login</code> approves a code
               in your browser and stores a Personal Access Token; session keys are fetched from it
               on demand, so there is no second credential to manage. The token appears on your
@@ -999,7 +1012,7 @@ const newKey = await admin.sessions.keys.regenerate(session.id);`,
 pip install "git+https://github.com/crafter-station/wapi.git#subdirectory=sdk/python"
 
 # Pin a tag for anything you deploy — main moves.
-pip install "git+https://github.com/crafter-station/wapi.git@v0.1.0#subdirectory=sdk/python"`,
+pip install "git+https://github.com/crafter-station/wapi.git@v0.2.0#subdirectory=sdk/python"`,
                 },
               ]}
             />
@@ -1072,9 +1085,11 @@ except WapiUnavailableError as e:
               tabs={[
                 {
                   label: "Install", lang: "bash",
-                  code: `go get github.com/crafter-station/wapi/sdk/go@main
+                  code: `go get github.com/crafter-station/wapi/sdk/go@v0.2.0
 
-# Pin a commit for anything you deploy — @main moves.`,
+# @main moves, so pin a tag for anything you deploy. Go resolves a module in a
+# subdirectory through a path-prefixed tag: the repo carries sdk/go/v0.2.0
+# alongside v0.2.0, which is what makes the line above work.`,
                 },
                 {
                   label: "Send", lang: "javascript",

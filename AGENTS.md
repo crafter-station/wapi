@@ -539,10 +539,29 @@ inside the auth store, middleware registered after its routes, a bind mount that
 ## Deploying
 
 ```bash
-git push origin main
-vps compose redeploy zHI9vuip7TU9vSuCH71QU
-# poll composeStatus until "done"
+git push origin main   # that is the deploy
 ```
+
+**Pushing to `main` is the deploy.** The Dokploy compose has `autoDeploy: true` on `main` with
+`sourceType: github`, so it redeploys itself. `vps compose redeploy zHI9vuip7TU9vSuCH71QU`
+forces one — useful when only an environment variable changed, since that is not a push — but
+after an ordinary push it is redundant, and you can poll `composeStatus` until `"done"` instead.
+
+**Releases are tags, and there are two of them.**
+
+```bash
+git tag v0.2.0 && git tag sdk/go/v0.2.0
+git push origin v0.2.0 sdk/go/v0.2.0
+```
+
+`.github/workflows/release.yml` fires on `v*` and cross-compiles the CLI for three platforms
+from one Linux runner. The second tag builds nothing: Go resolves a module in a subdirectory
+through a **path-prefixed** tag, so `go get …/sdk/go@v0.2.0` only works if `sdk/go/v0.2.0`
+exists. `v*` does not match across `/`, so the second tag cannot double-fire the workflow.
+
+Bump `apps/cli/package.json` first — the CLI reads its `--version` from there, and a binary
+reporting a version that does not match its tag sends bug reports at the wrong code. The SDK
+READMEs and the docs page pin the tag too; `ops/check-sdk-in-sync.mjs` does not check versions.
 
 **A gateway redeploy drops the WhatsApp session.** It reconnects from stored credentials, but
 not instantly — POST `…/3/connect` with a PAT and poll `GET /api/status` until `connected`

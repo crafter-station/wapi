@@ -55,7 +55,18 @@ directory.
 
 If you have a shell, the `wapi` CLI does all of this in one line each — `wapi sandbox create
 --use`, `wapi sessions connect`, `wapi sandbox inbound "hello"` — and `wapi sandbox thread -f`
-tails the fake conversation while your handler runs. Binaries are attached to each release.
+tails the fake conversation while your handler runs. It is a single binary with the runtime
+inside, so installing it adds nothing to the project:
+
+```bash
+curl -fsSL -o wapi https://github.com/crafter-station/wapi/releases/latest/download/wapi-linux-x64
+chmod +x wapi && sudo mv wapi /usr/local/bin/
+wapi login
+```
+
+On macOS use `wapi-darwin-arm64` and clear the quarantine attribute afterwards
+(`xattr -d com.apple.quarantine wapi`), or Gatekeeper refuses to run an unsigned download. On
+Windows the asset is `wapi-windows-x64.exe`.
 
 If you have a browser, the dashboard gives a sandbox its own **Sandbox** tab: the invented
 contacts, the conversation as it happens, and a box to write a message *as* one of those contacts.
