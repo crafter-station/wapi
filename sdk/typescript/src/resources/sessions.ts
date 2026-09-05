@@ -174,7 +174,7 @@ export class SessionsResource {
     );
   }
 
-  /** Effective persisted settings exposed by wapi without session credentials. */
+  /** Safety controls omitted by the cloned session detail. */
   async settings(sessionId: number): Promise<SessionSettings> {
     return data(
       await this.http.request<GetApiWhatsappSessionsWhatsappSessionSettingsResponse>(

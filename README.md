@@ -145,8 +145,8 @@ That claim is a test suite, not an aspiration: response schemas are checked agai
 provider's own documented examples, and again against live responses.
 
 WAPI-specific capabilities remain separate from that cloned surface. In particular,
-`GET /api/whatsapp-sessions/{id}/settings` exposes effective persisted controls that the cloned
-session-detail response omits, without returning the session credential or webhook secret.
+`GET /api/whatsapp-sessions/{id}/settings` exposes the two effective safety controls that the
+cloned session-detail response omits, without returning any other session configuration.
 
 ## Clients
 

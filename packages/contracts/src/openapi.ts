@@ -35,7 +35,7 @@ const SUMMARIES: Record<string, string> = {
   getApiWhatsappSessions: "List every WhatsApp session on the account",
   postApiWhatsappSessions: "Create a WhatsApp session and issue its API key",
   getApiWhatsappSessionsWhatsappSession: "Fetch one session, including its API key and webhook secret",
-  getApiWhatsappSessionsWhatsappSessionSettings: "Fetch a session's effective persisted settings",
+  getApiWhatsappSessionsWhatsappSessionSettings: "Fetch safety controls omitted by session detail",
   putApiWhatsappSessionsWhatsappSession: "Update a session's settings, webhook config or proxy",
   deleteApiWhatsappSessionsWhatsappSession: "Delete a session and revoke its API key",
   postApiWhatsappSessionsWhatsappSessionConnect: "Begin linking, returning a QR code when one is ready",

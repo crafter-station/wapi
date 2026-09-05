@@ -66,18 +66,8 @@ const sessionDetail = sessionSummary.extend({
 });
 
 const sessionSettings = z.object({
-  account_protection: z.boolean(),
-  log_messages: z.boolean(),
   read_incoming_messages: z.boolean(),
-  auto_reject_calls: z.boolean(),
-  always_online: z.boolean(),
   ignore_groups: z.boolean(),
-  ignore_channels: z.boolean(),
-  ignore_broadcasts: z.boolean(),
-  proxy_url: z.string().nullable(),
-  webhook_url: z.string().nullable(),
-  webhook_enabled: z.boolean(),
-  webhook_events: z.array(z.string()).nullable(),
 });
 
 /**
