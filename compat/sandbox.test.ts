@@ -111,6 +111,21 @@ d("credentials", () => {
   });
 });
 
+d("wapi session settings extension", () => {
+  test("reports the effective safety-critical settings", async () => {
+    const response = await json(
+      await api(`/api/whatsapp-sessions/${sessionId}/settings`, {}, PAT),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body["success"]).toBe(true);
+    expect(response.body["data"]).toMatchObject({
+      ignore_groups: false,
+      read_incoming_messages: false,
+    });
+  });
+});
+
 d("the six success envelopes", () => {
   test("GET /api/status is a bare object with no success wrapper", async () => {
     const r = await json(await api("/api/status"));

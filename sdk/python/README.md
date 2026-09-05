@@ -48,6 +48,7 @@ client.send_presence(jid, "composing")           # typing indicator
 client.fetch_username(jid)                       # usually {"username": None}
 
 client.sessions.list()                           # PAT
+client.sessions.settings(3)                      # effective wapi-only controls
 client.sessions.connection.connect(3)
 client.sessions.keys.regenerate(3)               # old key dies immediately
 client.sessions.logs.messages(3, page=1)         # what was sent
@@ -94,9 +95,9 @@ handles its own — which is why a few return a plain `str` rather than a dict.
 **A timeout on a send is ambiguous.** It means the request failed, not that the message went
 undelivered. Retrying blindly sends twice — reconcile with `messages.info(msg_id)`.
 
-**Reactions and the sandbox are wapi extensions.** WasenderAPI reports reactions over webhooks
-but has no endpoint to send one, and has nothing like a sandbox session. Feature-detect if you
-target both.
+**Session settings, reactions and the sandbox are wapi extensions.** WasenderAPI's cloned detail
+shape omits some effective controls, it reports reactions over webhooks but has no endpoint to
+send one, and it has nothing like a sandbox session. Feature-detect if you target both.
 
 **Promote/demote reports differently from add/remove.** `participants.add` and `.remove` return a
 per-participant list of `{status, jid, message}`; `participants.update` returns

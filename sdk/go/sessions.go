@@ -47,6 +47,16 @@ func (s *Sessions) Get(ctx context.Context, sessionID int) (*SessionDetail, erro
 	return &out, unwrap(raw, &out)
 }
 
+// Settings returns wapi's effective persisted controls without session credentials.
+func (s *Sessions) Settings(ctx context.Context, sessionID int) (*SessionSettings, error) {
+	raw, err := s.t.do(ctx, "GET", "/api/whatsapp-sessions/"+strconv.Itoa(sessionID)+"/settings", nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	var out SessionSettings
+	return &out, unwrap(raw, &out)
+}
+
 // Create makes a session and issues its API key.
 //
 // Requires at least "name" and "phone_number". The response is the only place the key and webhook

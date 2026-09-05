@@ -5,6 +5,7 @@ import type {
   GetApiWhatsappSessionsWhatsappSessionQrcodeResponse,
   GetApiWhatsappSessionsWhatsappSessionResponse,
   GetApiWhatsappSessionsWhatsappSessionSessionLogsResponse,
+  GetApiWhatsappSessionsWhatsappSessionSettingsResponse,
   PostApiWhatsappSessionsBody,
   PostApiWhatsappSessionsResponse,
   PostApiWhatsappSessionsWhatsappSessionConnectResponse,
@@ -17,6 +18,8 @@ import type {
 
 export type Session = GetApiWhatsappSessionsResponse["data"][number];
 export type SessionDetail = GetApiWhatsappSessionsWhatsappSessionResponse["data"];
+export type SessionSettings =
+  GetApiWhatsappSessionsWhatsappSessionSettingsResponse["data"];
 
 /**
  * Connecting and disconnecting a session.
@@ -171,6 +174,16 @@ export class SessionsResource {
     );
   }
 
+  /** Effective persisted settings exposed by wapi without session credentials. */
+  async settings(sessionId: number): Promise<SessionSettings> {
+    return data(
+      await this.http.request<GetApiWhatsappSessionsWhatsappSessionSettingsResponse>(
+        "GET",
+        `/api/whatsapp-sessions/${sessionId}/settings`,
+      ),
+    );
+  }
+
   /** Create a session and issue its API key. The key is returned once, here. */
   async create(input: PostApiWhatsappSessionsBody): Promise<SessionDetail> {
     return data(
@@ -207,4 +220,3 @@ export class SessionsResource {
     await this.http.request<void>("DELETE", `/api/whatsapp-sessions/${sessionId}`);
   }
 }
-
