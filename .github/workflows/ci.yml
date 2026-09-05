@@ -203,6 +203,18 @@ jobs:
       - name: Fidelity suite against a sandbox session
         run: bun test compat/sandbox.test.ts
 
+      - name: Build the CLI
+        # The suite below drives the compiled binary, not the source: that is the artifact people
+        # install, and bundling is where a Bun CLI breaks.
+        run: bun build apps/cli/src/index.ts --compile --outfile "$RUNNER_TEMP/wapi"
+
+      - name: CLI suite against the same stack
+        # The coverage guard proves a command exists for every operation. Only this proves the
+        # commands do what their names say — it runs them and reads what the server did.
+        env:
+          WAPI_CLI_BIN: ${{ runner.temp }}/wapi
+        run: bun test compat/cli.test.ts
+
       - name: Logs
         # Only interesting when something above failed, and then it is the only way to find out
         # why — the suite's own output cannot show a stack trace from another process.
