@@ -163,29 +163,38 @@ app.get("/docs", (c) =>
  * the request 500s. Registration order here is load-bearing, not stylistic.
  */
 
-// Account-level: Personal Access Token only.
-app.use("/api/whatsapp-sessions", authenticate(db), requirePat);
-app.use("/api/whatsapp-sessions/*", authenticate(db), requirePat);
+/**
+ * Derived from the contract, not hand-maintained.
+ *
+ * This was nineteen `app.use` lines, and adding a route without adding its line left the handler
+ * unauthenticated: `c.get("auth")` came back undefined and the first request 500'd. Nothing failed
+ * until someone called it. That happened twice while cloning the last batch of endpoints, and the
+ * comment above it — warning that registration order is load-bearing — was already there.
+ *
+ * Now every route in `ROUTES` and `EXTENSION_ROUTES` is mounted from its own declared `scope`, so
+ * a new route cannot arrive unauthenticated: it has no scope, `contracts:generate` refuses to
+ * emit it, and CI fails before anyone runs the server.
+ *
+ * `requirePat` is applied where the scope says `pat`. Session-scoped routes get `authenticate`
+ * only, because each handler asserts its own kind with the *controller* envelope — moving that
+ * into middleware would silently change ~15 routes from `error` to `message`, which is a wire
+ * change and belongs in its own decision, not smuggled in with this one.
+ */
+const mounted = new Set<string>();
+for (const route of [...ROUTES, ...EXTENSION_ROUTES]) {
+  // `{param}` in the contract, `:param` in Hono.
+  const path = route.path.replace(/\{(\w+)\}/g, ":$1");
+  // Deduped: several paths carry two methods — `/api/contacts` is GET and PUT, `/api/messages/:id`
+  // is PUT and DELETE — and mounting twice would authenticate twice, doubling a database lookup on
+  // every request to them.
+  const key = `${path} ${route.scope}`;
+  if (mounted.has(key)) continue;
+  mounted.add(key);
 
-// Session-key scoped: the key IS the selector, so these carry no session id in the path.
-app.use("/api/status", authenticate(db));
-app.use("/api/user", authenticate(db));
-app.use("/api/send-message", authenticate(db));
-app.use("/api/messages/*", authenticate(db));
-app.use("/api/contacts", authenticate(db));
-app.use("/api/contacts/*", authenticate(db));
-app.use("/api/on-whatsapp/*", authenticate(db));
-app.use("/api/lid-from-pn/*", authenticate(db));
-app.use("/api/pn-from-lid/*", authenticate(db));
-app.use("/api/groups", authenticate(db));
-app.use("/api/groups/*", authenticate(db));
-app.use("/api/send-presence-update", authenticate(db));
-app.use("/api/fetch-username/*", authenticate(db));
-app.use("/api/upload", authenticate(db));
-app.use("/api/decrypt-media", authenticate(db));
-// Sandbox controls. `/sessions` is account-scoped and checks for a PAT itself; the other two are
-// session-scoped. Both kinds authenticate here, and each handler asserts which it needs.
-app.use("/api/sandbox/*", authenticate(db));
+  if (route.scope === "pat") app.use(path, authenticate(db), requirePat);
+  else app.use(path, authenticate(db));
+}
+
 // /media/* is deliberately unauthenticated: it is the public link `upload` hands out, and
 // it only ever redirects to a short-lived signed URL.
 

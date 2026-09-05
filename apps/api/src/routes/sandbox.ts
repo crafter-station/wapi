@@ -51,11 +51,13 @@ export function sandboxRoutes(db: Db) {
    * would eventually put a real person's number on a fake session.
    */
   app.post("/sandbox/sessions", async (c) => {
+    /**
+     * No kind check here: this route declares `scope: "pat"` in `extensions.ts`, so `requirePat`
+     * is mounted in front of it and a session key never reaches this handler. That also makes the
+     * refusal use the *framework* envelope, matching every other PAT-required route — it used to
+     * be the controller envelope, which was the odd one out.
+     */
     const auth = c.get("auth");
-    if (auth.kind !== "pat") {
-      return c.json(fail("Creating a session requires a Personal Access Token."), 403);
-    }
-
     const parsed = postApiSandboxSessionsBody.safeParse(await c.req.json().catch(() => ({})));
     if (!parsed.success) return c.json(validationFailure(parsed.error), 422);
 

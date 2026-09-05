@@ -70,6 +70,74 @@ const TIER1 = new Set([
   "GET /api/pn-from-lid/{lid}",
 ]);
 
+/**
+ * Which credential each route requires.
+ *
+ * The mirrored spec does not record this, and until now the only place it existed was 19
+ * hand-maintained `app.use` lines in `apps/api/src/index.ts`. Forgetting one there does not fail
+ * a test — the route simply mounts unauthenticated, `c.get("auth")` is undefined, and the first
+ * request 500s. That happened twice while cloning the last batch of endpoints.
+ *
+ * Recording it here makes it data: the API derives its middleware from it, the CLI derives which
+ * credential to send, and a test asserts every route has one. `TIER1` is already the home for
+ * facts about routes the mirror does not carry, so this belongs beside it rather than in a second
+ * list with its own drift.
+ *
+ *   pat     — Personal Access Token. Account-level: the route names its subject in the path.
+ *   session — Session API key. The key *is* the selector, so these carry no session id.
+ */
+const SCOPES: Record<string, "pat" | "session"> = {
+  // Everything under /api/whatsapp-sessions names a session by id, so it is account-level.
+  "POST /api/whatsapp-sessions": "pat",
+  "GET /api/whatsapp-sessions": "pat",
+  "GET /api/whatsapp-sessions/{whatsappSession}": "pat",
+  "PUT /api/whatsapp-sessions/{whatsappSession}": "pat",
+  "DELETE /api/whatsapp-sessions/{whatsappSession}": "pat",
+  "POST /api/whatsapp-sessions/{whatsappSession}/connect": "pat",
+  "POST /api/whatsapp-sessions/{whatsappSession}/disconnect": "pat",
+  "POST /api/whatsapp-sessions/{whatsappSession}/restart": "pat",
+  "POST /api/whatsapp-sessions/{whatsappSession}/regenerate-key": "pat",
+  "GET /api/whatsapp-sessions/{whatsappSession}/qrcode": "pat",
+  "GET /api/whatsapp-sessions/{whatsappSession}/message-logs": "pat",
+  "GET /api/whatsapp-sessions/{whatsappSession}/session-logs": "pat",
+
+  // Everything else is scoped by the session key that authenticates it.
+  "GET /api/status": "session",
+  "GET /api/user": "session",
+  "POST /api/send-message": "session",
+  "POST /api/upload": "session",
+  "POST /api/decrypt-media": "session",
+  "GET /api/messages/{msgId}/info": "session",
+  "PUT /api/messages/{msgId}": "session",
+  "DELETE /api/messages/{msgId}": "session",
+  "POST /api/messages/{message}/resend": "session",
+  "POST /api/messages/read": "session",
+  "POST /api/send-presence-update": "session",
+  "GET /api/fetch-username/{contact_identifier}": "session",
+  "GET /api/contacts": "session",
+  "PUT /api/contacts": "session",
+  "GET /api/contacts/{contactPhoneNumber}": "session",
+  "POST /api/contacts/{contactPhoneNumber}/block": "session",
+  "POST /api/contacts/{contactPhoneNumber}/unblock": "session",
+  "GET /api/contacts/{contactPhoneNumber}/picture": "session",
+  "GET /api/on-whatsapp/{contact_identifier}": "session",
+  "GET /api/lid-from-pn/{pn}": "session",
+  "GET /api/pn-from-lid/{lid}": "session",
+  "GET /api/groups": "session",
+  "POST /api/groups": "session",
+  "GET /api/groups/{groupJid}/metadata": "session",
+  "GET /api/groups/{groupJid}/participants": "session",
+  "POST /api/groups/{groupJid}/participants/add": "session",
+  "POST /api/groups/{groupJid}/participants/remove": "session",
+  "PUT /api/groups/{groupId}/participants/update": "session",
+  "POST /api/groups/{groupId}/leave": "session",
+  "GET /api/groups/{groupJid}/invite-link": "session",
+  "GET /api/groups/{groupJid}/picture": "session",
+  "PUT /api/groups/{groupJid}/settings": "session",
+  "POST /api/groups/invite/accept": "session",
+  "GET /api/groups/invite/{inviteCode}": "session",
+};
+
 type SpecParam = { name: string; type: string; required: boolean };
 type SpecEntry = {
   category: string;
@@ -203,9 +271,16 @@ for (const m of [...merged.values()].sort((a, b) => a.key.localeCompare(b.key)))
   }
 
   lines.push("");
+  const scope = SCOPES[m.key];
+  if (!scope) {
+    console.error(`ERROR: no scope declared for ${m.key} — add it to SCOPES above.`);
+    process.exit(1);
+  }
+
   routeEntries.push(
     `  {\n    operationId: ${JSON.stringify(opId)},\n    method: ${JSON.stringify(m.method)},\n` +
       `    path: ${JSON.stringify(m.path)},\n    pathParams: ${JSON.stringify(pp)},\n` +
+      `    scope: ${JSON.stringify(scope)},\n` +
       `    body: ${bodyName === "undefined" ? "undefined" : bodyName},\n  }`,
   );
 }

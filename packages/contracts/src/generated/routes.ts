@@ -214,6 +214,7 @@ export const ROUTES = [
     method: "DELETE",
     path: "/api/messages/{msgId}",
     pathParams: ["msgId"],
+    scope: "session",
     body: undefined,
   },
   {
@@ -221,6 +222,7 @@ export const ROUTES = [
     method: "DELETE",
     path: "/api/whatsapp-sessions/{whatsappSession}",
     pathParams: ["whatsappSession"],
+    scope: "pat",
     body: undefined,
   },
   {
@@ -228,6 +230,7 @@ export const ROUTES = [
     method: "GET",
     path: "/api/contacts",
     pathParams: [],
+    scope: "session",
     body: getApiContactsBody,
   },
   {
@@ -235,6 +238,7 @@ export const ROUTES = [
     method: "GET",
     path: "/api/contacts/{contactPhoneNumber}",
     pathParams: ["contactPhoneNumber"],
+    scope: "session",
     body: undefined,
   },
   {
@@ -242,6 +246,7 @@ export const ROUTES = [
     method: "GET",
     path: "/api/contacts/{contactPhoneNumber}/picture",
     pathParams: ["contactPhoneNumber"],
+    scope: "session",
     body: undefined,
   },
   {
@@ -249,6 +254,7 @@ export const ROUTES = [
     method: "GET",
     path: "/api/fetch-username/{contact_identifier}",
     pathParams: ["contact_identifier"],
+    scope: "session",
     body: undefined,
   },
   {
@@ -256,6 +262,7 @@ export const ROUTES = [
     method: "GET",
     path: "/api/groups",
     pathParams: [],
+    scope: "session",
     body: getApiGroupsBody,
   },
   {
@@ -263,6 +270,7 @@ export const ROUTES = [
     method: "GET",
     path: "/api/groups/{groupJid}/invite-link",
     pathParams: ["groupJid"],
+    scope: "session",
     body: undefined,
   },
   {
@@ -270,6 +278,7 @@ export const ROUTES = [
     method: "GET",
     path: "/api/groups/{groupJid}/metadata",
     pathParams: ["groupJid"],
+    scope: "session",
     body: undefined,
   },
   {
@@ -277,6 +286,7 @@ export const ROUTES = [
     method: "GET",
     path: "/api/groups/{groupJid}/participants",
     pathParams: ["groupJid"],
+    scope: "session",
     body: undefined,
   },
   {
@@ -284,6 +294,7 @@ export const ROUTES = [
     method: "GET",
     path: "/api/groups/{groupJid}/picture",
     pathParams: ["groupJid"],
+    scope: "session",
     body: undefined,
   },
   {
@@ -291,6 +302,7 @@ export const ROUTES = [
     method: "GET",
     path: "/api/groups/invite/{inviteCode}",
     pathParams: ["inviteCode"],
+    scope: "session",
     body: undefined,
   },
   {
@@ -298,6 +310,7 @@ export const ROUTES = [
     method: "GET",
     path: "/api/lid-from-pn/{pn}",
     pathParams: ["pn"],
+    scope: "session",
     body: undefined,
   },
   {
@@ -305,6 +318,7 @@ export const ROUTES = [
     method: "GET",
     path: "/api/messages/{msgId}/info",
     pathParams: ["msgId"],
+    scope: "session",
     body: undefined,
   },
   {
@@ -312,6 +326,7 @@ export const ROUTES = [
     method: "GET",
     path: "/api/on-whatsapp/{contact_identifier}",
     pathParams: ["contact_identifier"],
+    scope: "session",
     body: undefined,
   },
   {
@@ -319,6 +334,7 @@ export const ROUTES = [
     method: "GET",
     path: "/api/pn-from-lid/{lid}",
     pathParams: ["lid"],
+    scope: "session",
     body: undefined,
   },
   {
@@ -326,6 +342,7 @@ export const ROUTES = [
     method: "GET",
     path: "/api/status",
     pathParams: [],
+    scope: "session",
     body: undefined,
   },
   {
@@ -333,6 +350,7 @@ export const ROUTES = [
     method: "GET",
     path: "/api/user",
     pathParams: [],
+    scope: "session",
     body: undefined,
   },
   {
@@ -340,6 +358,7 @@ export const ROUTES = [
     method: "GET",
     path: "/api/whatsapp-sessions",
     pathParams: [],
+    scope: "pat",
     body: undefined,
   },
   {
@@ -347,6 +366,7 @@ export const ROUTES = [
     method: "GET",
     path: "/api/whatsapp-sessions/{whatsappSession}",
     pathParams: ["whatsappSession"],
+    scope: "pat",
     body: undefined,
   },
   {
@@ -354,6 +374,7 @@ export const ROUTES = [
     method: "GET",
     path: "/api/whatsapp-sessions/{whatsappSession}/message-logs",
     pathParams: ["whatsappSession"],
+    scope: "pat",
     body: getApiWhatsappSessionsWhatsappSessionMessageLogsBody,
   },
   {
@@ -361,6 +382,7 @@ export const ROUTES = [
     method: "GET",
     path: "/api/whatsapp-sessions/{whatsappSession}/qrcode",
     pathParams: ["whatsappSession"],
+    scope: "pat",
     body: undefined,
   },
   {
@@ -368,6 +390,7 @@ export const ROUTES = [
     method: "GET",
     path: "/api/whatsapp-sessions/{whatsappSession}/session-logs",
     pathParams: ["whatsappSession"],
+    scope: "pat",
     body: getApiWhatsappSessionsWhatsappSessionSessionLogsBody,
   },
   {
@@ -375,6 +398,7 @@ export const ROUTES = [
     method: "POST",
     path: "/api/contacts/{contactPhoneNumber}/block",
     pathParams: ["contactPhoneNumber"],
+    scope: "session",
     body: undefined,
   },
   {
@@ -382,6 +406,7 @@ export const ROUTES = [
     method: "POST",
     path: "/api/contacts/{contactPhoneNumber}/unblock",
     pathParams: ["contactPhoneNumber"],
+    scope: "session",
     body: undefined,
   },
   {
@@ -389,6 +414,7 @@ export const ROUTES = [
     method: "POST",
     path: "/api/decrypt-media",
     pathParams: [],
+    scope: "session",
     body: postApiDecryptMediaBody,
   },
   {
@@ -396,6 +422,7 @@ export const ROUTES = [
     method: "POST",
     path: "/api/groups",
     pathParams: [],
+    scope: "session",
     body: postApiGroupsBody,
   },
   {
@@ -403,6 +430,7 @@ export const ROUTES = [
     method: "POST",
     path: "/api/groups/{groupId}/leave",
     pathParams: ["groupId"],
+    scope: "session",
     body: undefined,
   },
   {
@@ -410,6 +438,7 @@ export const ROUTES = [
     method: "POST",
     path: "/api/groups/{groupJid}/participants/add",
     pathParams: ["groupJid"],
+    scope: "session",
     body: postApiGroupsGroupJidParticipantsAddBody,
   },
   {
@@ -417,6 +446,7 @@ export const ROUTES = [
     method: "POST",
     path: "/api/groups/{groupJid}/participants/remove",
     pathParams: ["groupJid"],
+    scope: "session",
     body: postApiGroupsGroupJidParticipantsRemoveBody,
   },
   {
@@ -424,6 +454,7 @@ export const ROUTES = [
     method: "POST",
     path: "/api/groups/invite/accept",
     pathParams: [],
+    scope: "session",
     body: postApiGroupsInviteAcceptBody,
   },
   {
@@ -431,6 +462,7 @@ export const ROUTES = [
     method: "POST",
     path: "/api/messages/{message}/resend",
     pathParams: ["message"],
+    scope: "session",
     body: undefined,
   },
   {
@@ -438,6 +470,7 @@ export const ROUTES = [
     method: "POST",
     path: "/api/messages/read",
     pathParams: [],
+    scope: "session",
     body: postApiMessagesReadBody,
   },
   {
@@ -445,6 +478,7 @@ export const ROUTES = [
     method: "POST",
     path: "/api/send-message",
     pathParams: [],
+    scope: "session",
     body: postApiSendMessageBody,
   },
   {
@@ -452,6 +486,7 @@ export const ROUTES = [
     method: "POST",
     path: "/api/send-presence-update",
     pathParams: [],
+    scope: "session",
     body: postApiSendPresenceUpdateBody,
   },
   {
@@ -459,6 +494,7 @@ export const ROUTES = [
     method: "POST",
     path: "/api/upload",
     pathParams: [],
+    scope: "session",
     body: postApiUploadBody,
   },
   {
@@ -466,6 +502,7 @@ export const ROUTES = [
     method: "POST",
     path: "/api/whatsapp-sessions",
     pathParams: [],
+    scope: "pat",
     body: postApiWhatsappSessionsBody,
   },
   {
@@ -473,6 +510,7 @@ export const ROUTES = [
     method: "POST",
     path: "/api/whatsapp-sessions/{whatsappSession}/connect",
     pathParams: ["whatsappSession"],
+    scope: "pat",
     body: postApiWhatsappSessionsWhatsappSessionConnectBody,
   },
   {
@@ -480,6 +518,7 @@ export const ROUTES = [
     method: "POST",
     path: "/api/whatsapp-sessions/{whatsappSession}/disconnect",
     pathParams: ["whatsappSession"],
+    scope: "pat",
     body: undefined,
   },
   {
@@ -487,6 +526,7 @@ export const ROUTES = [
     method: "POST",
     path: "/api/whatsapp-sessions/{whatsappSession}/regenerate-key",
     pathParams: ["whatsappSession"],
+    scope: "pat",
     body: undefined,
   },
   {
@@ -494,6 +534,7 @@ export const ROUTES = [
     method: "POST",
     path: "/api/whatsapp-sessions/{whatsappSession}/restart",
     pathParams: ["whatsappSession"],
+    scope: "pat",
     body: undefined,
   },
   {
@@ -501,6 +542,7 @@ export const ROUTES = [
     method: "PUT",
     path: "/api/contacts",
     pathParams: [],
+    scope: "session",
     body: putApiContactsBody,
   },
   {
@@ -508,6 +550,7 @@ export const ROUTES = [
     method: "PUT",
     path: "/api/groups/{groupId}/participants/update",
     pathParams: ["groupId"],
+    scope: "session",
     body: putApiGroupsGroupIdParticipantsUpdateBody,
   },
   {
@@ -515,6 +558,7 @@ export const ROUTES = [
     method: "PUT",
     path: "/api/groups/{groupJid}/settings",
     pathParams: ["groupJid"],
+    scope: "session",
     body: putApiGroupsGroupJidSettingsBody,
   },
   {
@@ -522,6 +566,7 @@ export const ROUTES = [
     method: "PUT",
     path: "/api/messages/{msgId}",
     pathParams: ["msgId"],
+    scope: "session",
     body: putApiMessagesMsgIdBody,
   },
   {
@@ -529,6 +574,7 @@ export const ROUTES = [
     method: "PUT",
     path: "/api/whatsapp-sessions/{whatsappSession}",
     pathParams: ["whatsappSession"],
+    scope: "pat",
     body: putApiWhatsappSessionsWhatsappSessionBody,
   }
 ] as const;

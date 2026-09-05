@@ -8,6 +8,10 @@ import { z } from "zod";
  * the cloned surface countable: `ROUTES` stays exactly the 46 endpoints being reproduced, and
  * anything in this file is visibly an addition.
  *
+ * Each entry declares its `scope` — which credential a caller must send — for the same reason the
+ * generated routes do: the API derives its authentication middleware from it, and the CLI derives
+ * which credential to attach. See `SCOPES` in `generate.ts`.
+ *
  * The bar for adding to this file is high. Strict fidelity means their published SDK runs
  * against us unmodified, and an endpoint they never call cannot break that — but each addition
  * is one more thing that is true of wapi and not of the interface it claims to clone. Extending
@@ -77,6 +81,7 @@ export const EXTENSION_ROUTES = [
     operationId: "postApiMessagesReact",
     path: "/api/messages/react",
     pathParams: [] as string[],
+    scope: "session" as const,
   },
   {
     body: postApiSandboxSessionsBody,
@@ -84,6 +89,8 @@ export const EXTENSION_ROUTES = [
     operationId: "postApiSandboxSessions",
     path: "/api/sandbox/sessions",
     pathParams: [] as string[],
+    // Account-level, like every other session-creating route: it needs a PAT.
+    scope: "pat" as const,
   },
   {
     body: postApiSandboxInboundBody,
@@ -91,6 +98,7 @@ export const EXTENSION_ROUTES = [
     operationId: "postApiSandboxInbound",
     path: "/api/sandbox/inbound",
     pathParams: [] as string[],
+    scope: "session" as const,
   },
   {
     body: postApiSandboxScanBody,
@@ -98,6 +106,7 @@ export const EXTENSION_ROUTES = [
     operationId: "postApiSandboxScan",
     path: "/api/sandbox/scan",
     pathParams: [] as string[],
+    scope: "session" as const,
   },
 ] as const;
 

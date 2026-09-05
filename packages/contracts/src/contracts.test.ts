@@ -1,5 +1,6 @@
 import { expect, test, describe } from "bun:test";
 import { ROUTES, postApiSendMessageBody } from "./generated/routes.ts";
+import { EXTENSION_ROUTES } from "./extensions.ts";
 import { ok, fail, failFramework, failThrottle, paginate } from "./envelope.ts";
 
 describe("Tier-1 surface", () => {
@@ -14,6 +15,26 @@ describe("Tier-1 surface", () => {
 
   test("every route path is namespaced under /api", () => {
     for (const r of ROUTES) expect(r.path.startsWith("/api/")).toBe(true);
+  });
+
+  /**
+   * Scope is what the API's authentication middleware is derived from, so a route without one is
+   * a route that mounts unauthenticated and 500s on the first request. `generate.ts` refuses to
+   * emit such a route, and this asserts the same thing for the extensions, which are hand-written.
+   */
+  test("every route declares which credential it needs", () => {
+    for (const r of [...ROUTES, ...EXTENSION_ROUTES]) {
+      expect([r.operationId, r.scope]).toEqual([r.operationId, expect.stringMatching(/^(pat|session)$/)]);
+    }
+  });
+
+  test("account-level routes are the ones that name a session in the path", () => {
+    // The rule behind the map: if a route says *which* session, it is account-level and needs a
+    // PAT. If it does not, the key is the selector. `sandbox/sessions` creates one, so it is PAT.
+    for (const r of ROUTES) {
+      const namesASession = r.path.startsWith("/api/whatsapp-sessions");
+      expect([r.path, r.scope]).toEqual([r.path, namesASession ? "pat" : "session"]);
+    }
   });
 
   test("send-message is one polymorphic route, not fourteen", () => {
