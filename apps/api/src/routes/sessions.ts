@@ -86,7 +86,7 @@ export function sessionRoutes(db: Db) {
     return c.json(ok(sessionDetailToWire(row)));
   });
 
-  /** GET /api/whatsapp-sessions/{id}/settings — wapi extension for effective settings. */
+  /** GET /api/whatsapp-sessions/{id}/settings — wapi extension for omitted safety controls. */
   app.get("/whatsapp-sessions/:whatsappSession/settings", async (c) => {
     const row = await findOwned(db, c.get("auth").accountId, c.req.param("whatsappSession"));
     if (!row) return c.json(fail("The specified session was not found."), 404);

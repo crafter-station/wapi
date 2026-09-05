@@ -767,22 +767,12 @@ export type PutApiGroupsGroupJidSettingsResponse = {
   };
 };
 
-/** Fetch a session's effective persisted settings. */
+/** Fetch safety controls omitted by session detail. */
 export type GetApiWhatsappSessionsWhatsappSessionSettingsResponse = {
   success: true;
   data: {
-    account_protection: boolean;
-    log_messages: boolean;
     read_incoming_messages: boolean;
-    auto_reject_calls: boolean;
-    always_online: boolean;
     ignore_groups: boolean;
-    ignore_channels: boolean;
-    ignore_broadcasts: boolean;
-    proxy_url: string | null;
-    webhook_url: string | null;
-    webhook_enabled: boolean;
-    webhook_events: string[] | null;
   };
 };
 

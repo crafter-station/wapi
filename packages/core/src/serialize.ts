@@ -51,21 +51,11 @@ export function sessionDetailToWire(s: WhatsappSession) {
   };
 }
 
-/** Effective persisted settings exposed through the wapi-only settings extension. */
+/** Safety controls omitted by the cloned detail shape. */
 export function sessionSettingsToWire(s: WhatsappSession) {
   return {
-    account_protection: s.accountProtection,
-    log_messages: s.logMessages,
     read_incoming_messages: s.readIncomingMessages,
-    auto_reject_calls: s.autoRejectCalls,
-    always_online: s.alwaysOnline,
     ignore_groups: s.ignoreGroups,
-    ignore_channels: s.ignoreChannels,
-    ignore_broadcasts: s.ignoreBroadcasts,
-    proxy_url: s.proxyUrl,
-    webhook_url: s.webhookUrl,
-    webhook_enabled: s.webhookEnabled,
-    webhook_events: s.webhookEvents,
   };
 }
 

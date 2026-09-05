@@ -120,7 +120,7 @@ class SessionsResource:
         return data(self._http.request("GET", f"/api/whatsapp-sessions/{session_id}"))
 
     def settings(self, session_id: int) -> Any:
-        """Effective persisted settings exposed by wapi without session credentials."""
+        """Safety controls omitted by the cloned session detail."""
         return data(
             self._http.request("GET", f"/api/whatsapp-sessions/{session_id}/settings")
         )

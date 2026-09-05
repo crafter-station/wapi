@@ -47,7 +47,7 @@ func (s *Sessions) Get(ctx context.Context, sessionID int) (*SessionDetail, erro
 	return &out, unwrap(raw, &out)
 }
 
-// Settings returns wapi's effective persisted controls without session credentials.
+// Settings returns safety controls omitted by the cloned session detail.
 func (s *Sessions) Settings(ctx context.Context, sessionID int) (*SessionSettings, error) {
 	raw, err := s.t.do(ctx, "GET", "/api/whatsapp-sessions/"+strconv.Itoa(sessionID)+"/settings", nil, nil)
 	if err != nil {
