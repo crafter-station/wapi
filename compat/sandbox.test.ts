@@ -546,6 +546,101 @@ const CAN_DELIVER =
   (BASE.startsWith("http://127.0.0.1") || BASE.startsWith("http://localhost")) &&
   Boolean(process.env["REDIS_URL"]);
 
+/**
+ * The operator routes — tokens, audit, dispatches, the sandbox thread.
+ *
+ * Ours, not cloned, so these assert *our* conventions rather than an upstream quirk. They exist
+ * for the CLI: without them it could manage sessions and send messages but not mint its own
+ * credentials or see what the server did.
+ */
+d("operator routes", () => {
+  test("a token is returned in full exactly once, and never again", async () => {
+    const created = await json(
+      await api("/api/tokens", { body: JSON.stringify({ name: "compat-suite" }), method: "POST" }, PAT),
+    );
+    expect(created.status).toBe(201);
+    const token = created.body["data"] as { id: number; name: string; token: string };
+    expect(token.token).toStartWith("wapi_pat_");
+
+    const listed = (await json(await api("/api/tokens", {}, PAT))).body["data"] as Record<string, unknown>[];
+    const mine = listed.find((t) => t["id"] === token.id)!;
+    expect(mine["name"]).toBe("compat-suite");
+    // Only the hash is stored, so there is nowhere for the secret to come back from.
+    expect("token" in mine).toBe(false);
+
+    const revoked = await json(await api(`/api/tokens/${token.id}`, { method: "DELETE" }, PAT));
+    expect(revoked.status).toBe(200);
+    // `message` at the top level, like the other confirmation routes.
+    expect(typeof revoked.body["message"]).toBe("string");
+    expect(revoked.body["data"]).toBeUndefined();
+
+    // Revoking twice is a 404, not a second success — the row is already gone from the live set.
+    expect((await json(await api(`/api/tokens/${token.id}`, { method: "DELETE" }, PAT))).status).toBe(404);
+  });
+
+  test("the revoked token stops working", async () => {
+    const created = await json(
+      await api("/api/tokens", { body: JSON.stringify({ name: "short-lived" }), method: "POST" }, PAT),
+    );
+    const t = created.body["data"] as { id: number; token: string };
+
+    // It works first, which is what makes the second assertion mean something.
+    expect((await json(await api("/api/whatsapp-sessions", {}, t.token))).status).toBe(200);
+    await api(`/api/tokens/${t.id}`, { method: "DELETE" }, PAT);
+    expect((await json(await api("/api/whatsapp-sessions", {}, t.token))).status).toBe(401);
+  });
+
+  test("the audit log records this suite's own calls, newest first", async () => {
+    const r = await json(await api("/api/audit-logs?per_page=5", {}, PAT));
+    expect(r.status).toBe(200);
+
+    const page = r.body["data"] as { current_page: number; data: Record<string, unknown>[]; total: number };
+    expect(page.current_page).toBe(1);
+    expect(page.total).toBeGreaterThan(0);
+
+    const row = page.data[0]!;
+    for (const key of ["id", "method", "path", "status", "credential_kind", "created_at"]) {
+      expect(key in row).toBe(true);
+    }
+    // The list omits bodies deliberately; they are large and often redacted.
+    expect("request_body" in row).toBe(false);
+
+    const detail = await json(await api(`/api/audit-logs/${row["id"]}`, {}, PAT));
+    expect(detail.status).toBe(200);
+    expect("request_body" in (detail.body["data"] as object)).toBe(true);
+  });
+
+  test("audit logs are account-scoped and refuse a session key", async () => {
+    expect((await json(await api("/api/audit-logs"))).status).toBe(403);
+    expect((await json(await api("/api/audit-logs/99999999", {}, PAT))).status).toBe(404);
+  });
+
+  test("dispatches are session-scoped and paginate", async () => {
+    const r = await json(await api("/api/dispatches"));
+    expect(r.status).toBe(200);
+    const page = r.body["data"] as { current_page: number; data: unknown[]; total: number };
+    expect(page.current_page).toBe(1);
+    expect(Array.isArray(page.data)).toBe(true);
+
+    // A PAT is the wrong kind here, which is a 403 rather than a 401.
+    expect((await json(await api("/api/dispatches", {}, PAT))).status).toBe(403);
+  });
+
+  test("the sandbox thread reads back what was said, in both directions", async () => {
+    const to = `+999${String(sessionId).padStart(8, "0")}001`;
+    await api("/api/send-message", { body: JSON.stringify({ text: "outbound", to }), method: "POST" });
+    await api("/api/sandbox/inbound", { body: JSON.stringify({ text: "inbound" }), method: "POST" });
+
+    const r = await json(await api("/api/sandbox/thread"));
+    expect(r.status).toBe(200);
+    const thread = r.body["data"] as { from_me: boolean; text: string }[];
+
+    expect(thread.find((m) => m.text === "outbound")?.from_me).toBe(true);
+    // The direction is the whole point: a thread missing inbound would show half a conversation.
+    expect(thread.find((m) => m.text === "inbound")?.from_me).toBe(false);
+  });
+});
+
 d("webhook delivery", () => {
   test.skipIf(!CAN_DELIVER)("an inbound message produces a signed delivery", async () => {
     const received: { body: string; signature: string | null }[] = [];

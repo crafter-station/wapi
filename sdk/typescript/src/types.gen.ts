@@ -837,6 +837,147 @@ export type PostApiSandboxScanResponse = {
   };
 };
 
+/** Request body for `POST /api/tokens`. */
+export type PostApiTokensBody = {
+  name: string;
+};
+
+/** postApiTokens. */
+export type PostApiTokensResponse = {
+  success: true;
+  data: {
+    created_at: string;
+    id: number;
+    name: string;
+    token: string;
+  };
+};
+
+/** getApiTokens. */
+export type GetApiTokensResponse = {
+  success: true;
+  data: {
+    created_at: string;
+    id: number;
+    last_used_at: string | null;
+    name: string;
+    revoked_at: string | null;
+  }[];
+};
+
+/** deleteApiTokensToken. */
+export type DeleteApiTokensTokenResponse = {
+  message: string;
+  success: true;
+};
+
+/** Query parameters for `GET /api/audit-logs`. */
+export type GetApiAuditLogsQuery = {
+  page?: number;
+  per_page?: number;
+  session_id?: number;
+};
+
+/** getApiAuditLogs. */
+export type GetApiAuditLogsResponse = {
+  success: true;
+  data: {
+    current_page: number;
+    data: {
+      country: string | null;
+      created_at: string;
+      credential_kind: string | null;
+      duration_ms: number | null;
+      id: number;
+      ip: string | null;
+      method: string;
+      path: string;
+      route: string | null;
+      status: number;
+      whatsapp_session_id: number | null;
+    }[];
+    first_page_url: string;
+    from: number | null;
+    last_page: number;
+    last_page_url: string;
+    next_page_url: string | null;
+    path: string;
+    per_page: number;
+    prev_page_url: string | null;
+    to: number | null;
+    total: number;
+  };
+};
+
+/** getApiAuditLogsAuditLog. */
+export type GetApiAuditLogsAuditLogResponse = {
+  success: true;
+  data: {
+    country: string | null;
+    created_at: string;
+    credential_kind: string | null;
+    duration_ms: number | null;
+    id: number;
+    ip: string | null;
+    method: string;
+    path: string;
+    route: string | null;
+    status: number;
+    whatsapp_session_id: number | null;
+    request_body: string | null;
+    response_body: string | null;
+  };
+};
+
+/** Query parameters for `GET /api/dispatches`. */
+export type GetApiDispatchesQuery = {
+  page?: number;
+  per_page?: number;
+};
+
+/** getApiDispatches. */
+export type GetApiDispatchesResponse = {
+  success: true;
+  data: {
+    current_page: number;
+    data: {
+      attempts: number;
+      event: string;
+      first_attempt_at: string;
+      id: number;
+      job_id: string;
+      last_attempt_at: string;
+      last_error: string | null;
+      status: string;
+      status_code: number | null;
+      url: string | null;
+    }[];
+    first_page_url: string;
+    from: number | null;
+    last_page: number;
+    last_page_url: string;
+    next_page_url: string | null;
+    path: string;
+    per_page: number;
+    prev_page_url: string | null;
+    to: number | null;
+    total: number;
+  };
+};
+
+/** getApiSandboxThread. */
+export type GetApiSandboxThreadResponse = {
+  success: true;
+  data: {
+    at: string;
+    from_me: boolean;
+    id: string;
+    jid: string;
+    kind: string;
+    text: string | null;
+  }[];
+};
+
 /**
  * Every operation, its verb, its path template and the status it answers with.
  *
@@ -845,10 +986,14 @@ export type PostApiSandboxScanResponse = {
  */
 export type Operations = {
   deleteApiMessagesMsgId: { method: "DELETE"; path: "/api/messages/{msgId}"; status: 200 };
+  deleteApiTokensToken: { method: "DELETE"; path: "/api/tokens/{token}"; status: 200 };
   deleteApiWhatsappSessionsWhatsappSession: { method: "DELETE"; path: "/api/whatsapp-sessions/{whatsappSession}"; status: 204 };
+  getApiAuditLogs: { method: "GET"; path: "/api/audit-logs"; status: 200 };
+  getApiAuditLogsAuditLog: { method: "GET"; path: "/api/audit-logs/{auditLog}"; status: 200 };
   getApiContacts: { method: "GET"; path: "/api/contacts"; status: 200 };
   getApiContactsContactPhoneNumber: { method: "GET"; path: "/api/contacts/{contactPhoneNumber}"; status: 200 };
   getApiContactsContactPhoneNumberPicture: { method: "GET"; path: "/api/contacts/{contactPhoneNumber}/picture"; status: 200 };
+  getApiDispatches: { method: "GET"; path: "/api/dispatches"; status: 200 };
   getApiFetchUsernameContactIdentifier: { method: "GET"; path: "/api/fetch-username/{contact_identifier}"; status: 200 };
   getApiGroups: { method: "GET"; path: "/api/groups"; status: 200 };
   getApiGroupsGroupJidInviteLink: { method: "GET"; path: "/api/groups/{groupJid}/invite-link"; status: 200 };
@@ -860,7 +1005,9 @@ export type Operations = {
   getApiMessagesMsgIdInfo: { method: "GET"; path: "/api/messages/{msgId}/info"; status: 200 };
   getApiOnWhatsappContactIdentifier: { method: "GET"; path: "/api/on-whatsapp/{contact_identifier}"; status: 200 };
   getApiPnFromLidLid: { method: "GET"; path: "/api/pn-from-lid/{lid}"; status: 200 };
+  getApiSandboxThread: { method: "GET"; path: "/api/sandbox/thread"; status: 200 };
   getApiStatus: { method: "GET"; path: "/api/status"; status: 200 };
+  getApiTokens: { method: "GET"; path: "/api/tokens"; status: 200 };
   getApiUser: { method: "GET"; path: "/api/user"; status: 200 };
   getApiWhatsappSessions: { method: "GET"; path: "/api/whatsapp-sessions"; status: 200 };
   getApiWhatsappSessionsWhatsappSession: { method: "GET"; path: "/api/whatsapp-sessions/{whatsappSession}"; status: 200 };
@@ -883,6 +1030,7 @@ export type Operations = {
   postApiSandboxSessions: { method: "POST"; path: "/api/sandbox/sessions"; status: 201 };
   postApiSendMessage: { method: "POST"; path: "/api/send-message"; status: 200 };
   postApiSendPresenceUpdate: { method: "POST"; path: "/api/send-presence-update"; status: 200 };
+  postApiTokens: { method: "POST"; path: "/api/tokens"; status: 201 };
   postApiUpload: { method: "POST"; path: "/api/upload"; status: 200 };
   postApiWhatsappSessions: { method: "POST"; path: "/api/whatsapp-sessions"; status: 201 };
   postApiWhatsappSessionsWhatsappSessionConnect: { method: "POST"; path: "/api/whatsapp-sessions/{whatsappSession}/connect"; status: 200 };

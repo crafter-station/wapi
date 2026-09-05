@@ -129,6 +129,22 @@ export const gateway = {
   sandboxInbound: (sessionId: number, from: string | undefined, text: string) =>
     post<{ key: Record<string, unknown> }>("/rpc/sandbox-inbound", { sessionId, from, text }),
 
+  /**
+   * The fake conversation. Shaped here rather than imported from the gateway, which is a separate
+   * process with its own dependency tree — the wire contract is the seam between them.
+   */
+  sandboxThread: (sessionId: number) =>
+    post<{
+      thread: {
+        at: string;
+        fromMe: boolean;
+        id: string;
+        jid: string;
+        kind: string;
+        text: string | null;
+      }[];
+    }>("/rpc/sandbox-thread", { sessionId }),
+
   sandboxScan: (sessionId: number) =>
     post<{ ok: true }>("/rpc/sandbox-scan", { sessionId }),
 

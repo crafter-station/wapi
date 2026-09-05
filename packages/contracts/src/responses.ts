@@ -165,6 +165,35 @@ const directoryPage = <T extends z.ZodTypeAny>(item: T) =>
   z.object({ items: z.array(item), pagination });
 
 /** Laravel's length-aware paginator, minus the `links` array it normally includes. */
+/** One request as the audit middleware recorded it. Bodies live on the detail response only. */
+const auditLogRow = z.object({
+  country: z.string().nullable(),
+  created_at: z.string(),
+  credential_kind: z.string().nullable(),
+  duration_ms: z.number().int().nullable(),
+  id: z.number().int(),
+  ip: z.string().nullable(),
+  method: z.string(),
+  path: z.string(),
+  route: z.string().nullable(),
+  status: z.number().int(),
+  whatsapp_session_id: z.number().int().nullable(),
+});
+
+/** One webhook delivery attempt, updated in place across retries. */
+const dispatchRow = z.object({
+  attempts: z.number().int(),
+  event: z.string(),
+  first_attempt_at: z.string(),
+  id: z.number().int(),
+  job_id: z.string(),
+  last_attempt_at: z.string(),
+  last_error: z.string().nullable(),
+  status: z.string(),
+  status_code: z.number().int().nullable(),
+  url: z.string().nullable(),
+});
+
 const laravelPage = <T extends z.ZodTypeAny>(row: T) =>
   z.object({
     current_page: z.number().int(),
@@ -406,6 +435,65 @@ export const SUCCESS_RESPONSES: Record<string, SuccessResponse> = {
         size: z.number().int().optional(),
         subject: z.string(),
       }),
+    ),
+  },
+
+  // -- operator routes (ours; see extensions.ts)
+  postApiTokens: {
+    status: 201,
+    /**
+     * `token` is present exactly once, on creation — only the hash is stored, so there is no
+     * second chance to read it. The list endpoint below deliberately cannot return it.
+     */
+    schema: ok(
+      z.object({
+        created_at: z.string(),
+        id: z.number().int(),
+        name: z.string(),
+        token: z.string(),
+      }),
+    ),
+  },
+  getApiTokens: {
+    status: 200,
+    schema: ok(
+      z.array(
+        z.object({
+          created_at: z.string(),
+          id: z.number().int(),
+          last_used_at: z.string().nullable(),
+          name: z.string(),
+          revoked_at: z.string().nullable(),
+        }),
+      ),
+    ),
+  },
+  deleteApiTokensToken: { status: 200, schema: z.object({ message: z.string(), success: z.literal(true) }) },
+  getApiAuditLogs: { status: 200, schema: ok(laravelPage(auditLogRow)) },
+  getApiAuditLogsAuditLog: {
+    status: 200,
+    // The detail carries the bodies; the list does not, because they are large and often redacted.
+    schema: ok(
+      auditLogRow.extend({
+        request_body: z.string().nullable(),
+        response_body: z.string().nullable(),
+      }),
+    ),
+  },
+  getApiDispatches: { status: 200, schema: ok(laravelPage(dispatchRow)) },
+  getApiSandboxThread: {
+    status: 200,
+    schema: ok(
+      z.array(
+        z.object({
+          at: z.string(),
+          from_me: z.boolean(),
+          id: z.string(),
+          jid: z.string(),
+          kind: z.string(),
+          text: z.string().nullable(),
+        }),
+      ),
     ),
   },
 

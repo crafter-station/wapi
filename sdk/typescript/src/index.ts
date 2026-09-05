@@ -1,6 +1,12 @@
 import { Transport, type WapiClientOptions } from "./http.js";
 import { ContactsResource, GroupsResource } from "./resources/directory.js";
 import { MessagesResource } from "./resources/messages.js";
+import {
+  AuditResource,
+  DispatchesResource,
+  SandboxThread,
+  TokensResource,
+} from "./resources/operator.js";
 import { SandboxResource } from "./resources/sandbox.js";
 import { SessionsResource } from "./resources/sessions.js";
 import type {
@@ -52,6 +58,14 @@ export class WapiClient {
   readonly groups: GroupsResource;
   /** wapi extension: a fake number on a fake WhatsApp. See `SandboxResource`. */
   readonly sandbox: SandboxResource;
+  /** Reading a sandbox conversation, as opposed to driving one. */
+  readonly sandboxThread: SandboxThread;
+  /** Personal Access Tokens. wapi extensions — PAT-scoped. */
+  readonly tokens: TokensResource;
+  /** Every call made with this account's credentials. wapi extension — PAT-scoped. */
+  readonly audit: AuditResource;
+  /** Webhook delivery attempts for this session. wapi extension — session-scoped. */
+  readonly dispatches: DispatchesResource;
 
   constructor(options: WapiClientOptions) {
     this.http = new Transport(options);
@@ -60,6 +74,10 @@ export class WapiClient {
     this.contacts = new ContactsResource(this.http);
     this.groups = new GroupsResource(this.http);
     this.sandbox = new SandboxResource(this.http);
+    this.sandboxThread = new SandboxThread(this.http);
+    this.tokens = new TokensResource(this.http);
+    this.audit = new AuditResource(this.http);
+    this.dispatches = new DispatchesResource(this.http);
   }
 
   /**

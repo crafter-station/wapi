@@ -32,6 +32,14 @@ type Client struct {
 	Groups   *Groups
 	// Sandbox is a wapi extension: a fake number on a fake WhatsApp.
 	Sandbox *Sandbox
+	// SandboxThread reads a sandbox conversation, as opposed to driving one.
+	SandboxThread *SandboxThread
+	// Tokens manages Personal Access Tokens. A wapi extension — PAT-scoped.
+	Tokens *Tokens
+	// Audit reads every call made with this account's credentials. A wapi extension — PAT-scoped.
+	Audit *Audit
+	// Dispatches reads webhook delivery attempts for this session. A wapi extension.
+	Dispatches *Dispatches
 }
 
 // Option configures a Client.
@@ -76,6 +84,11 @@ func New(apiKey string, opts ...Option) *Client {
 		Contacts: &Contacts{t: t, LID: &LIDResolver{t}},
 		Groups:   &Groups{t: t, Participants: &GroupParticipants{t}},
 		Sandbox:  &Sandbox{t},
+
+		SandboxThread: &SandboxThread{t},
+		Tokens:        &Tokens{t},
+		Audit:         &Audit{t},
+		Dispatches:    &Dispatches{t},
 	}
 }
 

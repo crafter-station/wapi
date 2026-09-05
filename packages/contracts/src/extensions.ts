@@ -74,6 +74,34 @@ export const postApiSandboxInboundBody = z.object({
 
 export const postApiSandboxScanBody = z.object({});
 
+/**
+ * Operator routes — the four things the dashboard could do and the API could not.
+ *
+ * These exist for the CLI. Without them a CLI could manage sessions and send messages but could
+ * not mint its own credentials, read the audit trail, or see whether a webhook was delivered —
+ * so "everything the dashboard does" would have meant shipping `DATABASE_URL` to every user's
+ * laptop, which is not a thing to ask of anyone running against a hosted deployment.
+ *
+ * They are ours, so they use our conventions rather than reproducing an upstream quirk: the
+ * ordinary `{success, data}` envelope, and Laravel's paginator for the log-shaped ones so they
+ * page the same way `message-logs` and `session-logs` already do.
+ */
+export const postApiTokensBody = z.object({
+  name: z.string().min(1).max(120),
+});
+
+export const getApiAuditLogsBody = z.object({
+  page: z.number().int().optional(),
+  per_page: z.number().int().optional(),
+  /** Narrow to one session's calls. Account-level calls have no session and are excluded by it. */
+  session_id: z.number().int().optional(),
+});
+
+export const getApiDispatchesBody = z.object({
+  page: z.number().int().optional(),
+  per_page: z.number().int().optional(),
+});
+
 export const EXTENSION_ROUTES = [
   {
     body: postApiMessagesReactBody,
@@ -105,6 +133,67 @@ export const EXTENSION_ROUTES = [
     method: "POST",
     operationId: "postApiSandboxScan",
     path: "/api/sandbox/scan",
+    pathParams: [] as string[],
+    scope: "session" as const,
+  },
+  {
+    body: postApiTokensBody,
+    method: "POST",
+    operationId: "postApiTokens",
+    path: "/api/tokens",
+    pathParams: [] as string[],
+    scope: "pat" as const,
+  },
+  {
+    body: undefined,
+    method: "GET",
+    operationId: "getApiTokens",
+    path: "/api/tokens",
+    pathParams: [] as string[],
+    scope: "pat" as const,
+  },
+  {
+    body: undefined,
+    method: "DELETE",
+    operationId: "deleteApiTokensToken",
+    path: "/api/tokens/{token}",
+    pathParams: ["token"] as string[],
+    scope: "pat" as const,
+  },
+  {
+    body: getApiAuditLogsBody,
+    method: "GET",
+    operationId: "getApiAuditLogs",
+    path: "/api/audit-logs",
+    pathParams: [] as string[],
+    scope: "pat" as const,
+  },
+  {
+    body: undefined,
+    method: "GET",
+    operationId: "getApiAuditLogsAuditLog",
+    path: "/api/audit-logs/{auditLog}",
+    pathParams: ["auditLog"] as string[],
+    scope: "pat" as const,
+  },
+  {
+    body: getApiDispatchesBody,
+    method: "GET",
+    operationId: "getApiDispatches",
+    path: "/api/dispatches",
+    /**
+     * Session-scoped, not account-scoped, and that is deliberate: dispatches belong to one
+     * session, the key is already the selector everywhere else that is true, and the CLI's
+     * `doctor` needs them while holding a session key.
+     */
+    pathParams: [] as string[],
+    scope: "session" as const,
+  },
+  {
+    body: undefined,
+    method: "GET",
+    operationId: "getApiSandboxThread",
+    path: "/api/sandbox/thread",
     pathParams: [] as string[],
     scope: "session" as const,
   },

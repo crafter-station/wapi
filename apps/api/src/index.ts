@@ -16,6 +16,7 @@ import { createDb } from "@wapi/db";
 import { auditRequests } from "./middleware/audit.ts";
 import { rateLimitHeaders } from "./middleware/rate-limit.ts";
 import { authenticate, requirePat } from "./middleware/auth.ts";
+import { operatorRoutes } from "./routes/operator.ts";
 import { sandboxRoutes } from "./routes/sandbox.ts";
 import { sessionRoutes } from "./routes/sessions.ts";
 import { connectionRoutes } from "./routes/connection.ts";
@@ -199,6 +200,7 @@ for (const route of [...ROUTES, ...EXTENSION_ROUTES]) {
 // it only ever redirects to a short-lived signed URL.
 
 app.route("/api", sessionRoutes(db));
+app.route("/api", operatorRoutes(db));
 app.route("/api", sandboxRoutes(db));
 app.route("/api", connectionRoutes(db));
 app.route("/api", messageRoutes(db));

@@ -67,7 +67,7 @@ class MessagesResource:
         """
         return data(self._http.request("GET", f"/api/messages/{msg_id}/info"))
 
-def edit(self, msg_id: int, text: str) -> Any:
+    def edit(self, msg_id: int, text: str) -> Any:
         """Edit a message you sent.
 
         WhatsApp allows this only for a short window afterwards and gives no way to ask how long

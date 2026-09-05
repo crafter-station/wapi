@@ -25,6 +25,12 @@ from .errors import (
 )
 from .resources.directory import ContactsResource, GroupsResource
 from .resources.messages import MessagesResource
+from .resources.operator import (
+    AuditResource,
+    DispatchesResource,
+    SandboxThread,
+    TokensResource,
+)
 from .resources.sandbox import SandboxResource
 from .resources.sessions import SessionsResource
 
@@ -60,6 +66,14 @@ class WapiClient:
         self.groups = GroupsResource(self._http)
         # wapi extension: a fake number on a fake WhatsApp. See SandboxResource.
         self.sandbox = SandboxResource(self._http)
+        #: Reading a sandbox conversation, as opposed to driving one.
+        self.sandbox_thread = SandboxThread(self._http)
+        #: Personal Access Tokens. wapi extension — PAT-scoped.
+        self.tokens = TokensResource(self._http)
+        #: Every call made with this account's credentials. wapi extension — PAT-scoped.
+        self.audit = AuditResource(self._http)
+        #: Webhook delivery attempts for this session. wapi extension — session-scoped.
+        self.dispatches = DispatchesResource(self._http)
 
     def send_presence(self, jid: str, type: str) -> Any:
         """Tell a chat you are typing, recording, or online.

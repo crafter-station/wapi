@@ -47,6 +47,15 @@ jobs:
           DATABASE_URL: postgres://placeholder/placeholder
         run: bun run --cwd apps/web build
 
+      - name: Python SDK imports
+        # The drift guard matches URLs with a regex and never imports the module, so a Python SDK
+        # that does not even parse passed it — which is exactly what happened: an edit left a
+        # method at the wrong indentation and the whole package was unimportable for four commits.
+        # `go build` already covers the Go client; this is the missing half.
+        run: |
+          python -m compileall -q sdk/python/wapi
+          PYTHONPATH=sdk/python python -c "import wapi; wapi.WapiClient('wapi_pat_x')"
+
       - uses: actions/setup-go@v5
         with:
           go-version: "1.22"
