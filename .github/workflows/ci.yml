@@ -237,6 +237,10 @@ jobs:
       GATEWAY_TOKEN: e2e-gateway-token
       GATEWAY_URL: http://127.0.0.1:3102
       PUBLIC_URL: http://127.0.0.1:3101
+      # The dashboard reads its own API for contacts, groups and messages. Its default is the
+      # Compose hostname, which resolves only in production — without this the pages render their
+      # error state and the tests assert against it.
+      API_INTERNAL_URL: http://127.0.0.1:3101
 
     steps:
       - uses: actions/checkout@v4

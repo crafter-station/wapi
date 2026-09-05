@@ -25,6 +25,13 @@ const isPublic = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/api/webhook-sink",
+  /**
+   * The CLI device flow. Unauthenticated by necessity — a terminal has no Clerk session, and
+   * obtaining one is the point of the exchange. `start` only creates a pending request; `poll`
+   * requires the high-entropy token the CLI kept, compared by hash. The *approval* step is the
+   * `/cli` page, which is protected like everything else.
+   */
+  "/api/cli/(.*)",
   // Documentation is public; requiring sign-in to read a getting-started guide is absurd.
   "/docs",
 ]);

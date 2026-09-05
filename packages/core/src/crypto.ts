@@ -14,6 +14,26 @@ export const generatePat = () => `wapi_pat_${randomBytes(32).toString("hex")}`;
 export const generateWebhookSecret = () => randomBytes(16).toString("hex");
 
 /**
+ * The short code a human reads off a terminal and types into a browser.
+ *
+ * Eight characters from an alphabet without `0/O/1/I`, because the whole point is that somebody
+ * transcribes it by eye and a misread character sends them to a dead end rather than to an error
+ * they can act on.
+ *
+ * It is deliberately *not* the credential. Approving a request needs a signed-in browser, and
+ * collecting the minted token needs the high-entropy poll token the CLI keeps to itself — so
+ * guessing this code buys an attacker nothing they can use.
+ */
+export function generateUserCode(): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = randomBytes(8);
+  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
+}
+
+/** The CLI's half of a device-authorisation request. Never shown to a human. */
+export const generatePollToken = () => randomBytes(32).toString("hex");
+
+/**
  * SHA-256 is correct here, deliberately — these are 256-bit random tokens, not passwords.
  * A slow KDF would add latency to every request and defend against nothing, since there is
  * no low-entropy secret to brute-force.

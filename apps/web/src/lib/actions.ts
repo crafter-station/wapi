@@ -14,6 +14,7 @@ import {
   revokeToken,
   updateSessionSettings,
   WEBHOOK_EVENTS,
+  approveCliRequest,
 } from "./data";
 import { validateProxy } from "@wapi/core";
 
@@ -277,4 +278,18 @@ export async function sandboxInboundAction(formData: FormData): Promise<void> {
 
   await gatewayRpc("/rpc/sandbox-inbound", { from: from || undefined, sessionId: id, text });
   revalidatePath(`/sessions/${id}/sandbox`);
+}
+
+/**
+ * Approve a CLI login from the browser.
+ *
+ * The approval *is* the authorisation: the request belongs to nobody until a signed-in human
+ * claims it, which is what binds it to an account. Redirects back with the outcome rather than
+ * throwing, because the failure a person will actually hit — a code that expired while they were
+ * finding the tab — deserves a sentence, not a stack trace.
+ */
+export async function approveCliAction(formData: FormData): Promise<void> {
+  const code = String(formData.get("code") ?? "");
+  const ok = await approveCliRequest(code);
+  redirect(`/cli?code=${encodeURIComponent(code)}&${ok ? "approved=1" : "expired=1"}`);
 }

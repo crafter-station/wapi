@@ -4,6 +4,7 @@ import { and, count, desc, eq, gte, isNull } from "drizzle-orm";
 import {
   accounts,
   auditLogs,
+  cliAuthRequests,
   createDb,
   doctorRuns,
   messages,
@@ -438,4 +439,54 @@ export async function sandboxThread(sessionId: number): Promise<SandboxMessage[]
   if (!res?.ok) return [];
   const body = (await res.json().catch(() => null)) as { thread?: SandboxMessage[] } | null;
   return body?.thread ?? [];
+}
+
+/** A pending CLI login, as the approval page needs to show it. */
+export type CliRequest = { createdAt: Date; expiresAt: Date; hostname: string | null; id: number };
+
+/**
+ * Look up a pending CLI login by its user code.
+ *
+ * Deliberately not account-scoped: nobody owns a request until somebody approves it, which is the
+ * step that binds it to an account. Returns null for expired or already-approved codes so the page
+ * can say which, rather than showing a button that will fail.
+ */
+export async function findCliRequest(userCode: string): Promise<CliRequest | null> {
+  const [row] = await db()
+    .select()
+    .from(cliAuthRequests)
+    .where(eq(cliAuthRequests.userCode, userCode.trim().toUpperCase()))
+    .limit(1);
+
+  if (!row || row.approvedAt || row.expiresAt.getTime() < Date.now()) return null;
+  return { createdAt: row.createdAt, expiresAt: row.expiresAt, hostname: row.hostname, id: row.id };
+}
+
+/**
+ * Approve a CLI login: mint a token for the signed-in account and park it for collection.
+ *
+ * The token is an ordinary PAT — it appears in the tokens page, it revokes like any other, and
+ * revoking it logs that machine out. Giving CLI logins a hidden lifecycle would mean a credential
+ * you cannot audit from the UI.
+ *
+ * It is encrypted at rest between here and the CLI's next poll, with the same key as session API
+ * keys, because the plaintext exists exactly once and has to survive the gap somehow.
+ */
+export async function approveCliRequest(userCode: string): Promise<boolean> {
+  const accountId = await currentAccountId();
+  const request = await findCliRequest(userCode);
+  if (!request) return false;
+
+  const token = generatePat();
+  await db().insert(personalAccessTokens).values({
+    accountId,
+    name: `cli@${request.hostname ?? "unknown"}`,
+    tokenHash: hashToken(token),
+  });
+
+  await db()
+    .update(cliAuthRequests)
+    .set({ accountId, approvedAt: new Date(), tokenEncrypted: encryptSecret(token) })
+    .where(eq(cliAuthRequests.id, request.id));
+  return true;
 }

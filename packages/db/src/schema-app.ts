@@ -212,6 +212,45 @@ export const contacts = pgTable(
 );
 
 /**
+ * A pending CLI login.
+ *
+ * The CLI cannot sign in to Clerk, so it asks for a code, a human approves that code in a browser
+ * that *is* signed in, and the CLI collects the resulting token. The three columns that matter are
+ * the two halves of the secret and the deadline:
+ *
+ *   - `userCode` is read aloud off a terminal and typed into a browser. It is short on purpose and
+ *     therefore guessable on purpose — which is safe, because approving needs a signed-in session
+ *     and collecting needs the other half.
+ *   - `pollTokenHash` is the CLI's half. High entropy, hashed at rest like every other credential
+ *     here, and the only thing that can collect the minted token.
+ *   - `expiresAt` is ten minutes out. A request nobody approves simply stops existing.
+ *
+ * `tokenEncrypted` holds the minted PAT between approval and collection — the plaintext exists
+ * only once, so it has to be carried somehow. Encrypted with the same key as session API keys, and
+ * the row is deleted the moment it is collected, so the window is one poll wide.
+ */
+export const cliAuthRequests = pgTable(
+  "cli_auth_requests",
+  {
+    id: serial("id").primaryKey(),
+    userCode: text("user_code").notNull(),
+    pollTokenHash: text("poll_token_hash").notNull(),
+    /** What the token gets named, so the tokens page says which machine. */
+    hostname: text("hostname"),
+    /** Null until somebody approves. Approval is what binds a request to an account. */
+    accountId: integer("account_id").references(() => accounts.id, { onDelete: "cascade" }),
+    tokenEncrypted: text("token_encrypted"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("cli_auth_user_code_idx").on(t.userCode),
+    uniqueIndex("cli_auth_poll_token_idx").on(t.pollTokenHash),
+  ],
+);
+
+/**
  * Session lifecycle events, for `GET /api/whatsapp-sessions/{id}/session-logs`.
  *
  * Deliberately not `audit_logs`, which records *HTTP calls*. This records what happened to the

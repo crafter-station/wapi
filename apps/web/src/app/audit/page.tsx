@@ -35,9 +35,17 @@ export default async function AuditPage({
     return `/audit${s ? `?${s}` : ""}`;
   };
 
+  /**
+   * Keyed by target, not label.
+   *
+   * Session names are chosen by people and nothing stops two sessions sharing one, so keying on
+   * the label gave React duplicate keys the moment an account had two sessions called the same
+   * thing — which is ordinary, not exotic. Each chip's href already encodes the session id, so it
+   * is unique by construction.
+   */
   const chip = (label: string, target: string, on: boolean) => (
     <Link
-      key={label}
+      key={target}
       href={target}
       className={
         "rounded-[var(--radius)] border px-3 py-1.5 text-[0.8rem] transition-colors " +

@@ -80,7 +80,7 @@ export default defineConfig({
     {
       name: "dashboard",
       dependencies: ["setup"],
-      testMatch: "**/dashboard.pw.ts",
+      testMatch: /(dashboard|cli-auth)\.pw\.ts/,
       use: { ...devices["Desktop Chrome"], storageState: STORAGE_STATE },
     },
   ],
@@ -128,6 +128,13 @@ export default defineConfig({
         "0000000000000000000000000000000000000000000000000000000000000001",
       GATEWAY_TOKEN: process.env["GATEWAY_TOKEN"] ?? "e2e-gateway-token",
       GATEWAY_URL: process.env["GATEWAY_URL"] ?? "http://127.0.0.1:3102",
+      /**
+       * Without this the dashboard's page renders call `http://api:3001` — a Compose hostname
+       * that resolves in production and nowhere else — so every page that reads through our own
+       * API silently rendered its *error* state, and the tab tests passed against it. Pointing it
+       * at the locally booted API is what makes those assertions mean anything.
+       */
+      API_INTERNAL_URL: process.env["API_INTERNAL_URL"] ?? "http://127.0.0.1:3101",
       PORT: String(PORT),
     },
     reuseExistingServer: !process.env["CI"],

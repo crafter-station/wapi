@@ -294,6 +294,28 @@ const statements: [label: string, ddl: string][] = [
      )`,
   ],
   [
+    "cli_auth_requests",
+    `CREATE TABLE IF NOT EXISTS cli_auth_requests (
+       id serial PRIMARY KEY,
+       user_code text NOT NULL,
+       poll_token_hash text NOT NULL,
+       hostname text,
+       account_id integer REFERENCES accounts(id) ON DELETE CASCADE,
+       token_encrypted text,
+       approved_at timestamptz,
+       expires_at timestamptz NOT NULL,
+       created_at timestamptz NOT NULL DEFAULT now()
+     )`,
+  ],
+  [
+    "cli_auth_user_code_idx",
+    `CREATE UNIQUE INDEX IF NOT EXISTS cli_auth_user_code_idx ON cli_auth_requests (user_code)`,
+  ],
+  [
+    "cli_auth_poll_token_idx",
+    `CREATE UNIQUE INDEX IF NOT EXISTS cli_auth_poll_token_idx ON cli_auth_requests (poll_token_hash)`,
+  ],
+  [
     "session_logs_session_idx",
     `CREATE INDEX IF NOT EXISTS session_logs_session_idx ON session_logs (session_id, occurred_at)`,
   ],

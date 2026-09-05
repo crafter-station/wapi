@@ -96,6 +96,19 @@ test.describe("a session workspace", () => {
       expect(response?.status()).toBe(200);
       // Disconnected sessions show an empty state rather than throwing — that is the assertion.
       await expect(page.locator("main")).toBeVisible();
+      /**
+       * Specifically not the *transport* failure.
+       *
+       * These tabs read through our own API, whose base URL defaults to a Compose hostname that
+       * resolves only in production. With it unset the fetch fails and the page renders an error
+       * panel — and asserting only that `main` exists passed happily against that panel, so every
+       * one of these was green while showing an error.
+       *
+       * "The session is not connected" is a *different* panel and a correct one here, since these
+       * tabs are visited before the session pairs. Matching on the transport message keeps the
+       * legitimate empty state legitimate while still catching a misconfigured base URL.
+       */
+      await expect(page.getByText(/the api did not respond/i)).toHaveCount(0);
       expect(errors).toEqual([]);
     });
   }
