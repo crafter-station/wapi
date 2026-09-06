@@ -93,7 +93,7 @@ test.describe("the demo video", () => {
     /**
      * Nothing is fetched until somebody presses play, which is the whole reason this is a poster
      * and not an autoplaying loop: the landing page costs 40 KB for a reader who never watches,
-     * rather than 1.2 MB. It also means the page has no motion until motion is asked for, which is
+     * rather than megabytes. It also means the page has no motion until motion is asked for, which is
      * this site's only concession to prefers-reduced-motion.
      */
     expect(videoRequests).toEqual([]);

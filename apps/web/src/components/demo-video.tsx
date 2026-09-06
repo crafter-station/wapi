@@ -5,10 +5,11 @@ import { useState } from "react";
 /**
  * Where the rendered film lives.
  *
- * A release asset rather than a file in this repo. The mp4 is ~1.2 MB and will be re-rendered
- * every time the cut changes, and `apps/web/public` is otherwise 48 KB — putting it in git would
- * be permanent weight in every future clone for something that is regenerated, not authored. The
- * same `releases/latest/download` mechanism already serves the CLI binaries.
+ * A release asset rather than a file in this repo. The mp4 is ~4.2 MB (webm ~2.7 MB, and it is
+ * listed first so most browsers take it) and gets re-rendered every time the cut changes, while
+ * `apps/web/public` is otherwise 48 KB — putting it in git would be permanent weight in every
+ * future clone for something that is regenerated, not authored. The same
+ * `releases/latest/download` mechanism already serves the CLI binaries.
  *
  * Overridable so a deployment can serve it from its own origin instead.
  */

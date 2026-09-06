@@ -138,7 +138,7 @@ jobs:
 
       - name: Attach to the release
         # The landing page points at `releases/latest/download/wapi-demo.mp4`, so the film has to
-        # be on the release rather than in the repo — it is ~1.2 MB and regenerated, not authored.
+        # be on the release rather than in the repo — ~4.2 MB, regenerated rather than authored.
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
