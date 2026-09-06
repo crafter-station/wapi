@@ -141,3 +141,23 @@
   font-weight: inherit;
   text-decoration: none;
 }
+
+/*
+ * Index path grouping — proximity without inventing a second palette.
+ *
+ * Extra space before section headings separates "Start here" from "Pick a language" the way a
+ * hairline rule would on the landing page. Tighter sidebar rows keep more of the tree above the
+ * fold (selective attention for the next page).
+ */
+#nd-docs-layout .prose h2 {
+  margin-top: 2.75rem;
+  letter-spacing: -0.03em;
+}
+
+#nd-docs-layout .prose h2:first-of-type {
+  margin-top: 2rem;
+}
+
+#nd-sidebar a {
+  font-size: 0.875rem;
+}
