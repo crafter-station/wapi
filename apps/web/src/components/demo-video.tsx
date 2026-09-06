@@ -61,7 +61,7 @@ export function DemoVideo({ className }: { className?: string }) {
 
   return (
     <button
-      aria-label="Play the demo — 74 seconds"
+      aria-label="Play the demo — 78 seconds"
       className={className}
       onClick={() => setPlaying(true)}
       style={{
@@ -109,7 +109,7 @@ export function DemoVideo({ className }: { className?: string }) {
           position: "absolute",
         }}
       >
-        74 seconds
+        78 seconds
       </span>
     </button>
   );

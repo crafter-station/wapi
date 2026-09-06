@@ -141,15 +141,17 @@ export default async function Home() {
           <div>
             <p className="kicker">Watch it</p>
             <h2 className="title mt-5">
-              No phone. <em>No QR.</em>
+              Your WhatsApp, <em>over HTTP.</em>
             </h2>
             <p className="lede mt-6">
-              Seventy-four seconds: a sandbox number that pairs itself, messages and attachments
-              landing in a WhatsApp thread, a group, and a webhook firing from a contact who does
-              not exist.
+              Seventy-eight seconds on a live account: messages, images, stickers, video and
+              documents landing in a real thread with WhatsApp&rsquo;s own delivery ticks, then a
+              group — and finally a sandbox, where a contact who does not exist fires a genuine
+              webhook.
             </p>
             <p className="mt-5 text-[0.85rem] text-[var(--muted-foreground)]">
-              Every command in it was recorded from the real CLI against a real sandbox — see{" "}
+              Every command in it was recorded from the real CLI against a real session, and the
+              number is masked at capture time — see{" "}
               <code className="code">ops/capture-demo.mjs</code>.
             </p>
           </div>
