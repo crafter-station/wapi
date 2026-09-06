@@ -13,66 +13,59 @@ import { highlight } from "@/lib/highlight";
  *
  * The content is ours. The hero panel is a terminal because this product's surface is a REST
  * API — showing a curl and its response is the honest equivalent of showing the app.
- *
- * Section order is problem → product → how → proof (demo) → honesty → CTA so the reader meets
- * the gap before the film; the prose in each section is unchanged.
  */
 
 const API = "https://api.wapi.crafter.run";
 
-const NAV_LINK =
-  "inline-flex min-h-11 items-center text-[0.875rem] font-[520] text-[var(--muted-foreground)] transition-colors duration-150 [transition-timing-function:var(--ease-out)] hover:text-[var(--foreground)]";
+/**
+ * Landing nav links.
+ *
+ * Kept as one list (not a `hidden md:flex` cluster plus a `md:hidden` row). Soft-navigating
+ * back from `/docs` leaves Fumadocs' Tailwind layers in the document; those can win over
+ * utility breakpoints and leave the centre links on `display: none` while the mobile row
+ * stays hidden — an empty nav on a wide viewport. Plain CSS in `globals.css` owns the
+ * breakpoints for this chrome so that fight cannot happen.
+ */
+function NavLinks() {
+  return (
+    <>
+      <a href="#how" className="landing-nav-link">
+        How it works
+      </a>
+      <Link href="/docs" className="landing-nav-link">
+        Docs
+      </Link>
+      <a href={`${API}/docs`} className="landing-nav-link">
+        API reference
+      </a>
+    </>
+  );
+}
 
 function Nav() {
   return (
     <nav className="rule">
-      <div className="shell py-4 md:py-5">
-        <div className="grid grid-cols-[1fr_auto] items-center gap-4 md:grid-cols-[1fr_auto_1fr] md:gap-6">
-          <Link href="/" className="wordmark w-fit">
-            wapi<span>.</span>
-          </Link>
-          <div className="hidden items-center gap-8 md:flex">
-            <a href="#how" className={NAV_LINK}>
-              How it works
-            </a>
-            <Link href="/docs" className={NAV_LINK}>
-              Docs
-            </Link>
-            <a href={`${API}/docs`} className={NAV_LINK}>
-              API reference
-            </a>
-          </div>
-          <div className="flex items-center justify-end gap-2">
-            <GithubLink />
-            <SignedIn>
-              <Link href="/sessions" className="btn btn-primary min-h-11">
-                Dashboard
-              </Link>
-            </SignedIn>
-            <SignedOut>
-              <SignInButton mode="modal">
-                <button type="button" className="btn btn-primary min-h-11">
-                  Get started
-                </button>
-              </SignInButton>
-            </SignedOut>
-          </div>
+      <div className="shell landing-nav">
+        <Link href="/" className="wordmark landing-nav-brand">
+          wapi<span>.</span>
+        </Link>
+        <div className="landing-nav-links">
+          <NavLinks />
         </div>
-        {/*
-         * Mobile-only destinations. Desktop already has the centre cluster; hiding those links
-         * entirely on small screens forced Docs into the footer. Three destinations + the primary
-         * CTA above is enough — do not add a hamburger.
-         */}
-        <div className="mt-3 flex gap-1 overflow-x-auto scroll-slim md:hidden">
-          <a href="#how" className={`${NAV_LINK} px-2`}>
-            How it works
-          </a>
-          <Link href="/docs" className={`${NAV_LINK} px-2`}>
-            Docs
-          </Link>
-          <a href={`${API}/docs`} className={`${NAV_LINK} px-2`}>
-            API reference
-          </a>
+        <div className="landing-nav-actions">
+          <GithubLink />
+          <SignedIn>
+            <Link href="/sessions" className="btn btn-primary min-h-11">
+              Dashboard
+            </Link>
+          </SignedIn>
+          <SignedOut>
+            <SignInButton mode="modal">
+              <button type="button" className="btn btn-primary min-h-11">
+                Get started
+              </button>
+            </SignInButton>
+          </SignedOut>
         </div>
       </div>
     </nav>
@@ -161,6 +154,30 @@ export default async function Home() {
           <div className="min-w-0 w-full justify-self-center lg:justify-self-end">
             <HeroTerminal />
           </div>
+        </div>
+      </section>
+
+      {/* ---------------------------------------------------------------- demo */}
+      <section className="rule">
+        <div className="shell grid min-w-0 items-center gap-12 py-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+          <div>
+            <p className="kicker">Watch it</p>
+            <h2 className="title mt-5">
+              Your WhatsApp, <em>over HTTP.</em>
+            </h2>
+            <p className="lede mt-6">
+              Seventy-eight seconds on a live account: messages, images, stickers, video and
+              documents landing in a real thread with WhatsApp&rsquo;s own delivery ticks, then a
+              group — and finally a sandbox, where a contact who does not exist fires a genuine
+              webhook.
+            </p>
+            <p className="mt-5 text-[0.85rem] text-[var(--muted-foreground)]">
+              Every command in it was recorded from the real CLI against a real session, and the
+              number is masked at capture time — see{" "}
+              <code className="code">ops/capture-demo.mjs</code>.
+            </p>
+          </div>
+          <DemoVideo />
         </div>
       </section>
 
@@ -253,30 +270,6 @@ export default async function Home() {
               </li>
             ))}
           </ol>
-        </div>
-      </section>
-
-      {/* ---------------------------------------------------------------- demo */}
-      <section className="rule">
-        <div className="shell grid min-w-0 items-center gap-12 py-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
-          <div>
-            <p className="kicker">Watch it</p>
-            <h2 className="title mt-5">
-              Your WhatsApp, <em>over HTTP.</em>
-            </h2>
-            <p className="lede mt-6">
-              Seventy-eight seconds on a live account: messages, images, stickers, video and
-              documents landing in a real thread with WhatsApp&rsquo;s own delivery ticks, then a
-              group — and finally a sandbox, where a contact who does not exist fires a genuine
-              webhook.
-            </p>
-            <p className="mt-5 text-[0.85rem] text-[var(--muted-foreground)]">
-              Every command in it was recorded from the real CLI against a real session, and the
-              number is masked at capture time — see{" "}
-              <code className="code">ops/capture-demo.mjs</code>.
-            </p>
-          </div>
-          <DemoVideo />
         </div>
       </section>
 

@@ -80,15 +80,29 @@ test.describe("the landing page", () => {
 
   test("keeps Docs reachable on a phone without opening the footer", async ({ browser }) => {
     /**
-     * The centre nav cluster is `hidden md:flex`. Before the mobile row existed, Docs was only
-     * in the footer — selective attention fails when the primary secondary action is below the
-     * fold. Assert the in-nav Docs link is visible at 390px rather than merely present in the DOM.
+     * The landing nav keeps Docs in the single mobile row (scrollable centre), not only in the
+     * footer. Assert it stays visible at 390px.
      */
     const page = await browser.newPage({ viewport: { height: 844, width: 390 } });
     await page.goto("/");
     const docs = page.locator("nav").getByRole("link", { name: "Docs" });
     await expect(docs.first()).toBeVisible();
     await page.close();
+  });
+
+  test("keeps centre nav links after returning from docs", async ({ page }) => {
+    /**
+     * Soft-nav from Fumadocs back to `/` used to leave the centre cluster on `display: none`
+     * when Tailwind's `hidden md:flex` lost to leftover docs utilities. Assert at desktop width
+     * that How / Docs / API are still there after the round trip.
+     */
+    await page.setViewportSize({ width: 1100, height: 800 });
+    await page.goto("/docs");
+    await page.goto("/");
+    const nav = page.locator("nav");
+    await expect(nav.getByRole("link", { name: "How it works" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Docs" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "API reference" })).toBeVisible();
   });
 
   test("does not scroll sideways on a phone", async ({ browser }) => {
