@@ -1,0 +1,34 @@
+{
+  "base": "https://api.wapi.crafter.run",
+  "capturedAt": "2026-09-06T02:06:10.655Z",
+  "steps": [
+    {
+      "command": "wapi sandbox create --use",
+      "durationMs": 0,
+      "exitCode": 0,
+      "stdout": "✓ Sandbox session 68 created.\n  +99900000068\n",
+      "stdoutPlain": "✓ Sandbox session 68 created.\n  +99900000068\n"
+    },
+    {
+      "command": "wapi sessions connect 68",
+      "durationMs": 5925,
+      "exitCode": 0,
+      "stdout": "\n  Scan this with WhatsApp → Linked devices:\n\n  sandbox-qr-68-60362941\n\n✓ Session 68 is connected.\n",
+      "stdoutPlain": "\n  Scan this with WhatsApp → Linked devices:\n\n  sandbox-qr-68-60362941\n\n✓ Session 68 is connected.\n"
+    },
+    {
+      "command": "wapi groups list",
+      "durationMs": 823,
+      "exitCode": 0,
+      "stdout": "JID                  NAME\n100000000068-1@g.us  Sandbox Team\n100000000068-2@g.us  Sandbox Announcements\n",
+      "stdoutPlain": "JID                  NAME\n100000000068-1@g.us  Sandbox Team\n100000000068-2@g.us  Sandbox Announcements\n"
+    },
+    {
+      "command": "wapi sandbox inbound \"and a reply\"",
+      "durationMs": 761,
+      "exitCode": 0,
+      "stdout": "✓ Delivered.\n  Your webhook handler just received a genuine, signed messages.received.\n",
+      "stdoutPlain": "✓ Delivered.\n  Your webhook handler just received a genuine, signed messages.received.\n"
+    }
+  ]
+}

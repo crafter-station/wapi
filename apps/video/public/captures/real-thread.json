@@ -1,0 +1,62 @@
+[
+  {
+    "ack": "pending",
+    "at": "2026-09-06T02:05:44.897Z",
+    "file_name": null,
+    "from_me": true,
+    "id": "102159",
+    "kind": "text",
+    "media_url": null,
+    "text": "hello from wapi"
+  },
+  {
+    "ack": "pending",
+    "at": "2026-09-06T02:05:48.218Z",
+    "file_name": null,
+    "from_me": true,
+    "id": "102160",
+    "kind": "image",
+    "media_url": "https://api.wapi.crafter.run/media/305607f8-ab64-4e16-96ca-965b22466608/photo.png",
+    "text": "the roadmap"
+  },
+  {
+    "ack": "pending",
+    "at": "2026-09-06T02:05:51.351Z",
+    "file_name": null,
+    "from_me": true,
+    "id": "102161",
+    "kind": "sticker",
+    "media_url": "https://api.wapi.crafter.run/media/e6856100-1f56-486e-b667-415c2c279bd2/sticker.webp",
+    "text": null
+  },
+  {
+    "ack": "pending",
+    "at": "2026-09-06T02:05:54.325Z",
+    "file_name": null,
+    "from_me": true,
+    "id": "102162",
+    "kind": "video",
+    "media_url": "https://api.wapi.crafter.run/media/06057569-6301-44e8-b0be-f3a48640d63a/clip.mp4",
+    "text": "three seconds of proof"
+  },
+  {
+    "ack": "pending",
+    "at": "2026-09-06T02:05:57.037Z",
+    "file_name": "invoice.pdf",
+    "from_me": true,
+    "id": "102163",
+    "kind": "document",
+    "media_url": "https://api.wapi.crafter.run/media/b2060c7e-2ec9-4e23-9e0a-c02b81c96aad/invoice.pdf",
+    "text": null
+  },
+  {
+    "ack": "pending",
+    "at": "2026-09-06T02:06:01.449Z",
+    "file_name": null,
+    "from_me": true,
+    "id": "102164",
+    "kind": "text",
+    "media_url": null,
+    "text": "shipping Friday"
+  }
+]

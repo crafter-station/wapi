@@ -1,15 +1,42 @@
-import { Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import {
+  Audio,
+  Img,
+  interpolate,
+  Sequence,
+  spring,
+  staticFile,
+  useCurrentFrame,
+  useVideoConfig,
+} from "remotion";
 import { font, theme } from "../theme";
 
 export type ThreadMessage = {
+  /** WhatsApp's own acknowledgement, read back per message with `messages info`. */
+  ack?: string | null;
   at: string;
   file_name: string | null;
   from_me: boolean;
   id: string;
-  jid: string;
+  jid?: string;
   kind: string;
   media_url: string | null;
   text: string | null;
+};
+
+/**
+ * Delivery ticks.
+ *
+ * Only on the real half, because only a real session has an acknowledgement to report — the value
+ * comes from WhatsApp via `messages info`, not from wapi's own record of having sent something.
+ * `pending` deliberately renders a single tick: the message left, and claiming more than that on
+ * screen would be the one dishonest frame in the film.
+ */
+const Ticks: React.FC<{ ack: string | null | undefined; light: boolean }> = ({ ack, light }) => {
+  if (!ack) return null;
+  const glyph = ack === "delivered" || ack === "read" ? "✓✓" : "✓";
+  return (
+    <span style={{ fontSize: 10, marginInlineStart: 6, opacity: light ? 0.65 : 0.5 }}>{glyph}</span>
+  );
 };
 
 /**
@@ -94,6 +121,14 @@ const Bubble: React.FC<{ index: number; message: ThreadMessage; startAt: number 
   })();
 
   return (
+    <>
+      {/* A short low thock as the bubble lands; the inbound one is allowed to be more present. */}
+      <Sequence durationInFrames={10} from={startAt}>
+        <Audio
+          src={staticFile(message.from_me ? "sfx/bubble.wav" : "sfx/receive.wav")}
+          volume={message.from_me ? 0.22 : 0.5}
+        />
+      </Sequence>
     <div
       style={{
         display: "flex",
@@ -116,8 +151,14 @@ const Bubble: React.FC<{ index: number; message: ThreadMessage; startAt: number 
       >
         {body}
         {message.text ? <div style={{ marginTop: body ? 6 : 0 }}>{message.text}</div> : null}
+        {message.from_me ? (
+          <div style={{ lineHeight: 1, textAlign: "right" }}>
+            <Ticks ack={message.ack} light />
+          </div>
+        ) : null}
       </div>
     </div>
+    </>
   );
 };
 
@@ -133,8 +174,16 @@ export const Phone: React.FC<{
   /** Frame at which the first bubble lands; each subsequent one follows by `stagger`. */
   startAt?: number;
   stagger?: number;
+  /**
+   * What sits under the name.
+   *
+   * The real half passes the masked number — the digits never enter the capture, so they cannot
+   * reach the screen. The sandbox half says so plainly, because implying a fake thread is a real
+   * one would be the exact lie this whole pipeline exists to avoid.
+   */
+  subtitle?: string;
   title?: string;
-}> = ({ messages, startAt = 0, stagger = 14, title = "Sandbox" }) => (
+}> = ({ messages, startAt = 0, stagger = 14, subtitle = "+999 · not a real number", title = "Sandbox" }) => (
   <div
     style={{
       background: "#0a0a0a",
@@ -169,7 +218,7 @@ export const Phone: React.FC<{
         <div style={{ background: theme.muted, borderRadius: 999, height: 26, width: 26 }} />
         <div>
           <div style={{ fontSize: 13, fontWeight: 580 }}>{title}</div>
-          <div style={{ color: theme.mutedForeground, fontSize: 10 }}>+999 · not a real number</div>
+          <div style={{ color: theme.mutedForeground, fontSize: 10 }}>{subtitle}</div>
         </div>
       </div>
 

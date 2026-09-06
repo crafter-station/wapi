@@ -1,5 +1,26 @@
-import { interpolate, useCurrentFrame } from "remotion";
+import { Audio, interpolate, Sequence, staticFile, useCurrentFrame } from "remotion";
 import { font, theme } from "../theme";
+
+/**
+ * Key clicks, one every few characters.
+ *
+ * Not one per character: the film types at roughly ten a second, and at that density individual
+ * clicks smear into a rattle. Every third character reads as typing while staying texture rather
+ * than becoming a rhythm the eye starts following.
+ */
+const KeySounds: React.FC<{ count: number; from: number; every?: number }> = ({
+  count,
+  from,
+  every = 3,
+}) => (
+  <>
+    {Array.from({ length: Math.floor(count / every) }, (_, i) => (
+      <Sequence durationInFrames={2} from={from + i * every} key={i}>
+        <Audio src={staticFile("sfx/key.wav")} volume={0.16} />
+      </Sequence>
+    ))}
+  </>
+);
 
 /**
  * A terminal panel, matching the one on the landing page.
@@ -57,7 +78,19 @@ export const Terminal: React.FC<{
   const cursor = typing && Math.floor(frame / 8) % 2 === 0;
 
   return (
-    <div
+    <>
+      {/*
+        Typing, then the soft confirmation when output lands.
+
+        Levels are deliberately low. The first render peaked at -0.6 dBFS — close to clipping for a
+        key click — and there is a music bed to come; effects have to sit under it rather than
+        compete. Set here rather than in the source files so one place governs the mix.
+      */}
+      <KeySounds count={typeDuration} from={typeStart} />
+      <Sequence durationInFrames={8} from={outputAt}>
+        <Audio src={staticFile("sfx/send.wav")} volume={0.34} />
+      </Sequence>
+      <div
       style={{
         background: theme.card,
         border: `1px solid ${theme.border}`,
@@ -96,6 +129,7 @@ export const Terminal: React.FC<{
           {output.trimEnd()}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };

@@ -1,0 +1,77 @@
+{
+  "base": "https://api.wapi.crafter.run",
+  "capturedAt": "2026-09-06T02:06:01.449Z",
+  "masked": "+51 ••••••582",
+  "steps": [
+    {
+      "command": "wapi send --to +51 ••••••582 --text \"hello from wapi\"",
+      "durationMs": 804,
+      "exitCode": 0,
+      "stdout": "✓ Sent. msgId 102159 → +51 ••••••582 (in_progress)\n  If a send times out, reconcile with `wapi messages info <msgId>` — never re-send blindly.\n",
+      "stdoutPlain": "✓ Sent. msgId 102159 → +51 ••••••582 (in_progress)\n  If a send times out, reconcile with `wapi messages info <msgId>` — never re-send blindly.\n"
+    },
+    {
+      "command": "wapi media upload photo.png",
+      "durationMs": 1195,
+      "exitCode": 0,
+      "stdout": "https://api.wapi.crafter.run/media/305607f8-ab64-4e16-96ca-965b22466608/photo.png\n",
+      "stdoutPlain": "https://api.wapi.crafter.run/media/305607f8-ab64-4e16-96ca-965b22466608/photo.png\n"
+    },
+    {
+      "command": "wapi send --to +51 ••••••582 --image photo.png --text \"the roadmap\"",
+      "durationMs": 1306,
+      "exitCode": 0,
+      "stdout": "✓ Sent. msgId 102160 → +51 ••••••582 (in_progress)\n  If a send times out, reconcile with `wapi messages info <msgId>` — never re-send blindly.\n",
+      "stdoutPlain": "✓ Sent. msgId 102160 → +51 ••••••582 (in_progress)\n  If a send times out, reconcile with `wapi messages info <msgId>` — never re-send blindly.\n"
+    },
+    {
+      "command": "wapi media upload sticker.webp",
+      "durationMs": 952,
+      "exitCode": 0,
+      "stdout": "https://api.wapi.crafter.run/media/e6856100-1f56-486e-b667-415c2c279bd2/sticker.webp\n",
+      "stdoutPlain": "https://api.wapi.crafter.run/media/e6856100-1f56-486e-b667-415c2c279bd2/sticker.webp\n"
+    },
+    {
+      "command": "wapi send --to +51 ••••••582 --sticker sticker.webp",
+      "durationMs": 1429,
+      "exitCode": 0,
+      "stdout": "✓ Sent. msgId 102161 → +51 ••••••582 (in_progress)\n  If a send times out, reconcile with `wapi messages info <msgId>` — never re-send blindly.\n",
+      "stdoutPlain": "✓ Sent. msgId 102161 → +51 ••••••582 (in_progress)\n  If a send times out, reconcile with `wapi messages info <msgId>` — never re-send blindly.\n"
+    },
+    {
+      "command": "wapi media upload clip.mp4",
+      "durationMs": 1064,
+      "exitCode": 0,
+      "stdout": "https://api.wapi.crafter.run/media/06057569-6301-44e8-b0be-f3a48640d63a/clip.mp4\n",
+      "stdoutPlain": "https://api.wapi.crafter.run/media/06057569-6301-44e8-b0be-f3a48640d63a/clip.mp4\n"
+    },
+    {
+      "command": "wapi send --to +51 ••••••582 --video clip.mp4",
+      "durationMs": 1151,
+      "exitCode": 0,
+      "stdout": "✓ Sent. msgId 102162 → +51 ••••••582 (in_progress)\n  If a send times out, reconcile with `wapi messages info <msgId>` — never re-send blindly.\n",
+      "stdoutPlain": "✓ Sent. msgId 102162 → +51 ••••••582 (in_progress)\n  If a send times out, reconcile with `wapi messages info <msgId>` — never re-send blindly.\n"
+    },
+    {
+      "command": "wapi media upload invoice.pdf",
+      "durationMs": 803,
+      "exitCode": 0,
+      "stdout": "https://api.wapi.crafter.run/media/b2060c7e-2ec9-4e23-9e0a-c02b81c96aad/invoice.pdf\n",
+      "stdoutPlain": "https://api.wapi.crafter.run/media/b2060c7e-2ec9-4e23-9e0a-c02b81c96aad/invoice.pdf\n"
+    },
+    {
+      "command": "wapi send --to +51 ••••••582 --document invoice.pdf",
+      "durationMs": 1152,
+      "exitCode": 0,
+      "stdout": "✓ Sent. msgId 102163 → +51 ••••••582 (in_progress)\n  If a send times out, reconcile with `wapi messages info <msgId>` — never re-send blindly.\n",
+      "stdoutPlain": "✓ Sent. msgId 102163 → +51 ••••••582 (in_progress)\n  If a send times out, reconcile with `wapi messages info <msgId>` — never re-send blindly.\n"
+    },
+    {
+      "command": "wapi send --to \"Bots\" --text \"shipping Friday\"",
+      "durationMs": 1126,
+      "exitCode": 0,
+      "stdout": "✓ Sent. msgId 102164 → Bots (in_progress)\n  If a send times out, reconcile with `wapi messages info <msgId>` — never re-send blindly.\n",
+      "stdoutPlain": "✓ Sent. msgId 102164 → Bots (in_progress)\n  If a send times out, reconcile with `wapi messages info <msgId>` — never re-send blindly.\n"
+    }
+  ]
+}

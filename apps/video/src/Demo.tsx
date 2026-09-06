@@ -1,5 +1,6 @@
 import {
   AbsoluteFill,
+  Audio,
   Easing,
   Img,
   interpolate,
@@ -12,10 +13,13 @@ import {
 import { Phone, type ThreadMessage } from "./components/Phone";
 import { Terminal } from "./components/Terminal";
 import { font, FPS, theme } from "./theme";
-import thread from "../public/captures/thread.json";
-import transcript from "../public/captures/transcript.json";
+import realThread from "../public/captures/real-thread.json";
+import realTranscript from "../public/captures/real-transcript.json";
+import sandboxThread from "../public/captures/sandbox-thread.json";
+import sandboxTranscript from "../public/captures/sandbox-transcript.json";
 
 type Step = { command: string; stdoutPlain: string };
+type Transcript = { steps: Step[] };
 
 /**
  * A recorded step, by the command that produced it.
@@ -24,8 +28,8 @@ type Step = { command: string; stdoutPlain: string };
  * changes, the render fails loudly instead of quietly rendering an empty terminal. A demo that
  * silently drops a beat is exactly the failure this whole pipeline exists to avoid.
  */
-const step = (match: string): Step => {
-  const found = (transcript.steps as Step[]).find((s) => s.command.includes(match));
+const stepFrom = (transcript: Transcript, match: string): Step => {
+  const found = transcript.steps.find((s) => s.command.includes(match));
   if (!found) {
     throw new Error(
       `No captured step matching "${match}". Re-run \`node ops/capture-demo.mjs\`, or fix the match.`,
@@ -34,7 +38,14 @@ const step = (match: string): Step => {
   return found;
 };
 
-const messages = thread as ThreadMessage[];
+const real = (match: string) => stepFrom(realTranscript as Transcript, match);
+const sandbox = (match: string) => stepFrom(sandboxTranscript as Transcript, match);
+
+/** The masked number, from the capture. The digits never enter this repo, so they cannot leak. */
+const MASKED = (realTranscript as { masked?: string }).masked ?? "";
+
+const realMessages = realThread as ThreadMessage[];
+const sandboxMessages = sandboxThread as ThreadMessage[];
 
 /** Seconds → frames, so the beat sheet reads the way it was written. */
 const s = (seconds: number) => Math.round(seconds * FPS);
@@ -42,9 +53,9 @@ const s = (seconds: number) => Math.round(seconds * FPS);
 /**
  * The camera.
  *
- * One perspective container for the whole film rather than per scene, so depth is consistent:
- * a panel at `translateZ(-200px)` is the same distance away in every beat. Everything on screen is
- * a flat rectangle, which is why this is CSS 3D and not WebGL — there is no geometry here, only
+ * One perspective container for the whole film rather than per scene, so depth is consistent: a
+ * panel at `translateZ(-200px)` is the same distance away in every beat. Everything on screen is a
+ * flat rectangle, which is why this is CSS 3D and not WebGL — there is no geometry here, only
  * planes moving in space.
  */
 const Stage: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -63,8 +74,19 @@ const Stage: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </AbsoluteFill>
 );
 
+/** A scene change. Quiet — the camera moves are small, and a bigger sound than its move reads cheap. */
+const Whoosh: React.FC = () => (
+  <Sequence durationInFrames={10}>
+    <Audio src={staticFile("sfx/whoosh.wav")} volume={0.28} />
+  </Sequence>
+);
+
 /** A phrase with one Georgia-italic fragment — the site's signature, and the film's. */
-const Title: React.FC<{ plain: string; italic: string }> = ({ plain, italic }) => {
+const Title: React.FC<{ italic: string; plain: string; sub?: string }> = ({
+  italic,
+  plain,
+  sub,
+}) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const enter = spring({ config: { damping: 200 }, durationInFrames: 26, fps, frame });
@@ -72,20 +94,16 @@ const Title: React.FC<{ plain: string; italic: string }> = ({ plain, italic }) =
   const z = interpolate(enter, [0, 1], [-120, 0]);
 
   return (
-    <div
-      style={{
-        fontSize: 62,
-        letterSpacing: "-0.035em",
-        lineHeight: 1.1,
-        opacity: enter,
-        textAlign: "center",
-        transform: `translateZ(${z}px)`,
-      }}
-    >
-      {plain}{" "}
-      <span style={{ fontFamily: font.serif, fontStyle: "italic", letterSpacing: "-0.045em" }}>
-        {italic}
-      </span>
+    <div style={{ opacity: enter, textAlign: "center", transform: `translateZ(${z}px)` }}>
+      <div style={{ fontSize: 62, letterSpacing: "-0.035em", lineHeight: 1.1 }}>
+        {plain}{" "}
+        <span style={{ fontFamily: font.serif, fontStyle: "italic", letterSpacing: "-0.045em" }}>
+          {italic}
+        </span>
+      </div>
+      {sub ? (
+        <div style={{ color: theme.mutedForeground, fontSize: 20, marginTop: 20 }}>{sub}</div>
+      ) : null}
     </div>
   );
 };
@@ -120,31 +138,33 @@ const LandingScene: React.FC<{ durationInFrames: number }> = ({ durationInFrames
   );
 };
 
-/** A terminal beat: one captured command, arriving in depth. */
+/** A terminal beat on its own, arriving in depth. */
 const TerminalScene: React.FC<{
   command: string;
   label?: string;
-  match: string;
+  output: string;
   yaw?: number;
-}> = ({ command, label, match, yaw = -8 }) => {
+}> = ({ command, label, output, yaw = -8 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const enter = spring({ config: { damping: 200 }, durationInFrames: 24, fps, frame });
-  const captured = step(match);
 
   return (
-    <div
-      style={{
-        opacity: enter,
-        transform: `translateZ(${interpolate(enter, [0, 1], [-260, 0])}px) rotateY(${interpolate(
-          enter,
-          [0, 1],
-          [yaw, 0],
-        )}deg)`,
-      }}
-    >
-      <Terminal command={command} label={label} output={captured.stdoutPlain} />
-    </div>
+    <>
+      <Whoosh />
+      <div
+        style={{
+          opacity: enter,
+          transform: `translateZ(${interpolate(enter, [0, 1], [-260, 0])}px) rotateY(${interpolate(
+            enter,
+            [0, 1],
+            [yaw, 0],
+          )}deg)`,
+        }}
+      >
+        <Terminal command={command} label={label} output={output} />
+      </div>
+    </>
   );
 };
 
@@ -152,140 +172,64 @@ const TerminalScene: React.FC<{
 const SplitScene: React.FC<{
   command: string;
   label?: string;
-  match: string;
+  output: string;
   phoneStart?: number;
   shown: ThreadMessage[];
   stagger?: number;
+  subtitle?: string;
   title?: string;
-}> = ({ command, label, match, phoneStart = 26, shown, stagger = 14, title }) => {
+}> = ({ command, label, output, phoneStart = 26, shown, stagger = 14, subtitle, title }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const captured = step(match);
   // The phone swings in from the right and settles — the one moment the film is overtly kinetic.
-  const phone = spring({ config: { damping: 200 }, durationInFrames: 30, fps, frame: frame - phoneStart });
+  const phone = spring({
+    config: { damping: 200 },
+    durationInFrames: 30,
+    fps,
+    frame: frame - phoneStart,
+  });
 
   /*
    * Nudged right, because geometric centring is not optical centring here.
    *
    * Both panels are yawed under a shared perspective, which swings their near edges outward and
-   * leaves the pair reading about 60px left of where the box model puts it. Correcting it in the
-   * transform rather than the layout keeps the flex row honest about its own size.
-   *
-   * The terminal stays vertically centred with the phone. Raising it looked better in isolation
-   * and worse in frame — it just moved the empty space to the bottom left.
+   * leaves the pair reading about 60px left of where the box model puts it.
    */
   return (
-    <div
-      style={{
-        alignItems: "center",
-        display: "flex",
-        gap: 44,
-        justifyContent: "center",
-        transform: "translateX(56px)",
-      }}
-    >
-      <div style={{ transform: "translateZ(-40px) rotateY(6deg)" }}>
-        <Terminal command={command} label={label} output={captured.stdoutPlain} width={560} />
-      </div>
+    <>
+      <Whoosh />
       <div
         style={{
-          opacity: phone,
-          transform: `translateX(${interpolate(phone, [0, 1], [120, 0])}px) rotateY(${interpolate(
-            phone,
-            [0, 1],
-            [-26, -8],
-          )}deg) translateZ(${interpolate(phone, [0, 1], [-160, 0])}px)`,
+          alignItems: "center",
+          display: "flex",
+          gap: 44,
+          justifyContent: "center",
+          transform: "translateX(56px)",
         }}
       >
-        <Phone messages={shown} stagger={stagger} startAt={phoneStart + 10} title={title} />
+        <div style={{ transform: "translateZ(-40px) rotateY(6deg)" }}>
+          <Terminal command={command} label={label} output={output} width={560} />
+        </div>
+        <div
+          style={{
+            opacity: phone,
+            transform: `translateX(${interpolate(phone, [0, 1], [120, 0])}px) rotateY(${interpolate(
+              phone,
+              [0, 1],
+              [-26, -8],
+            )}deg) translateZ(${interpolate(phone, [0, 1], [-160, 0])}px)`,
+          }}
+        >
+          <Phone
+            messages={shown}
+            stagger={stagger}
+            startAt={phoneStart + 10}
+            subtitle={subtitle}
+            title={title}
+          />
+        </div>
       </div>
-    </div>
-  );
-};
-
-/**
- * The film.
- *
- * Timings are the agreed beat sheet in seconds, converted once, so the table in the plan and the
- * code stay legible against each other. Every terminal body and every bubble comes from
- * `public/captures`, recorded by `ops/capture-demo.mjs` against a real sandbox.
- */
-export const Demo: React.FC = () => {
-  const direct = messages.filter((m) => m.kind !== "text" || m.text === "hello from wapi");
-  const upToText = messages.slice(0, 1);
-  const withAttachments = messages.slice(0, 5);
-  const withGroup = messages.slice(0, 6);
-  const everything = messages;
-
-  return (
-    <Stage>
-      <Sequence durationInFrames={s(8)} name="Landing">
-        <LandingScene durationInFrames={s(8)} />
-      </Sequence>
-
-      <Sequence durationInFrames={s(5)} from={s(8)} name="Title">
-        <Title italic="No QR." plain="No phone." />
-      </Sequence>
-
-      <Sequence durationInFrames={s(6)} from={s(13)} name="Create">
-        <TerminalScene command="wapi sandbox create --use" match="sandbox create" />
-      </Sequence>
-
-      <Sequence durationInFrames={s(5)} from={s(19)} name="Connect">
-        <TerminalScene command="wapi sessions connect" match="sessions connect" yaw={8} />
-      </Sequence>
-
-      <Sequence durationInFrames={s(7)} from={s(24)} name="Send">
-        <SplitScene
-          command='wapi send --to +999… --text "hello from wapi"'
-          label="POST /api/send-message"
-          match="--text hello from wapi"
-          shown={upToText}
-        />
-      </Sequence>
-
-      <Sequence durationInFrames={s(11)} from={s(31)} name="Attachments">
-        <SplitScene
-          command="wapi media upload photo.png"
-          label="POST /api/upload"
-          match="media upload photo.png"
-          phoneStart={0}
-          shown={withAttachments}
-          stagger={16}
-        />
-      </Sequence>
-
-      <Sequence durationInFrames={s(8)} from={s(42)} name="Group">
-        <SplitScene
-          command='wapi send --to "Sandbox Team" --text "shipping Friday"'
-          label="a group is just another recipient"
-          match="groups list"
-          phoneStart={0}
-          shown={withGroup}
-          stagger={10}
-          title="Sandbox Team"
-        />
-      </Sequence>
-
-      <Sequence durationInFrames={s(10)} from={s(50)} name="Inbound">
-        <SplitScene
-          command='wapi sandbox inbound "and a reply"'
-          label="POST /api/sandbox/inbound"
-          match="sandbox inbound"
-          phoneStart={0}
-          shown={everything}
-          stagger={8}
-        />
-      </Sequence>
-
-      <Sequence durationInFrames={s(7)} from={s(60)} name="Payoff">
-        <Title italic="From a fake human." plain="A real message." />
-      </Sequence>
-
-      <Sequence durationInFrames={s(7)} from={s(67)} name="End">
-        <EndCard />
-      </Sequence>
-    </Stage>
+    </>
   );
 };
 
@@ -315,8 +259,112 @@ const EndCard: React.FC = () => {
           padding: "10px 16px",
         }}
       >
-        wapi sandbox create --use
+        wapi login
       </div>
     </div>
+  );
+};
+
+/**
+ * The film, in two halves.
+ *
+ * **Real first.** Everything up to 0:39 is a live WhatsApp account: real sends, real media, a real
+ * group, and WhatsApp's own delivery acknowledgement read back per message. The number is masked at
+ * capture time, so the digits are not in this repo and cannot reach the screen.
+ *
+ * **Then the sandbox**, as a feature rather than as the whole product — which is what the earlier
+ * cut accidentally implied. It is also the only way to show the payoff: there is no way to
+ * fabricate an inbound message on a real session, and a message you send from your own linked phone
+ * arrives as `fromMe`. The sandbox exists precisely for that gap, so the film says so.
+ */
+export const Demo: React.FC = () => {
+  const text = realMessages.slice(0, 1);
+  const attachments = realMessages.slice(0, 5);
+  const withGroup = realMessages.slice(0, 6);
+
+  return (
+    <Stage>
+      <Sequence durationInFrames={s(7)} name="Landing">
+        <LandingScene durationInFrames={s(7)} />
+      </Sequence>
+
+      <Sequence durationInFrames={s(5)} from={s(7)} name="Title">
+        <Title italic="over HTTP." plain="Your WhatsApp," sub="Your number. Your server." />
+      </Sequence>
+
+      <Sequence durationInFrames={s(7)} from={s(12)} name="Send">
+        <SplitScene
+          command={`wapi send --to ${MASKED} --text "hello from wapi"`}
+          label="POST /api/send-message"
+          output={real('--text "hello from wapi"').stdoutPlain}
+          shown={text}
+          subtitle={MASKED}
+          title="You"
+        />
+      </Sequence>
+
+      <Sequence durationInFrames={s(12)} from={s(19)} name="Attachments">
+        <SplitScene
+          command="wapi media upload photo.png"
+          label="POST /api/upload"
+          output={real("media upload photo.png").stdoutPlain}
+          phoneStart={0}
+          shown={attachments}
+          stagger={17}
+          subtitle={MASKED}
+          title="You"
+        />
+      </Sequence>
+
+      <Sequence durationInFrames={s(8)} from={s(31)} name="Group">
+        <SplitScene
+          command={'wapi send --to "Bots" --text "shipping Friday"'}
+          label="a group is just another recipient"
+          output={real('--to "Bots"').stdoutPlain}
+          phoneStart={0}
+          shown={withGroup}
+          stagger={10}
+          subtitle="72 people · a real group"
+          title="Bots"
+        />
+      </Sequence>
+
+      {/* ---------------------------------------------------------------- the sandbox half */}
+      <Sequence durationInFrames={s(6)} from={s(39)} name="SandboxTitle">
+        <Title
+          italic="no QR."
+          plain="And a sandbox —"
+          sub="for building against, before you point it at a real number"
+        />
+      </Sequence>
+
+      <Sequence durationInFrames={s(7)} from={s(45)} name="SandboxCreate">
+        <TerminalScene
+          command="wapi sandbox create --use"
+          label="a fake number, on a fake WhatsApp"
+          output={sandbox("sandbox create").stdoutPlain}
+        />
+      </Sequence>
+
+      <Sequence durationInFrames={s(10)} from={s(52)} name="Inbound">
+        <SplitScene
+          command={'wapi sandbox inbound "and a reply"'}
+          label="POST /api/sandbox/inbound"
+          output={sandbox("sandbox inbound").stdoutPlain}
+          phoneStart={0}
+          shown={sandboxMessages}
+          stagger={9}
+          title="Sandbox"
+        />
+      </Sequence>
+
+      <Sequence durationInFrames={s(7)} from={s(62)} name="Payoff">
+        <Title italic="From a fake human." plain="A real webhook." />
+      </Sequence>
+
+      <Sequence durationInFrames={s(7)} from={s(69)} name="End">
+        <EndCard />
+      </Sequence>
+    </Stage>
   );
 };
