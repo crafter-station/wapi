@@ -88,7 +88,7 @@ const Scene: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 /** A scene change. Quiet — the camera moves are small, and a bigger sound than its move reads cheap. */
 const Whoosh: React.FC = () => (
   <Sequence durationInFrames={10}>
-    <Audio src={staticFile("sfx/whoosh.wav")} volume={0.28} />
+    <Audio src={staticFile("sfx/whoosh.wav")} volume={0.55} />
   </Sequence>
 );
 
@@ -331,6 +331,16 @@ export const Demo: React.FC = () => {
 
   return (
     <Stage>
+      {/*
+        The music, under everything.
+        
+        Already trimmed, faded and normalised to -26 LUFS by `ops/make-music.mjs`, so it needs no
+        volume here — one number in one place decides how loud the bed is, and it is not this file.
+        Its own breakdown falls at 1:08, which is why the excerpt starts where it does: that lands
+        on the payoff title rather than on the first send.
+      */}
+      <Audio src={staticFile("music/bed.mp3")} />
+
       <Sequence durationInFrames={s(7)} name="Landing">
           <Scene>
           <LandingScene durationInFrames={s(7)} />

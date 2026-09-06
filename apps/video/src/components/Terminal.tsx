@@ -16,7 +16,7 @@ const KeySounds: React.FC<{ count: number; from: number; every?: number }> = ({
   <>
     {Array.from({ length: Math.floor(count / every) }, (_, i) => (
       <Sequence durationInFrames={2} from={from + i * every} key={i}>
-        <Audio src={staticFile("sfx/key.wav")} volume={0.16} />
+        <Audio src={staticFile("sfx/key.wav")} volume={0.35} />
       </Sequence>
     ))}
   </>
@@ -88,7 +88,7 @@ export const Terminal: React.FC<{
       */}
       <KeySounds count={typeDuration} from={typeStart} />
       <Sequence durationInFrames={8} from={outputAt}>
-        <Audio src={staticFile("sfx/send.wav")} volume={0.34} />
+        <Audio src={staticFile("sfx/send.wav")} volume={0.7} />
       </Sequence>
       <div
       style={{

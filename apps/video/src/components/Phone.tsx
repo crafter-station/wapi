@@ -136,7 +136,7 @@ const Bubble: React.FC<{ index: number; message: ThreadMessage; startAt: number 
       <Sequence durationInFrames={10} from={startAt}>
         <Audio
           src={staticFile(message.from_me ? "sfx/bubble.wav" : "sfx/receive.wav")}
-          volume={message.from_me ? 0.22 : 0.5}
+          volume={message.from_me ? 0.45 : 1}
         />
       </Sequence>
     <div
