@@ -107,7 +107,7 @@ Windows, in PowerShell — put `wapi.exe` anywhere on your `PATH`:
 irm https://github.com/crafter-station/wapi/releases/latest/download/wapi-windows-x64.exe -OutFile wapi.exe
 ```
 
-`latest` follows the newest release; replace it with `download/v0.2.0` to pin one. Each release
+`latest` follows the newest release; replace it with `download/v0.3.0` to pin one. Each release
 also carries `SHA256SUMS`, worth checking on a binary you did not watch being built. Working in
 this repo already? `bun apps/cli/src/index.ts` runs the same CLI without downloading anything.
 

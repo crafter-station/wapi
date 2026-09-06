@@ -8,12 +8,12 @@ Go resolves subdirectory modules natively, so this is an ordinary `go get` — n
 the TypeScript client:
 
 ```bash
-go get github.com/crafter-station/wapi/sdk/go@v0.2.0
+go get github.com/crafter-station/wapi/sdk/go@v0.3.0
 ```
 
-Pin a tag for anything you deploy; `@main` moves. Note the tag Go resolves is `sdk/go/v0.2.0`,
-not `v0.2.0` — a module in a subdirectory takes a tag prefixed with its path, and the repository
-carries both so `@v0.2.0` above works as written.
+Pin a tag for anything you deploy; `@main` moves. Note the tag Go resolves is `sdk/go/v0.3.0`,
+not `v0.3.0` — a module in a subdirectory takes a tag prefixed with its path, and the repository
+carries both so `@v0.3.0` above works as written.
 
 ```go
 import wapi "github.com/crafter-station/wapi/sdk/go"
