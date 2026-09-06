@@ -90,6 +90,82 @@ body {
   margin-inline: auto;
 }
 
+/*
+ * Landing nav — own breakpoints, not Tailwind `hidden`/`md:flex`.
+ *
+ * Soft-navigating home from `/docs` can leave Fumadocs utility CSS in the cascade. A centre
+ * cluster that starts as `hidden` and only becomes `md:flex` then stays invisible on a wide
+ * viewport while the mobile row stays `md:hidden` — exactly the empty-nav screenshot. These
+ * rules always display the links; only their grid placement changes.
+ *
+ * Mobile stays one row: brand | scrollable links | actions. A second wrapped row under the
+ * CTA reads as a broken header, not as navigation.
+ */
+.landing-nav {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0.75rem;
+  padding-block: 0.85rem;
+}
+.landing-nav-brand {
+  justify-self: start;
+}
+.landing-nav-links {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.15rem;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.landing-nav-links::-webkit-scrollbar {
+  height: 0;
+}
+.landing-nav-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  justify-self: end;
+}
+.landing-nav-link {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-height: 2.75rem;
+  padding-inline: 0.45rem;
+  font-size: 0.8125rem;
+  font-weight: 520;
+  color: var(--muted-foreground);
+  transition: color 0.15s var(--ease-out);
+}
+.landing-nav-link:hover {
+  color: var(--foreground);
+}
+
+@media (min-width: 768px) {
+  .landing-nav {
+    grid-template-columns: 1fr auto 1fr;
+    column-gap: 1.5rem;
+    padding-block: 1.25rem;
+  }
+  .landing-nav-links {
+    justify-content: center;
+    gap: 2rem;
+    overflow: visible;
+  }
+  .landing-nav-link {
+    padding-inline: 0;
+    font-size: 0.875rem;
+  }
+  .landing-nav-actions {
+    gap: 0.5rem;
+  }
+}
+
+
 /* ---------------------------------------------------------------- typography */
 
 .display {
@@ -360,7 +436,7 @@ button:focus-visible {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.6rem 0.9rem;
+  padding: 0.45rem 0.65rem 0.45rem 0.9rem;
   border-bottom: 1px solid var(--border);
   font-family: var(--font-mono);
   font-size: 0.7rem;
@@ -369,10 +445,19 @@ button:focus-visible {
   text-transform: uppercase;
   min-width: 0;
 }
-.terminal-bar > :last-child {
+.terminal-bar-label {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.terminal-bar-copy {
+  margin-inline-start: auto;
+  flex-shrink: 0;
+  min-height: 2.75rem;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.75rem;
 }
 .terminal-body {
   padding: 1rem 1.15rem;
