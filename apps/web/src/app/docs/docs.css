@@ -96,3 +96,48 @@
     font-weight: var(--shiki-dark-font-weight, inherit);
   }
 }
+
+/*
+ * Links, back to this site's convention.
+ *
+ * Fumadocs underlines every anchor on the page — its rule is
+ * `:where(a:not([data-card])):not(:where(.not-prose, .not-prose *))`, with no `.prose` ancestor,
+ * so it catches the sidebar, the table of contents and the breadcrumbs as well as body prose. It
+ * also sets `font-weight: 500` and a 1.5px underline in the primary colour, which is a much
+ * louder link than anything else on this site: `globals.css` underlines prose links with the
+ * inherited colour at the browser's default hairline.
+ *
+ * The whole Fumadocs selector is built from `:where()`, so it carries zero specificity and an
+ * ordinary rule beats it. No `!important` needed anywhere below.
+ */
+
+/* Navigation is not prose. Underlining a sidebar makes a list of links look like a list of
+   corrections. */
+#nd-sidebar a,
+#nd-toc a,
+#nd-docs-layout nav a,
+#nd-docs-layout [data-card],
+#nd-docs-layout [data-card] * {
+  text-decoration: none;
+  font-weight: inherit;
+}
+
+/* Body links: underlined, but at the weight and colour the rest of the site uses. */
+#nd-docs-layout .prose a {
+  color: var(--foreground);
+  font-weight: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+#nd-docs-layout .prose a:hover {
+  text-decoration-color: currentColor;
+}
+
+/* Headings that happen to be links keep their weight rather than inheriting the link rule. */
+#nd-docs-layout .prose :is(h1, h2, h3, h4) a {
+  font-weight: inherit;
+  text-decoration: none;
+}

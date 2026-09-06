@@ -170,6 +170,50 @@ test.describe("the docs site", () => {
       .toBeGreaterThan(0);
   });
 
+  test("links follow the site's convention, not Fumadocs'", async ({ page }) => {
+    await page.goto("/docs/guides/webhooks");
+
+    /**
+     * Fumadocs underlines every anchor on the page — its rule has no `.prose` ancestor, so it
+     * catches the sidebar and the table of contents too, in a 1.5px primary-coloured underline at
+     * font-weight 500. Nothing else on this site shouts like that, and no other check can see it:
+     * it typechecks, builds, and passes every guard while looking wrong.
+     */
+    const sidebarLink = page.locator("#nd-sidebar a").first();
+    await expect(sidebarLink).toBeVisible();
+    expect(
+      await sidebarLink.evaluate((el) => getComputedStyle(el).textDecorationLine),
+    ).toBe("none");
+
+    // The table of contents is navigation too.
+    const tocLink = page.locator("#nd-toc a").first();
+    if (await tocLink.count()) {
+      expect(await tocLink.evaluate((el) => getComputedStyle(el).textDecorationLine)).toBe("none");
+    }
+
+    /**
+     * Body prose keeps an underline — that is this site's convention — but a hairline one.
+     *
+     * Compared as strings rather than parsed: an element the rule does not reach computes
+     * `auto`, and `parseFloat("auto")` is NaN, which silently satisfies neither `<=` nor `>`.
+     * `1.5px` is Fumadocs' weight and the only value this needs to exclude.
+     */
+    const bodyLink = page.locator(".prose p a").first();
+    await expect(bodyLink).toBeVisible();
+    const body = await bodyLink.evaluate((el) => {
+      const s = getComputedStyle(el);
+      return {
+        decoration: s.textDecorationLine,
+        thickness: s.textDecorationThickness,
+        weight: s.fontWeight,
+      };
+    });
+    expect(body.decoration).toBe("underline");
+    expect(body.thickness).not.toBe("1.5px");
+    // Fumadocs sets 500; the surrounding prose is 400, and a link should not be bolder than it.
+    expect(body.weight).not.toBe("500");
+  });
+
   test("search finds a page by its prose", async ({ page }) => {
     // The index is built from the same page tree the sidebar renders. If they disagree, a page is
     // reachable and unfindable, or findable and gone.
