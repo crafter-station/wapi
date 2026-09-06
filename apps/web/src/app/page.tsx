@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 import { GithubLink } from "@/components/github-link";
+import { DemoVideo } from "@/components/demo-video";
 import { highlight } from "@/lib/highlight";
 
 /**
@@ -131,6 +132,28 @@ export default async function Home() {
           <div className="justify-self-center lg:justify-self-end">
             <HeroTerminal />
           </div>
+        </div>
+      </section>
+
+      {/* ---------------------------------------------------------------- demo */}
+      <section className="rule">
+        <div className="shell grid items-center gap-12 py-20 lg:grid-cols-[1fr_1.15fr]">
+          <div>
+            <p className="kicker">Watch it</p>
+            <h2 className="title mt-5">
+              No phone. <em>No QR.</em>
+            </h2>
+            <p className="lede mt-6">
+              Seventy-four seconds: a sandbox number that pairs itself, messages and attachments
+              landing in a WhatsApp thread, a group, and a webhook firing from a contact who does
+              not exist.
+            </p>
+            <p className="mt-5 text-[0.85rem] text-[var(--muted-foreground)]">
+              Every command in it was recorded from the real CLI against a real sandbox — see{" "}
+              <code className="code">ops/capture-demo.mjs</code>.
+            </p>
+          </div>
+          <DemoVideo />
         </div>
       </section>
 

@@ -79,6 +79,30 @@ test.describe("the landing page", () => {
   });
 });
 
+test.describe("the demo video", () => {
+  test("shows a poster and only fetches the film when asked", async ({ page }) => {
+    const videoRequests: string[] = [];
+    page.on("request", (r) => {
+      if (/\.(mp4|webm)(\?|$)/.test(r.url())) videoRequests.push(r.url());
+    });
+
+    await page.goto("/");
+    const play = page.getByRole("button", { name: /play the demo/i });
+    await expect(play).toBeVisible();
+
+    /**
+     * Nothing is fetched until somebody presses play, which is the whole reason this is a poster
+     * and not an autoplaying loop: the landing page costs 40 KB for a reader who never watches,
+     * rather than 1.2 MB. It also means the page has no motion until motion is asked for, which is
+     * this site's only concession to prefers-reduced-motion.
+     */
+    expect(videoRequests).toEqual([]);
+
+    await play.click();
+    await expect(page.locator("video")).toBeVisible();
+  });
+});
+
 test.describe("the docs site", () => {
   test("has pages to test at all", () => {
     // A glob that silently returns nothing would make every loop below vacuously pass.

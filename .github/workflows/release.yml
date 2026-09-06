@@ -1,9 +1,13 @@
 name: Release
 
 # Tags only. A release is a deliberate act, not something a push to main should produce.
+#
+# `workflow_dispatch` exists so the demo film can be re-rendered and inspected without cutting a
+# release — it uploads an artifact rather than touching a release in that case.
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 # The workflow creates a release and uploads to it; nothing else needs write access.
 permissions:
@@ -13,6 +17,9 @@ jobs:
   cli:
     name: CLI binaries
     runs-on: ubuntu-latest
+    # Tags only. A manual dispatch is for re-rendering the film; it has no release to publish to,
+    # and `softprops/action-gh-release` on a branch ref would try to create one named after it.
+    if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v4
 
@@ -91,3 +98,52 @@ jobs:
             dist/wapi-darwin-arm64
             dist/wapi-windows-x64.exe
             dist/SHA256SUMS
+
+  video:
+    name: Demo film
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # node, not bun. Remotion drives a headless browser over a pipe that never connects
+          # under Bun — every launch times out having apparently started the process — which is the
+          # same reason ops/capture-demo.mjs runs under node.
+          node-version: 22
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.23
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Render
+        # Renders from the committed captures in apps/video/public, so this needs no database, no
+        # gateway and no credentials — the recording already happened. A render pulls a headless
+        # Chromium and takes minutes, which is why it lives here and not on the push path.
+        run: bun run --cwd apps/video render
+
+      - name: What came out
+        run: ls -la apps/video/out
+
+      - name: Keep it for inspection
+        # On a manual run there is no release to attach to, so the film lands as an artifact.
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-film
+          path: apps/video/out/
+
+      - name: Attach to the release
+        # The landing page points at `releases/latest/download/wapi-demo.mp4`, so the film has to
+        # be on the release rather than in the repo — it is ~1.2 MB and regenerated, not authored.
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          fail_on_unmatched_files: true
+          files: |
+            apps/video/out/wapi-demo.mp4
+            apps/video/out/wapi-demo.webm
+            apps/video/out/poster.jpg

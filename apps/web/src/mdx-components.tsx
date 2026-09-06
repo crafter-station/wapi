@@ -2,6 +2,7 @@ import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 import defaultComponents from "fumadocs-ui/mdx";
 import type { MDXComponents } from "mdx/types";
 import { CommandTable } from "@/components/command-table";
+import { DemoVideo } from "@/components/demo-video";
 
 /**
  * Components available to every MDX page.
@@ -11,5 +12,5 @@ import { CommandTable } from "@/components/command-table";
  * as text.
  */
 export function getMDXComponents(components?: MDXComponents): MDXComponents {
-  return { ...defaultComponents, CommandTable, Tab, Tabs, ...components };
+  return { ...defaultComponents, CommandTable, DemoVideo, Tab, Tabs, ...components };
 }

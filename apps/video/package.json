@@ -4,10 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "studio": "remotion studio",
-    "render": "remotion render",
-    "still": "remotion still",
-    "typecheck": "tsc --noEmit"
+    "studio": "node ../../node_modules/@remotion/cli/remotion-cli.js studio",
+    "typecheck": "tsc --noEmit",
+    "render:mp4": "node ../../node_modules/@remotion/cli/remotion-cli.js render src/index.ts Demo out/wapi-demo.mp4 --codec=h264 --crf=26",
+    "render:webm": "node ../../node_modules/@remotion/cli/remotion-cli.js render src/index.ts Demo out/wapi-demo.webm --codec=vp9 --crf=34",
+    "render:poster": "node ../../node_modules/@remotion/cli/remotion-cli.js still src/index.ts Demo out/poster.jpg --frame=1650 --image-format=jpeg --jpeg-quality=88",
+    "render": "bun run render:mp4 && bun run render:webm && bun run render:poster"
   },
   "dependencies": {
     "@remotion/cli": "4.0.521",
