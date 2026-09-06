@@ -32,14 +32,24 @@ export function registerMedia(program: Command): void {
         }
 
         const client = await sessionClient(ctx, session(opts));
-        const res = (await client.messages.media.upload({
+        /**
+         * The SDK returns the URL as a **string**, not an object.
+         *
+         * This used to cast the result to `{ publicUrl?: string }` and read `.publicUrl` off it,
+         * which on a string is always `undefined` — so the command printed "Uploaded, but no URL
+         * came back" on every successful upload, and the cast is what stopped the compiler from
+         * saying so. The URL is the entire point of the command.
+         */
+        const publicUrl = await client.messages.media.upload({
           base64: bytes.toString("base64"),
           fileName: basename(file),
           mimetype: opts.mimetype ?? guessType(file),
-        })) as { publicUrl?: string };
+        });
 
-        // `publicUrl` sits at the top level rather than under `data`, so the SDK hands it back raw.
-        emit(ctx.json, res, () => info(res.publicUrl ?? dim("Uploaded, but no URL came back.")));
+        // Wrapped for `--json` so `jq -r .publicUrl` works; printed bare for a person to copy.
+        emit(ctx.json, { publicUrl }, () =>
+          info(publicUrl || dim("Uploaded, but no URL came back.")),
+        );
       });
 
   media

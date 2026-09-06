@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -150,6 +150,25 @@ d("the CLI", () => {
     await wapi("contacts", "save", target, "--name", "Renamed");
     const after = await json<{ jid: string; name: string }[]>("contacts", "list");
     expect(after.find((c) => c.jid === target)?.name).toBe("Renamed");
+  });
+
+  test("upload prints the URL, which is the whole point of the command", async () => {
+    /**
+     * This shipped broken. The SDK returns the URL as a string; the command cast it to
+     * `{ publicUrl?: string }` and read `.publicUrl` off it, which is always `undefined` on a
+     * string — so every successful upload printed "Uploaded, but no URL came back". The cast is
+     * what stopped the compiler from saying so, and nothing here ran the command.
+     */
+    const file = join(home, "upload.txt");
+    writeFileSync(file, "wapi upload test", "utf8");
+
+    const res = await json<{ publicUrl: string }>("media", "upload", file);
+    expect(res.publicUrl).toMatch(/^https?:\/\//);
+
+    // And the human form prints it bare, so it can be piped or copied.
+    const human = await wapi("media", "upload", file);
+    expect(human.code).toBe(0);
+    expect(human.stdout.trim()).toMatch(/^https?:\/\//);
   });
 
   test("tokens are minted once and revoke immediately", async () => {
