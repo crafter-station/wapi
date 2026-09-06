@@ -164,8 +164,26 @@ const SplitScene: React.FC<{
   // The phone swings in from the right and settles — the one moment the film is overtly kinetic.
   const phone = spring({ config: { damping: 200 }, durationInFrames: 30, fps, frame: frame - phoneStart });
 
+  /*
+   * Nudged right, because geometric centring is not optical centring here.
+   *
+   * Both panels are yawed under a shared perspective, which swings their near edges outward and
+   * leaves the pair reading about 60px left of where the box model puts it. Correcting it in the
+   * transform rather than the layout keeps the flex row honest about its own size.
+   *
+   * The terminal stays vertically centred with the phone. Raising it looked better in isolation
+   * and worse in frame — it just moved the empty space to the bottom left.
+   */
   return (
-    <div style={{ alignItems: "center", display: "flex", gap: 56 }}>
+    <div
+      style={{
+        alignItems: "center",
+        display: "flex",
+        gap: 44,
+        justifyContent: "center",
+        transform: "translateX(56px)",
+      }}
+    >
       <div style={{ transform: "translateZ(-40px) rotateY(6deg)" }}>
         <Terminal command={command} label={label} output={captured.stdoutPlain} width={560} />
       </div>

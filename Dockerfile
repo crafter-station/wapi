@@ -28,6 +28,8 @@ COPY apps/web/package.json apps/web/
 # The CLI is not deployed, but a frozen install needs every workspace manifest present — and
 # the web build imports one file from it, so `web-builder` copies the source too.
 COPY apps/cli/package.json apps/cli/
+# Same reason: `apps/video` ships nothing, but `--frozen-lockfile` fails if its manifest is absent.
+COPY apps/video/package.json apps/video/
 COPY compat/package.json compat/
 COPY sdk/typescript/package.json sdk/typescript/
 RUN bun install --frozen-lockfile

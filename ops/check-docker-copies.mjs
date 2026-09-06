@@ -75,7 +75,36 @@ const copiedBy = (stage) => {
     .filter((p) => !p.startsWith("/app"));
 };
 
+/**
+ * Every workspace manifest reaches the `deps` stage.
+ *
+ * Separate from the import check below, and a different failure: `bun install --frozen-lockfile`
+ * refuses to run when a workspace named in the lockfile has no manifest in the build context, so
+ * *adding a workspace at all* breaks the image — even one that ships nothing and nothing imports.
+ * `apps/video` did exactly that, and the import check could not have seen it.
+ */
 const dirs = workspaceDirs();
+const dockerfile = readFileSync("Dockerfile", "utf8");
+const depsStage = dockerfile.split("AS deps")[1]?.split("\nFROM ")[0] ?? "";
+const manifests = new Set(
+  [...depsStage.matchAll(/^COPY (\S+\/package\.json)/gm)].map((m) => m[1]),
+);
+
+const uncopied = [...dirs.values()]
+  .map((dir) => `${dir}/package.json`)
+  .filter((m) => !manifests.has(m) && existsSync(m));
+
+if (uncopied.length) {
+  fail(`${uncopied.length} workspace manifest(s) the deps stage does not copy:`, [
+    ...uncopied,
+    "",
+    "`bun install --frozen-lockfile` fails without them, even for a workspace nothing deploys.",
+    "Add each to the `deps` stage in Dockerfile.",
+  ]);
+} else {
+  console.log(`  ok    every workspace manifest reaches the deps stage`);
+}
+
 const copied = copiedBy("web-builder");
 const missing = [];
 
