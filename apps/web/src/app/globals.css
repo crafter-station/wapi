@@ -86,6 +86,7 @@ body {
 
 .shell {
   width: var(--shell);
+  max-width: 100%;
   margin-inline: auto;
 }
 
@@ -182,6 +183,40 @@ body {
   font-size: 0.925rem;
   font-weight: 560;
   transition: opacity 0.15s var(--ease-out), background 0.15s var(--ease-out);
+}
+.btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/*
+ * Keyboard path into the page. Hidden until focused — no visual noise for pointer users,
+ * and the cheapest a11y win that does not need env vars or copy changes.
+ */
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: 1rem;
+  z-index: 100;
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 0.875rem;
+  font-weight: 560;
+  padding: 0.65rem 1rem;
+  transform: translateY(-160%);
+  transition: transform 0.15s var(--ease-out);
+}
+.skip-link:focus {
+  transform: translateY(0);
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 .btn-primary {
   background: var(--primary);
@@ -309,6 +344,17 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
+  max-width: 100%;
+}
+/*
+ * Landing hero only. A short border lift on hover gives the panel presence without motion
+ * that would fight prefers-reduced-motion — colour, not transform.
+ */
+.terminal-lift {
+  transition: border-color 0.15s var(--ease-out);
+}
+.terminal-lift:hover {
+  border-color: color-mix(in oklch, var(--foreground) 22%, var(--border));
 }
 .terminal-bar {
   display: flex;
@@ -321,9 +367,18 @@ body {
   letter-spacing: 0.08em;
   color: var(--muted-foreground);
   text-transform: uppercase;
+  min-width: 0;
+}
+.terminal-bar > :last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .terminal-body {
   padding: 1rem 1.15rem;
+  /* Long curl lines scroll inside the panel instead of widening the page (grid min-content). */
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 /* ---------------------------------------------------------------- status */

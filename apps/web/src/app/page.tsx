@@ -13,43 +13,66 @@ import { highlight } from "@/lib/highlight";
  *
  * The content is ours. The hero panel is a terminal because this product's surface is a REST
  * API — showing a curl and its response is the honest equivalent of showing the app.
+ *
+ * Section order is problem → product → how → proof (demo) → honesty → CTA so the reader meets
+ * the gap before the film; the prose in each section is unchanged.
  */
 
 const API = "https://api.wapi.crafter.run";
 
+const NAV_LINK =
+  "inline-flex min-h-11 items-center text-[0.875rem] font-[520] text-[var(--muted-foreground)] transition-colors duration-150 [transition-timing-function:var(--ease-out)] hover:text-[var(--foreground)]";
+
 function Nav() {
   return (
     <nav className="rule">
-      <div className="shell grid grid-cols-[1fr_auto_1fr] items-center gap-6 py-5">
-        <Link href="/" className="wordmark w-fit">
-          wapi<span>.</span>
-        </Link>
-        <div className="hidden items-center gap-8 text-[0.875rem] font-[520] md:flex">
-          <a href="#how" className="text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
+      <div className="shell py-4 md:py-5">
+        <div className="grid grid-cols-[1fr_auto] items-center gap-4 md:grid-cols-[1fr_auto_1fr] md:gap-6">
+          <Link href="/" className="wordmark w-fit">
+            wapi<span>.</span>
+          </Link>
+          <div className="hidden items-center gap-8 md:flex">
+            <a href="#how" className={NAV_LINK}>
+              How it works
+            </a>
+            <Link href="/docs" className={NAV_LINK}>
+              Docs
+            </Link>
+            <a href={`${API}/docs`} className={NAV_LINK}>
+              API reference
+            </a>
+          </div>
+          <div className="flex items-center justify-end gap-2">
+            <GithubLink />
+            <SignedIn>
+              <Link href="/sessions" className="btn btn-primary min-h-11">
+                Dashboard
+              </Link>
+            </SignedIn>
+            <SignedOut>
+              <SignInButton mode="modal">
+                <button type="button" className="btn btn-primary min-h-11">
+                  Get started
+                </button>
+              </SignInButton>
+            </SignedOut>
+          </div>
+        </div>
+        {/*
+         * Mobile-only destinations. Desktop already has the centre cluster; hiding those links
+         * entirely on small screens forced Docs into the footer. Three destinations + the primary
+         * CTA above is enough — do not add a hamburger.
+         */}
+        <div className="mt-3 flex gap-1 overflow-x-auto scroll-slim md:hidden">
+          <a href="#how" className={`${NAV_LINK} px-2`}>
             How it works
           </a>
-          <Link href="/docs" className="text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
+          <Link href="/docs" className={`${NAV_LINK} px-2`}>
             Docs
           </Link>
-          <a
-            href={`${API}/docs`}
-            className="text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-          >
+          <a href={`${API}/docs`} className={`${NAV_LINK} px-2`}>
             API reference
           </a>
-        </div>
-        <div className="flex items-center justify-end gap-2">
-          <GithubLink />
-          <SignedIn>
-            <Link href="/sessions" className="btn btn-primary">
-              Dashboard
-            </Link>
-          </SignedIn>
-          <SignedOut>
-            <SignInButton mode="modal">
-              <button className="btn btn-primary">Get started</button>
-            </SignInButton>
-          </SignedOut>
         </div>
       </div>
     </nav>
@@ -78,7 +101,7 @@ async function HeroTerminal() {
   );
 
   return (
-    <div className="terminal w-full max-w-[560px]">
+    <div className="terminal terminal-lift w-full max-w-[560px] min-w-0">
       <div className="terminal-bar">
         <span className="status status-connected">connected</span>
         <span className="ml-auto">POST /api/send-message</span>
@@ -95,12 +118,16 @@ async function HeroTerminal() {
 export default async function Home() {
   return (
     <>
+      <a href="#main" className="skip-link">
+        Skip to content
+      </a>
       <Nav />
 
+      <main id="main">
       {/* ------------------------------------------------------------------ hero */}
       <section className="hero-wash rule">
-        <div className="shell grid items-center gap-14 py-20 lg:grid-cols-[1.05fr_1fr] lg:py-28">
-          <div>
+        <div className="shell grid min-w-0 items-center gap-10 py-14 sm:gap-14 sm:py-20 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:py-28">
+          <div className="min-w-0">
             <p className="kicker">Self-hosted WhatsApp API</p>
             <h1 className="display mt-6">
               WhatsApp over HTTP, <em>on your own box.</em>
@@ -112,16 +139,18 @@ export default async function Home() {
             </p>
             <div className="mt-9 flex flex-wrap items-center gap-4">
               <SignedIn>
-                <Link href="/sessions" className="btn btn-primary">
+                <Link href="/sessions" className="btn btn-primary min-h-11">
                   Open dashboard
                 </Link>
               </SignedIn>
               <SignedOut>
                 <SignInButton mode="modal">
-                  <button className="btn btn-primary">Link a number</button>
+                  <button type="button" className="btn btn-primary min-h-11">
+                    Link a number
+                  </button>
                 </SignInButton>
               </SignedOut>
-              <Link href="/docs" className="btn btn-ghost">
+              <Link href="/docs" className="btn btn-ghost min-h-11">
                 Read the guide
               </Link>
             </div>
@@ -129,39 +158,15 @@ export default async function Home() {
               Sessions live on your server. Credentials never leave your database.
             </p>
           </div>
-          <div className="justify-self-center lg:justify-self-end">
+          <div className="min-w-0 w-full justify-self-center lg:justify-self-end">
             <HeroTerminal />
           </div>
         </div>
       </section>
 
-      {/* ---------------------------------------------------------------- demo */}
-      <section className="rule">
-        <div className="shell grid items-center gap-12 py-20 lg:grid-cols-[1fr_1.15fr]">
-          <div>
-            <p className="kicker">Watch it</p>
-            <h2 className="title mt-5">
-              Your WhatsApp, <em>over HTTP.</em>
-            </h2>
-            <p className="lede mt-6">
-              Seventy-eight seconds on a live account: messages, images, stickers, video and
-              documents landing in a real thread with WhatsApp&rsquo;s own delivery ticks, then a
-              group — and finally a sandbox, where a contact who does not exist fires a genuine
-              webhook.
-            </p>
-            <p className="mt-5 text-[0.85rem] text-[var(--muted-foreground)]">
-              Every command in it was recorded from the real CLI against a real session, and the
-              number is masked at capture time — see{" "}
-              <code className="code">ops/capture-demo.mjs</code>.
-            </p>
-          </div>
-          <DemoVideo />
-        </div>
-      </section>
-
       {/* -------------------------------------------------------------- tension */}
       <section className="rule">
-        <div className="shell grid gap-10 py-20 lg:grid-cols-[1.1fr_1fr]">
+        <div className="shell grid min-w-0 gap-10 py-20 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
           <div>
             <p className="kicker">The gap</p>
             <h2 className="title mt-5">
@@ -251,9 +256,33 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* ---------------------------------------------------------------- demo */}
+      <section className="rule">
+        <div className="shell grid min-w-0 items-center gap-12 py-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+          <div>
+            <p className="kicker">Watch it</p>
+            <h2 className="title mt-5">
+              Your WhatsApp, <em>over HTTP.</em>
+            </h2>
+            <p className="lede mt-6">
+              Seventy-eight seconds on a live account: messages, images, stickers, video and
+              documents landing in a real thread with WhatsApp&rsquo;s own delivery ticks, then a
+              group — and finally a sandbox, where a contact who does not exist fires a genuine
+              webhook.
+            </p>
+            <p className="mt-5 text-[0.85rem] text-[var(--muted-foreground)]">
+              Every command in it was recorded from the real CLI against a real session, and the
+              number is masked at capture time — see{" "}
+              <code className="code">ops/capture-demo.mjs</code>.
+            </p>
+          </div>
+          <DemoVideo />
+        </div>
+      </section>
+
       {/* ------------------------------------------------------------ honesty */}
       <section className="rule">
-        <div className="shell grid gap-10 py-20 lg:grid-cols-[1fr_1.1fr]">
+        <div className="shell grid min-w-0 gap-10 py-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
           <div>
             <p className="kicker">Worth knowing</p>
             <h2 className="title mt-5">
@@ -281,40 +310,49 @@ export default async function Home() {
           <h2 className="title mx-auto max-w-[720px]">
             Link a number and <em>send your first message.</em>
           </h2>
-          <div className="mt-9 flex justify-center gap-4">
+          <div className="mt-9 flex flex-wrap justify-center gap-4">
             <SignedIn>
-              <Link href="/sessions" className="btn btn-primary">
+              <Link href="/sessions" className="btn btn-primary min-h-11">
                 Open dashboard
               </Link>
             </SignedIn>
             <SignedOut>
               <SignInButton mode="modal">
-                <button className="btn btn-primary">Get started</button>
+                <button type="button" className="btn btn-primary min-h-11">
+                  Get started
+                </button>
               </SignInButton>
             </SignedOut>
-            <Link href="/docs" className="btn btn-ghost">
+            <Link href="/docs" className="btn btn-ghost min-h-11">
               Documentation
             </Link>
           </div>
         </div>
       </section>
+      </main>
 
       <footer className="rule border-t">
         <div className="shell flex flex-wrap items-center justify-between gap-4 py-8 text-[0.85rem] text-[var(--muted-foreground)]">
           <span className="wordmark text-[1rem]">
             wapi<span>.</span>
           </span>
-          <div className="flex gap-6">
-            <Link href="/docs" className="hover:text-[var(--foreground)]">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            <Link href="/docs" className="inline-flex min-h-11 items-center hover:text-[var(--foreground)]">
               Docs
             </Link>
-            <a href={`${API}/docs`} className="hover:text-[var(--foreground)]">
+            <a
+              href={`${API}/docs`}
+              className="inline-flex min-h-11 items-center hover:text-[var(--foreground)]"
+            >
               API reference
             </a>
-            <a href={`${API}/openapi.json`} className="hover:text-[var(--foreground)]">
+            <a
+              href={`${API}/openapi.json`}
+              className="inline-flex min-h-11 items-center hover:text-[var(--foreground)]"
+            >
               OpenAPI
             </a>
-            <GithubLink className="!p-0" />
+            <GithubLink className="!p-0 min-h-11 min-w-11" />
           </div>
         </div>
       </footer>

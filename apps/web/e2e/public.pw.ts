@@ -77,6 +77,34 @@ test.describe("the landing page", () => {
     await expect(page.locator("body")).toBeVisible();
     expect(errors).toEqual([]);
   });
+
+  test("keeps Docs reachable on a phone without opening the footer", async ({ browser }) => {
+    /**
+     * The centre nav cluster is `hidden md:flex`. Before the mobile row existed, Docs was only
+     * in the footer — selective attention fails when the primary secondary action is below the
+     * fold. Assert the in-nav Docs link is visible at 390px rather than merely present in the DOM.
+     */
+    const page = await browser.newPage({ viewport: { height: 844, width: 390 } });
+    await page.goto("/");
+    const docs = page.locator("nav").getByRole("link", { name: "Docs" });
+    await expect(docs.first()).toBeVisible();
+    await page.close();
+  });
+
+  test("does not scroll sideways on a phone", async ({ browser }) => {
+    /**
+     * The hero terminal's curl is wider than a phone. Without `minmax(0, …)` on the grid and
+     * overflow on the panel, that line sets the page's minimum width and the whole landing
+     * pans horizontally — the same class of bug the docs suite already guards.
+     */
+    const page = await browser.newPage({ viewport: { height: 844, width: 390 } });
+    await page.goto("/");
+    const overflows = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+    );
+    expect(overflows).toBe(false);
+    await page.close();
+  });
 });
 
 test.describe("the demo video", () => {
