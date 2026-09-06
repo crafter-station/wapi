@@ -29,6 +29,22 @@ const PAT = process.env["WAPI_PAT"] ?? "";
 const CAN_RUN = Boolean(BIN && PAT);
 const d = CAN_RUN ? describe : describe.skip;
 
+/**
+ * Whether this deployment has object storage.
+ *
+ * Probed rather than configured, exactly as `compat/sandbox.test.ts` does it. CI runs Postgres and
+ * Redis but no bucket, so `/api/upload` correctly 503s there — a test that failed on it would be
+ * reporting a missing dependency as a broken command.
+ *
+ * Top-level await: `skipIf` is evaluated when the tests are defined, not when they run.
+ */
+const HAS_STORAGE = CAN_RUN
+  ? await fetch(`${BASE}/health`)
+      .then((r) => r.json() as Promise<{ storage?: boolean }>)
+      .then((h) => h.storage === true)
+      .catch(() => false)
+  : false;
+
 /** A throwaway HOME, so the suite cannot read or disturb a real `~/.wapi/config/config.json`. */
 let home = "";
 
@@ -152,12 +168,18 @@ d("the CLI", () => {
     expect(after.find((c) => c.jid === target)?.name).toBe("Renamed");
   });
 
-  test("upload prints the URL, which is the whole point of the command", async () => {
+  test.skipIf(!HAS_STORAGE)("upload prints the URL, which is the whole point of the command", async () => {
     /**
      * This shipped broken. The SDK returns the URL as a string; the command cast it to
      * `{ publicUrl?: string }` and read `.publicUrl` off it, which is always `undefined` on a
      * string — so every successful upload printed "Uploaded, but no URL came back". The cast is
      * what stopped the compiler from saying so, and nothing here ran the command.
+     *
+     * **This does not run in CI**, which has no bucket, so be clear about what covers it. The
+     * assertion below runs anywhere storage exists. In practice the standing guard is
+     * `ops/capture-demo.mjs`, which uses `media upload` for real against production and aborts if
+     * the output is not a URL — which is how the bug was found. `integration.test.ts` covers
+     * `/api/upload` itself, but over HTTP, so it could never have seen a CLI-side cast.
      */
     const file = join(home, "upload.txt");
     writeFileSync(file, "wapi upload test", "utf8");
