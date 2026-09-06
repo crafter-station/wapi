@@ -95,8 +95,13 @@ export const Terminal: React.FC<{
         background: theme.card,
         border: `1px solid ${theme.border}`,
         borderRadius: theme.radius,
-        // A single soft shadow, not a stack: depth here comes from the camera, not from CSS.
-        boxShadow: "0 24px 60px rgba(10,10,10,0.10)",
+        /*
+         * Two shadows: a tight one that reads as a lifted edge, and a wide soft one that puts the
+         * panel above the page. The single 10%-opacity shadow this replaced was invisible against
+         * a white ground, so the terminals looked printed onto the background rather than floating
+         * over it.
+         */
+        boxShadow: "0 2px 6px rgba(10,10,10,0.06), 0 28px 70px rgba(10,10,10,0.22)",
         fontFamily: font.mono,
         overflow: "hidden",
         width,

@@ -123,6 +123,8 @@ jobs:
         # Not in the runner image. Remotion bundles its own for rendering, which is why the render
         # step succeeded and only the mastering pass — which shells out to ffmpeg — failed.
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+        # The render now produces video and audio separately and muxes them, so ffmpeg is on the
+        # critical path rather than a finishing touch.
 
       - name: Render
         # Renders from the committed captures in apps/video/public, so this needs no database, no

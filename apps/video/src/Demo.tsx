@@ -134,37 +134,30 @@ const LandingScene: React.FC<{ durationInFrames: number }> = ({ durationInFrames
    * one — measured at 28px left at the original 10deg. Softening the angle halves that, and the
    * remainder is corrected here rather than left to look like a framing mistake.
    */
-  const yaw = interpolate(frame, [0, durationInFrames], [6, 2]);
-  const z = interpolate(frame, [0, durationInFrames], [-360, -180]);
-  const nudge = interpolate(frame, [0, durationInFrames], [16, 6]);
+  /*
+   * Full bleed, with a slow push in.
+   *
+   * This was a tilted 820px plane floating in the middle of the frame, which read as a screenshot
+   * of a website rather than as the website. Filling the frame means the film opens *in* the
+   * product. The only motion left is a gentle scale and the pan, because a full-bleed plane has no
+   * edges for a rotation to describe — it would just shear the picture.
+   */
+  const scale = interpolate(frame, [0, durationInFrames], [1.06, 1.0]);
   const fade = interpolate(frame, [0, 18], [0, 1], { extrapolateRight: "clamp" });
 
   return (
-    /*
-     * Framed, because a white page on a white ground has no edge.
-     *
-     * Without the border and shadow this scene read as loose text floating off-centre rather than
-     * as a website — there was nothing to tell the eye where the page stopped and the film's
-     * background began. The same chrome as the terminal panels, so the two beats look like parts of
-     * one piece.
-     */
-    <div
+    <AbsoluteFill
       style={{
-        border: `1px solid ${theme.border}`,
-        borderRadius: theme.radius,
-        boxShadow: "0 30px 70px rgba(10,10,10,0.12)",
-        height: 470,
         opacity: fade,
         overflow: "hidden",
-        transform: `translateX(${nudge}px) translateZ(${z}px) rotateY(${yaw}deg)`,
-        width: 820,
+        transform: `scale(${scale})`,
       }}
     >
       <Img
         src={staticFile("captures/landing.jpg")}
         style={{ display: "block", transform: `translateY(${y}px)`, width: "100%" }}
       />
-    </div>
+    </AbsoluteFill>
   );
 };
 
@@ -249,25 +242,48 @@ const SplitScene: React.FC<{
   );
 };
 
-/** Flat and still, on purpose: the one frame somebody might pause on should not be moving. */
+/**
+ * The end card.
+ *
+ * The URL is the largest thing in the film, and deliberately larger than the line above it: it is
+ * the one piece of information the whole 78 seconds exists to hand over, and it was previously set
+ * smaller than the strapline and easy to miss entirely.
+ *
+ * Flat and still, because this is the frame somebody might pause on.
+ */
 const EndCard: React.FC = () => {
   const frame = useCurrentFrame();
-  const fade = interpolate(frame, [0, 20], [0, 1], { extrapolateRight: "clamp" });
-  // The credit follows the card rather than arriving with it, so the last thing read is the name.
-  const credit = interpolate(frame, [26, 46], [0, 1], {
+  const { fps } = useVideoConfig();
+  const fade = interpolate(frame, [0, 18], [0, 1], { extrapolateRight: "clamp" });
+  // The URL lands after the line above it, so the eye arrives at it rather than starting there.
+  const url = spring({ config: { damping: 200 }, durationInFrames: 26, fps, frame: frame - 14 });
+  // The credit follows, so the last thing read is who made it.
+  const credit = interpolate(frame, [46, 68], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
 
   return (
-    <div style={{ opacity: fade, textAlign: "center" }}>
-      <div style={{ fontSize: 46, letterSpacing: "-0.03em" }}>
+    <div style={{ textAlign: "center" }}>
+      <div style={{ fontSize: 34, letterSpacing: "-0.02em", opacity: fade }}>
         WhatsApp over HTTP,{" "}
         <span style={{ fontFamily: font.serif, fontStyle: "italic" }}>on your own box.</span>
       </div>
-      <div style={{ color: theme.mutedForeground, fontSize: 20, marginTop: 22 }}>
+
+      <div
+        style={{
+          fontSize: 78,
+          fontWeight: 600,
+          letterSpacing: "-0.045em",
+          lineHeight: 1.05,
+          marginTop: 26,
+          opacity: url,
+          transform: `translateZ(${interpolate(url, [0, 1], [-160, 0])}px)`,
+        }}
+      >
         wapi.crafter.run
       </div>
+
       <div
         style={{
           background: theme.muted,
@@ -275,38 +291,40 @@ const EndCard: React.FC = () => {
           borderRadius: theme.radius,
           display: "inline-block",
           fontFamily: font.mono,
-          fontSize: 15,
-          marginTop: 24,
-          padding: "10px 16px",
+          fontSize: 16,
+          marginTop: 28,
+          opacity: url,
+          padding: "10px 18px",
         }}
       >
         wapi login
       </div>
 
       {/*
-        The credit, arriving after the card has settled.
-
-        The mark is used as it is drawn — yellow on near-black — rather than flattened to match the
-        film's achromatic palette. It is somebody's logo, not a design element to restyle, and one
-        spot of colour in the last five seconds reads as a signature rather than as a break.
+        The credit, at a size somebody can actually see.
+        
+        It was 30px in the last few seconds and read as a footnote — near enough to absent that it
+        was reported as missing. The mark is used as it is drawn, yellow on near-black, rather than
+        flattened to the film's achromatic palette: it is somebody's logo, not a design element to
+        restyle, and one spot of colour at the very end reads as a signature.
       */}
       <div
         style={{
           alignItems: "center",
-          color: theme.mutedForeground,
           display: "flex",
-          fontSize: 15,
-          gap: 10,
+          gap: 14,
           justifyContent: "center",
-          marginTop: 40,
+          marginTop: 52,
           opacity: credit,
         }}
       >
         <Img
           src={staticFile("assets/crafter-station.png")}
-          style={{ borderRadius: 7, display: "block", height: 30, width: 30 }}
+          style={{ borderRadius: 11, display: "block", height: 50, width: 50 }}
         />
-        <span>A product from Crafter Station</span>
+        <span style={{ color: theme.mutedForeground, fontSize: 19 }}>
+          A product from Crafter Station
+        </span>
       </div>
     </div>
   );

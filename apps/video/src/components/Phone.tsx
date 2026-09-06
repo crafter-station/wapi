@@ -198,7 +198,7 @@ export const Phone: React.FC<{
     style={{
       background: "#0a0a0a",
       borderRadius: 34,
-      boxShadow: "0 30px 80px rgba(10,10,10,0.22)",
+      boxShadow: "0 3px 8px rgba(10,10,10,0.10), 0 34px 90px rgba(10,10,10,0.30)",
       height: 520,
       padding: 9,
       width: 262,

@@ -51,6 +51,7 @@ const arg = (name) => {
 const REAL_SESSION = arg("session");
 const GROUP_JID = arg("group");
 const SANDBOX_ONLY = argv.includes("--sandbox-only");
+const LANDING_ONLY = argv.includes("--landing-only");
 
 if (!TOKEN) {
   console.error("WAPI_TOKEN is required — a Personal Access Token. Mint one with `wapi tokens create`.");
@@ -194,7 +195,7 @@ const mask = (number) => {
 mkdirSync(OUT, { recursive: true });
 
 // --------------------------------------------------------------------------------- the real half
-if (REAL_SESSION && !SANDBOX_ONLY) {
+if (REAL_SESSION && !SANDBOX_ONLY && !LANDING_ONLY) {
   console.log(`recording the real demo on session ${REAL_SESSION}…`);
   steps = [];
   const sess = ["--session", REAL_SESSION];
@@ -317,6 +318,7 @@ if (REAL_SESSION && !SANDBOX_ONLY) {
 }
 
 // ------------------------------------------------------------------------------ the sandbox half
+if (!LANDING_ONLY) {
 console.log("recording the sandbox section…");
 steps = [];
 
@@ -343,16 +345,20 @@ writeFileSync(
 );
 writeFileSync(join(OUT, "sandbox-thread.json"), `${JSON.stringify(sandboxThread, null, 2)}\n`);
 console.log(`  wrote sandbox-transcript.json (${steps.length} steps) and sandbox-thread.json`);
+}
 
 // ------------------------------------------------------------------------ the site, as it renders
 try {
   const { chromium } = await import("playwright");
   const browser = await chromium.launch();
   /*
-   * 1440 wide at 1x, as JPEG. At 2x this came out 2880x6264 and 866 KB, which is a lot of binary to
-   * carry in git for a plane the film shows tilted and partly blurred.
+   * 1440 CSS pixels at 2x, so 2880 real ones.
+   *
+   * This was 1x when the film showed the page as a small tilted plane. It now opens full bleed at
+   * 2560 wide, where a 1440px capture is upscaled 1.8x and visibly soft — the first thing anybody
+   * sees, blurred. JPEG keeps it near 700 KB rather than the 866 KB the PNG cost at this size.
    */
-  const page = await browser.newPage({ deviceScaleFactor: 1, viewport: { height: 900, width: 1440 } });
+  const page = await browser.newPage({ deviceScaleFactor: 2, viewport: { height: 900, width: 1440 } });
   await page.goto(WEB, { waitUntil: "networkidle" });
   await page.screenshot({ fullPage: true, path: join(OUT, "landing.jpg"), quality: 82, type: "jpeg" });
   await browser.close();
