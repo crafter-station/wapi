@@ -11,7 +11,7 @@ import { FPS, HEIGHT, WIDTH } from "./theme";
 export const Root: React.FC = () => (
   <Composition
     component={Demo}
-    durationInFrames={FPS * 76}
+    durationInFrames={FPS * 78}
     fps={FPS}
     height={HEIGHT}
     id="Demo"

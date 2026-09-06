@@ -50,24 +50,35 @@ const sandboxMessages = sandboxThread as ThreadMessage[];
 /** Seconds → frames, so the beat sheet reads the way it was written. */
 const s = (seconds: number) => Math.round(seconds * FPS);
 
-/**
- * The camera.
- *
- * One perspective container for the whole film rather than per scene, so depth is consistent: a
- * panel at `translateZ(-200px)` is the same distance away in every beat. Everything on screen is a
- * flat rectangle, which is why this is CSS 3D and not WebGL — there is no geometry here, only
- * planes moving in space.
- */
+/** The ground the whole film sits on. Colour and type only — no layout. */
 const Stage: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <AbsoluteFill
+    style={{ background: theme.background, color: theme.foreground, fontFamily: font.sans }}
+  >
+    {children}
+  </AbsoluteFill>
+);
+
+/**
+ * One beat, centred, with the camera.
+ *
+ * This has to be *inside* each `<Sequence>`, not around them, and that was a real bug rather than a
+ * style preference. A `Sequence` renders its own `AbsoluteFill`, which is `position: absolute` —
+ * so it ignores any flex centring on an ancestor, and the content inside it was never centred at
+ * all. Measuring the rendered frames showed every scene sitting 65 to 250px left of centre, with
+ * two of them clipped against x=0. A `translateX` nudge had been papering over the symptom.
+ *
+ * The perspective lives here too. Per scene rather than shared is fine because every scene's
+ * content is centred in the same box, so `translateZ(-200px)` still means the same distance
+ * everywhere.
+ */
+const Scene: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <AbsoluteFill
     style={{
       alignItems: "center",
-      background: theme.background,
-      color: theme.foreground,
-      fontFamily: font.sans,
       justifyContent: "center",
       perspective: 1400,
-      perspectiveOrigin: "50% 45%",
+      perspectiveOrigin: "50% 50%",
     }}
   >
     {children}
@@ -112,22 +123,41 @@ const Title: React.FC<{ italic: string; plain: string; sub?: string }> = ({
 const LandingScene: React.FC<{ durationInFrames: number }> = ({ durationInFrames }) => {
   const frame = useCurrentFrame();
   // Down the page, eased, so it reads as reading rather than as a scrollbar being dragged.
-  const y = interpolate(frame, [0, durationInFrames], [0, -1500], {
+  const y = interpolate(frame, [0, durationInFrames], [0, -820], {
     easing: Easing.inOut(Easing.ease),
     extrapolateRight: "clamp",
   });
-  const yaw = interpolate(frame, [0, durationInFrames], [10, 4]);
+  /*
+   * A gentle yaw, and a small compensation for it.
+   *
+   * Rotating a 900px plane under perspective swings its optical centre away from its geometric
+   * one — measured at 28px left at the original 10deg. Softening the angle halves that, and the
+   * remainder is corrected here rather than left to look like a framing mistake.
+   */
+  const yaw = interpolate(frame, [0, durationInFrames], [6, 2]);
   const z = interpolate(frame, [0, durationInFrames], [-360, -180]);
+  const nudge = interpolate(frame, [0, durationInFrames], [16, 6]);
   const fade = interpolate(frame, [0, 18], [0, 1], { extrapolateRight: "clamp" });
 
   return (
+    /*
+     * Framed, because a white page on a white ground has no edge.
+     *
+     * Without the border and shadow this scene read as loose text floating off-centre rather than
+     * as a website — there was nothing to tell the eye where the page stopped and the film's
+     * background began. The same chrome as the terminal panels, so the two beats look like parts of
+     * one piece.
+     */
     <div
       style={{
-        height: 630,
+        border: `1px solid ${theme.border}`,
+        borderRadius: theme.radius,
+        boxShadow: "0 30px 70px rgba(10,10,10,0.12)",
+        height: 470,
         opacity: fade,
         overflow: "hidden",
-        transform: `translateZ(${z}px) rotateY(${yaw}deg)`,
-        width: 900,
+        transform: `translateX(${nudge}px) translateZ(${z}px) rotateY(${yaw}deg)`,
+        width: 820,
       }}
     >
       <Img
@@ -189,24 +219,10 @@ const SplitScene: React.FC<{
     frame: frame - phoneStart,
   });
 
-  /*
-   * Nudged right, because geometric centring is not optical centring here.
-   *
-   * Both panels are yawed under a shared perspective, which swings their near edges outward and
-   * leaves the pair reading about 60px left of where the box model puts it.
-   */
   return (
     <>
       <Whoosh />
-      <div
-        style={{
-          alignItems: "center",
-          display: "flex",
-          gap: 44,
-          justifyContent: "center",
-          transform: "translateX(56px)",
-        }}
-      >
+      <div style={{ alignItems: "center", display: "flex", gap: 44, justifyContent: "center" }}>
         <div style={{ transform: "translateZ(-40px) rotateY(6deg)" }}>
           <Terminal command={command} label={label} output={output} width={560} />
         </div>
@@ -237,6 +253,11 @@ const SplitScene: React.FC<{
 const EndCard: React.FC = () => {
   const frame = useCurrentFrame();
   const fade = interpolate(frame, [0, 20], [0, 1], { extrapolateRight: "clamp" });
+  // The credit follows the card rather than arriving with it, so the last thing read is the name.
+  const credit = interpolate(frame, [26, 46], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
 
   return (
     <div style={{ opacity: fade, textAlign: "center" }}>
@@ -255,11 +276,37 @@ const EndCard: React.FC = () => {
           display: "inline-block",
           fontFamily: font.mono,
           fontSize: 15,
-          marginTop: 26,
+          marginTop: 24,
           padding: "10px 16px",
         }}
       >
         wapi login
+      </div>
+
+      {/*
+        The credit, arriving after the card has settled.
+
+        The mark is used as it is drawn — yellow on near-black — rather than flattened to match the
+        film's achromatic palette. It is somebody's logo, not a design element to restyle, and one
+        spot of colour in the last five seconds reads as a signature rather than as a break.
+      */}
+      <div
+        style={{
+          alignItems: "center",
+          color: theme.mutedForeground,
+          display: "flex",
+          fontSize: 15,
+          gap: 10,
+          justifyContent: "center",
+          marginTop: 40,
+          opacity: credit,
+        }}
+      >
+        <Img
+          src={staticFile("assets/crafter-station.png")}
+          style={{ borderRadius: 7, display: "block", height: 30, width: 30 }}
+        />
+        <span>A product from Crafter Station</span>
       </div>
     </div>
   );
@@ -285,15 +332,20 @@ export const Demo: React.FC = () => {
   return (
     <Stage>
       <Sequence durationInFrames={s(7)} name="Landing">
-        <LandingScene durationInFrames={s(7)} />
+          <Scene>
+          <LandingScene durationInFrames={s(7)} />
+        </Scene>
       </Sequence>
 
       <Sequence durationInFrames={s(5)} from={s(7)} name="Title">
-        <Title italic="over HTTP." plain="Your WhatsApp," sub="Your number. Your server." />
+          <Scene>
+          <Title italic="over HTTP." plain="Your WhatsApp," sub="Your number. Your server." />
+        </Scene>
       </Sequence>
 
       <Sequence durationInFrames={s(7)} from={s(12)} name="Send">
-        <SplitScene
+          <Scene>
+          <SplitScene
           command={`wapi send --to ${MASKED} --text "hello from wapi"`}
           label="POST /api/send-message"
           output={real('--text "hello from wapi"').stdoutPlain}
@@ -301,10 +353,12 @@ export const Demo: React.FC = () => {
           subtitle={MASKED}
           title="You"
         />
+        </Scene>
       </Sequence>
 
       <Sequence durationInFrames={s(12)} from={s(19)} name="Attachments">
-        <SplitScene
+          <Scene>
+          <SplitScene
           command="wapi media upload photo.png"
           label="POST /api/upload"
           output={real("media upload photo.png").stdoutPlain}
@@ -314,10 +368,12 @@ export const Demo: React.FC = () => {
           subtitle={MASKED}
           title="You"
         />
+        </Scene>
       </Sequence>
 
       <Sequence durationInFrames={s(8)} from={s(31)} name="Group">
-        <SplitScene
+          <Scene>
+          <SplitScene
           command={'wapi send --to "Bots" --text "shipping Friday"'}
           label="a group is just another recipient"
           output={real('--to "Bots"').stdoutPlain}
@@ -327,27 +383,33 @@ export const Demo: React.FC = () => {
           subtitle="72 people · a real group"
           title="Bots"
         />
+        </Scene>
       </Sequence>
 
       {/* ---------------------------------------------------------------- the sandbox half */}
       <Sequence durationInFrames={s(6)} from={s(39)} name="SandboxTitle">
-        <Title
+          <Scene>
+          <Title
           italic="no QR."
           plain="And a sandbox —"
           sub="for building against, before you point it at a real number"
         />
+        </Scene>
       </Sequence>
 
       <Sequence durationInFrames={s(7)} from={s(45)} name="SandboxCreate">
-        <TerminalScene
+          <Scene>
+          <TerminalScene
           command="wapi sandbox create --use"
           label="a fake number, on a fake WhatsApp"
           output={sandbox("sandbox create").stdoutPlain}
         />
+        </Scene>
       </Sequence>
 
       <Sequence durationInFrames={s(10)} from={s(52)} name="Inbound">
-        <SplitScene
+          <Scene>
+          <SplitScene
           command={'wapi sandbox inbound "and a reply"'}
           label="POST /api/sandbox/inbound"
           output={sandbox("sandbox inbound").stdoutPlain}
@@ -356,14 +418,19 @@ export const Demo: React.FC = () => {
           stagger={9}
           title="Sandbox"
         />
+        </Scene>
       </Sequence>
 
       <Sequence durationInFrames={s(7)} from={s(62)} name="Payoff">
-        <Title italic="From a fake human." plain="A real webhook." />
+          <Scene>
+          <Title italic="From a fake human." plain="A real webhook." />
+        </Scene>
       </Sequence>
 
-      <Sequence durationInFrames={s(7)} from={s(69)} name="End">
-        <EndCard />
+      <Sequence durationInFrames={s(9)} from={s(69)} name="End">
+          <Scene>
+          <EndCard />
+        </Scene>
       </Sequence>
     </Stage>
   );

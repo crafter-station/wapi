@@ -55,6 +55,16 @@ const LOCAL: Record<string, string> = {
   "invoice.pdf": "assets/invoice.pdf",
 };
 
+/**
+ * How wide media may be inside a bubble.
+ *
+ * Worked back from the phone rather than picked: the screen is 244px inside the bezel, the message
+ * list takes 11px of padding each side, a bubble is capped at 78% of that, and the bubble itself
+ * pads 11px each side — which leaves about 150px. Media was set to 200px and burst out of its own
+ * bubble, so an image sat wider than the caption underneath it.
+ */
+const MEDIA_W = 148;
+
 const localFor = (url: string | null): string | null => {
   if (!url) return null;
   const name = url.split("/").pop() ?? "";
@@ -84,11 +94,11 @@ const Bubble: React.FC<{ index: number; message: ThreadMessage; startAt: number 
 
   const body = (() => {
     if (local && message.kind === "image") {
-      return <Img src={local} style={{ borderRadius: 6, display: "block", maxWidth: 200 }} />;
+      return <Img src={local} style={{ borderRadius: 6, display: "block", width: MEDIA_W }} />;
     }
     if (local && message.kind === "sticker") {
       // Smaller and unframed. A sticker is not a photo and sizing it like one reads wrong.
-      return <Img src={local} style={{ display: "block", height: 96, objectFit: "contain", width: 96 }} />;
+      return <Img src={local} style={{ display: "block", height: 84, objectFit: "contain", width: 84 }} />;
     }
     if (local && message.kind === "video") {
       // A poster frame rather than playback: the bubble is on screen for under a second, and a
@@ -100,9 +110,9 @@ const Bubble: React.FC<{ index: number; message: ThreadMessage; startAt: number 
             background: theme.muted,
             borderRadius: 6,
             display: "flex",
-            height: 112,
+            height: Math.round(MEDIA_W * 0.56),
             justifyContent: "center",
-            width: 200,
+            width: MEDIA_W,
           }}
         >
           <span style={{ color: theme.foreground, fontSize: 22 }}>▶</span>
