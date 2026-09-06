@@ -656,11 +656,14 @@ d("operator routes", () => {
      * somebody debugging an image webhook that *an* image arrived but not which one. Asserted at
      * this layer rather than only in the engine, because the field has to survive the RPC hop and
      * the snake_case rename to be of any use.
+     *
+     * Found by the caption, not by the kind. Every test in this file shares one sandbox session,
+     * so the thread already holds images that earlier tests sent — the first version of this
+     * matched `kind === "image"` and asserted against somebody else's photo.
      */
-    const image = thread.find((m) => m.kind === "image");
+    const image = thread.find((m) => m.text === "a cat");
+    expect(image?.kind).toBe("image");
     expect(image?.media_url).toBe("https://example.com/cat.png");
-    // The caption still lands in `text`; the file does not replace it.
-    expect(image?.text).toBe("a cat");
 
     // A kind with no file says so with null rather than an empty string, so a bubble can branch.
     expect(thread.find((m) => m.text === "inbound")?.media_url).toBe(null);
