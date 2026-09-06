@@ -33,8 +33,9 @@ import { join } from "node:path";
 const BASE = process.env["WAPI_BASE_URL"] ?? "https://api.wapi.crafter.run";
 const WEB = process.env["WEB_URL"] ?? "https://wapi.crafter.run";
 const TOKEN = process.env["WAPI_TOKEN"] ?? "";
-const OUT = "apps/video/captures";
-const ASSETS = "apps/video/assets";
+// Under `public/` because Remotion serves static files from there — `staticFile("captures/…")`.
+const OUT = "apps/video/public/captures";
+const ASSETS = "apps/video/public/assets";
 
 if (!TOKEN) {
   console.error("WAPI_TOKEN is required — a Personal Access Token. Mint one with `wapi tokens create`.");

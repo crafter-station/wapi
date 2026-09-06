@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": [
+      "DOM",
+      "ES2022"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "types": [
+      "react",
+      "react-dom"
+    ],
+    "resolveJsonModule": true
+  },
+  "include": [
+    "src",
+    "remotion.config.ts",
+    "public/captures/*.json"
+  ]
+}
