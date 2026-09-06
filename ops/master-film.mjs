@@ -23,6 +23,24 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, renameSync, unlinkSync } from "node:fs";
 
+/**
+ * Run ffmpeg, and say something useful when it is not there.
+ *
+ * The first CI run failed with a bare "ffmpeg failed" and no output, because a missing binary sets
+ * `error` and leaves `stderr` null — so the message printed was my own fallback string and told
+ * nobody anything. GitHub's runner image does not ship ffmpeg; Remotion bundles its own, which is
+ * why the render succeeded and only this step fell over.
+ */
+const ffmpeg = (args) => {
+  const res = spawnSync("ffmpeg", args, { encoding: "utf8" });
+  if (res.error) {
+    const why = res.error.code === "ENOENT" ? "ffmpeg is not installed or not on PATH" : res.error.message;
+    console.error(`  cannot run ffmpeg — ${why}`);
+    process.exit(1);
+  }
+  return res;
+};
+
 const TARGET_I = -16;
 const TARGET_TP = -1.5;
 
@@ -36,15 +54,12 @@ if (!file || !existsSync(file)) {
 const codec = file.endsWith(".webm") ? "libopus" : "aac";
 const temp = file.replace(/\.(mp4|webm)$/, ".mastered.$1");
 
-const before = spawnSync(
-  "ffmpeg",
+const before = ffmpeg(
   ["-hide_banner", "-nostats", "-i", file, "-af", "loudnorm=print_format=summary", "-f", "null", "-"],
-  { encoding: "utf8" },
 );
 const measured = /Input Integrated:\s+(-?[\d.]+) LUFS/.exec(before.stderr ?? "")?.[1];
 
-const res = spawnSync(
-  "ffmpeg",
+const res = ffmpeg(
   [
     "-y", "-i", file,
     "-c:v", "copy",
@@ -53,7 +68,6 @@ const res = spawnSync(
     "-af", `loudnorm=I=${TARGET_I}:TP=${TARGET_TP}:LRA=11`,
     temp,
   ],
-  { encoding: "utf8" },
 );
 
 if (res.status !== 0) {
@@ -65,10 +79,8 @@ if (res.status !== 0) {
 unlinkSync(file);
 renameSync(temp, file);
 
-const after = spawnSync(
-  "ffmpeg",
+const after = ffmpeg(
   ["-hide_banner", "-nostats", "-i", file, "-af", "loudnorm=print_format=summary", "-f", "null", "-"],
-  { encoding: "utf8" },
 );
 const now = /Input Integrated:\s+(-?[\d.]+) LUFS/.exec(after.stderr ?? "")?.[1];
 
