@@ -639,6 +639,32 @@ d("operator routes", () => {
     // The direction is the whole point: a thread missing inbound would show half a conversation.
     expect(thread.find((m) => m.text === "inbound")?.from_me).toBe(false);
   });
+
+  test("a media send carries its file, so the dashboard can show it", async () => {
+    const to = `+999${String(sessionId).padStart(8, "0")}001`;
+    await api("/api/send-message", {
+      body: JSON.stringify({ imageUrl: "https://example.com/cat.png", text: "a cat", to }),
+      method: "POST",
+    });
+
+    const r = await json(await api("/api/sandbox/thread"));
+    expect(r.status).toBe(200);
+    const thread = r.body["data"] as { kind: string; media_url: string | null; text: string }[];
+
+    /**
+     * The endpoint used to return only `kind`, so the dashboard printed `[image]` — which tells
+     * somebody debugging an image webhook that *an* image arrived but not which one. Asserted at
+     * this layer rather than only in the engine, because the field has to survive the RPC hop and
+     * the snake_case rename to be of any use.
+     */
+    const image = thread.find((m) => m.kind === "image");
+    expect(image?.media_url).toBe("https://example.com/cat.png");
+    // The caption still lands in `text`; the file does not replace it.
+    expect(image?.text).toBe("a cat");
+
+    // A kind with no file says so with null rather than an empty string, so a bubble can branch.
+    expect(thread.find((m) => m.text === "inbound")?.media_url).toBe(null);
+  });
 });
 
 d("webhook delivery", () => {

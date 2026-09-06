@@ -487,10 +487,12 @@ export const SUCCESS_RESPONSES: Record<string, SuccessResponse> = {
       z.array(
         z.object({
           at: z.string(),
+          file_name: z.string().nullable(),
           from_me: z.boolean(),
           id: z.string(),
           jid: z.string(),
           kind: z.string(),
+          media_url: z.string().nullable(),
           text: z.string().nullable(),
         }),
       ),

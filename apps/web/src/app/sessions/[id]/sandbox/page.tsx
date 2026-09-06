@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { Empty } from "@/components/pager";
 import { SandboxComposer } from "@/components/sandbox-composer";
-import { sandboxThread } from "@/lib/data";
+import { type SandboxMessage, sandboxThread } from "@/lib/data";
 import { getSession, sessionApiKey } from "@/lib/data";
 import { ApiError, contactsPage } from "@/lib/wapi-api";
 
@@ -19,6 +19,93 @@ export const dynamic = "force-dynamic";
  * chat, because a page that looks like your WhatsApp history but is always blank is worse than no
  * page at all.
  */
+/**
+ * What actually goes inside a bubble.
+ *
+ * This used to print `[image]`. That told somebody debugging an image webhook that *an* image had
+ * arrived but not which one — the least useful half of the answer, and the sandbox exists to
+ * answer exactly that kind of question. The engine now records the URL a media send pointed at,
+ * so the bubble can show the thing instead of naming its category.
+ *
+ * The URL is whatever the caller sent, so this renders it the way a chat client renders a remote
+ * image: no referrer, and lazily, because a long thread should not fetch every attachment at once.
+ */
+function BubbleContent({ m }: { m: SandboxMessage }) {
+  const caption = m.text ? (
+    <span className="mt-1.5 block">{m.text}</span>
+  ) : null;
+
+  if (m.mediaUrl) {
+    switch (m.kind) {
+      case "image":
+        return (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              alt={m.text ?? "Image sent in this sandbox"}
+              className="block max-h-[260px] w-auto max-w-full rounded-[calc(var(--radius)-4px)]"
+              loading="lazy"
+              referrerPolicy="no-referrer"
+              src={m.mediaUrl}
+            />
+            {caption}
+          </>
+        );
+      case "sticker":
+        return (
+          // Smaller and unframed: a sticker is not a photo, and sizing it like one reads wrong.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            alt="Sticker sent in this sandbox"
+            className="block h-[120px] w-[120px] object-contain"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            src={m.mediaUrl}
+          />
+        );
+      case "video":
+        return (
+          <>
+            <video
+              className="block max-h-[260px] w-auto max-w-full rounded-[calc(var(--radius)-4px)]"
+              controls
+              // Metadata only: a thread of videos should not pull every file to show a first frame.
+              preload="metadata"
+              src={m.mediaUrl}
+            />
+            {caption}
+          </>
+        );
+      case "audio":
+        return <audio className="block max-w-full" controls preload="metadata" src={m.mediaUrl} />;
+      case "document":
+        return (
+          <>
+            <a
+              className="flex items-center gap-2 underline underline-offset-2"
+              href={m.mediaUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              {/* A document has no thumbnail, so its name is the whole bubble. */}
+              <span aria-hidden>▤</span>
+              <span>{m.fileName ?? "Document"}</span>
+            </a>
+            {caption}
+          </>
+        );
+      default:
+        break;
+    }
+  }
+
+  /*
+   * Everything else: a location, a contact card, a poll. A kind with no text of its own still
+   * needs to occupy the bubble — otherwise it renders as an empty box and looks like a bug.
+   */
+  return <>{m.text ?? <span className="opacity-70">[{m.kind}]</span>}</>;
+}
+
 export default async function SandboxPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const sessionId = Number(id);
@@ -100,11 +187,7 @@ export default async function SandboxPage({ params }: { params: Promise<{ id: st
                       : "border border-[var(--border)] bg-[var(--muted)]")
                   }
                 >
-                  {/*
-                    A kind with no text of its own still needs to occupy the bubble — otherwise a
-                    sticker send renders as an empty box and looks like a bug.
-                  */}
-                  {m.text ?? <span className="opacity-70">[{m.kind}]</span>}
+                  <BubbleContent m={m} />
                   <span
                     className={
                       "mt-1 block text-[0.7rem] " +

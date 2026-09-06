@@ -253,10 +253,15 @@ export function operatorRoutes(db: Db) {
         ok(
           thread.map((m) => ({
             at: m.at,
+            // A document's name is the only readable thing its bubble has.
+            file_name: m.fileName,
             from_me: m.fromMe,
             id: m.id,
             jid: m.jid,
             kind: m.kind,
+            // What was actually sent, not just that something was. `[image]` tells a developer
+            // debugging an image webhook the least useful half of the answer.
+            media_url: m.mediaUrl,
             text: m.text,
           })),
         ),

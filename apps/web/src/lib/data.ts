@@ -409,10 +409,14 @@ export async function createSandboxSession(name: string): Promise<WhatsappSessio
 /** One line of a sandbox conversation, as the gateway records it. */
 export type SandboxMessage = {
   at: string;
+  /** A document's filename — the only readable thing a document bubble has. */
+  fileName: string | null;
   fromMe: boolean;
   id: string;
   jid: string;
   kind: string;
+  /** The file a media send pointed at, so the bubble can show it rather than name its kind. */
+  mediaUrl: string | null;
   text: string | null;
 };
 

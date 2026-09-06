@@ -133,6 +133,16 @@ export type ThreadEntry = {
   /** The other party, always — the contact or group, never this session. */
   jid: string;
   kind: SendContent["kind"];
+  /**
+   * The file a media send pointed at, so a sandbox thread can show what was actually sent.
+   *
+   * Without it the dashboard could only print `[image]`, which tells somebody debugging an image
+   * webhook that *an* image arrived but not which one — the least useful half of the answer. Null
+   * for every kind that carries no file.
+   */
+  mediaUrl: string | null;
+  /** A document's filename, which is the only readable thing a document bubble has. */
+  fileName: string | null;
   /** A short human preview. Null for a kind that carries no text. */
   text: string | null;
 };
@@ -330,7 +340,9 @@ export class SandboxEngine implements WhatsAppEngine {
       fromMe: true,
       id: key.id,
       jid: remoteJid,
+      fileName: content.kind === "document" ? (content.fileName ?? null) : null,
       kind: content.kind,
+      mediaUrl: mediaOf(content),
       text: previewOf(content),
     });
 
@@ -651,8 +663,10 @@ export class SandboxEngine implements WhatsAppEngine {
       at: new Date().toISOString(),
       fromMe: false,
       id: key.id,
+      fileName: null,
       jid: sender,
       kind: "text",
+      mediaUrl: null,
       text,
     });
     this.emit({
@@ -665,6 +679,25 @@ export class SandboxEngine implements WhatsAppEngine {
       type: "wa",
     });
     return { key };
+  }
+}
+
+/**
+ * The URL a media kind points at, or null for the kinds that carry no file.
+ *
+ * Separate from `previewOf` because they answer different questions: a captioned image has both a
+ * preview and a file, a sticker has only a file, and a poll has only a preview.
+ */
+function mediaOf(content: SendContent): string | null {
+  switch (content.kind) {
+    case "image":
+    case "video":
+    case "audio":
+    case "document":
+    case "sticker":
+      return content.url;
+    default:
+      return null;
   }
 }
 

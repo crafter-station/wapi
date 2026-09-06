@@ -137,10 +137,12 @@ export const gateway = {
     post<{
       thread: {
         at: string;
+        fileName: string | null;
         fromMe: boolean;
         id: string;
         jid: string;
         kind: string;
+        mediaUrl: string | null;
         text: string | null;
       }[];
     }>("/rpc/sandbox-thread", { sessionId }),

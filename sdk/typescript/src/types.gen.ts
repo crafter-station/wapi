@@ -970,10 +970,12 @@ export type GetApiSandboxThreadResponse = {
   success: true;
   data: {
     at: string;
+    file_name: string | null;
     from_me: boolean;
     id: string;
     jid: string;
     kind: string;
+    media_url: string | null;
     text: string | null;
   }[];
 };

@@ -438,6 +438,32 @@ describe("the conversation", () => {
     ]);
   });
 
+  test("carries the file a media send pointed at, not just its kind", async () => {
+    const { engine } = await connected(3);
+    const to = "+99900000003001";
+    await engine.send(3, to, { caption: "a cat", kind: "image", url: "https://x/cat.png" });
+    await engine.send(3, to, { fileName: "invoice.pdf", kind: "document", url: "https://x/i.pdf" });
+    await engine.send(3, to, { kind: "poll", options: ["a", "b"], question: "which?" });
+
+    /**
+     * Without the URL the dashboard could only print `[image]`, which tells somebody debugging an
+     * image webhook that *an* image arrived but not which one. A poll has no file, and saying so
+     * with null rather than an empty string is what lets the bubble branch on it.
+     */
+    expect(engine.thread(3).map((t) => [t.kind, t.mediaUrl, t.fileName])).toEqual([
+      ["image", "https://x/cat.png", null],
+      ["document", "https://x/i.pdf", "invoice.pdf"],
+      ["poll", null, null],
+    ]);
+  });
+
+  test("an inbound message carries no file, because inbound is text only", async () => {
+    const { engine } = await connected(3);
+    engine.inbound(3, undefined, "hello");
+    const [entry] = engine.thread(3);
+    expect([entry!.mediaUrl, entry!.fileName]).toEqual([null, null]);
+  });
+
   test("survives a restart, because a phone whose socket dropped keeps its chats", async () => {
     const { engine } = await connected(3);
     await engine.send(3, "+99900000003001", { kind: "text", text: "before" });
@@ -472,7 +498,16 @@ describe("the conversation", () => {
   test("reading it does not hand out the live array", async () => {
     const { engine } = await connected(3);
     await engine.send(3, "+99900000003001", { kind: "text", text: "x" });
-    engine.thread(3).push({ at: "", fromMe: true, id: "forged", jid: "x", kind: "text", text: "forged" });
+    engine.thread(3).push({
+      at: "",
+      fileName: null,
+      fromMe: true,
+      id: "forged",
+      jid: "x",
+      kind: "text",
+      mediaUrl: null,
+      text: "forged",
+    });
     expect(engine.thread(3)).toHaveLength(1);
   });
 });
