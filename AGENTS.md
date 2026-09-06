@@ -591,13 +591,13 @@ after an ordinary push it is redundant, and you can poll `composeStatus` until `
 **Releases are tags, and there are two of them.**
 
 ```bash
-git tag v0.3.0 && git tag sdk/go/v0.3.0
-git push origin v0.3.0 sdk/go/v0.3.0
+git tag v0.3.1 && git tag sdk/go/v0.3.1
+git push origin v0.3.1 sdk/go/v0.3.1
 ```
 
 `.github/workflows/release.yml` fires on `v*` and cross-compiles the CLI for three platforms
 from one Linux runner. The second tag builds nothing: Go resolves a module in a subdirectory
-through a **path-prefixed** tag, so `go get …/sdk/go@v0.3.0` only works if `sdk/go/v0.3.0`
+through a **path-prefixed** tag, so `go get …/sdk/go@v0.3.1` only works if `sdk/go/v0.3.1`
 exists. `v*` does not match across `/`, so the second tag cannot double-fire the workflow.
 
 Bump `apps/cli/package.json` first — the CLI reads its `--version` from there, and a binary
