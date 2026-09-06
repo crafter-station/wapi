@@ -35,5 +35,21 @@ export const font = {
 } as const;
 
 export const FPS = 30;
-export const WIDTH = 1120;
-export const HEIGHT = 630;
+
+/**
+ * The frame, and the box the film is actually laid out in.
+ *
+ * Every size in this project — panel widths, the phone, `MEDIA_W`, type — was chosen against a
+ * 1120x630 box and verified there. The composition is 1280x720 so that `--scale=2` lands on exactly
+ * 2560x1440: Remotion requires integer output dimensions, and scaling 1120x630 to 2K needs a factor
+ * of 16/7, which floats cannot represent — the render failed with `height ... is 1439.999999991`.
+ *
+ * Rather than re-tune a dozen layout numbers against a new box, the design box is kept and drawn
+ * scaled into the frame. The two are the same 16:9, so this is a pure magnification with nothing
+ * reflowed and nothing re-verified.
+ */
+export const WIDTH = 1280;
+export const HEIGHT = 720;
+export const DESIGN_WIDTH = 1120;
+export const DESIGN_HEIGHT = 630;
+export const DESIGN_SCALE = WIDTH / DESIGN_WIDTH;

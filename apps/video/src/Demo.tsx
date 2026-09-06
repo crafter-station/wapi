@@ -12,7 +12,7 @@ import {
 } from "remotion";
 import { Phone, type ThreadMessage } from "./components/Phone";
 import { Terminal } from "./components/Terminal";
-import { font, FPS, theme } from "./theme";
+import { DESIGN_HEIGHT, DESIGN_SCALE, DESIGN_WIDTH, font, FPS, theme } from "./theme";
 import realThread from "../public/captures/real-thread.json";
 import realTranscript from "../public/captures/real-transcript.json";
 import sandboxThread from "../public/captures/sandbox-thread.json";
@@ -50,12 +50,33 @@ const sandboxMessages = sandboxThread as ThreadMessage[];
 /** Seconds → frames, so the beat sheet reads the way it was written. */
 const s = (seconds: number) => Math.round(seconds * FPS);
 
-/** The ground the whole film sits on. Colour and type only — no layout. */
+/**
+ * The ground, and the design box drawn into it.
+ *
+ * The inner div is exactly the 1120x630 box every size in this project was chosen against,
+ * magnified to fill a 1280x720 frame. Because `Sequence` renders an `AbsoluteFill` relative to its
+ * parent, each scene still lays out in design pixels — the scale applies to the finished picture,
+ * not to the arithmetic.
+ */
 const Stage: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <AbsoluteFill
     style={{ background: theme.background, color: theme.foreground, fontFamily: font.sans }}
   >
-    {children}
+    <div
+      style={{
+        height: DESIGN_HEIGHT,
+        insetInlineStart: "50%",
+        marginInlineStart: -DESIGN_WIDTH / 2,
+        marginTop: -DESIGN_HEIGHT / 2,
+        position: "absolute",
+        top: "50%",
+        transform: `scale(${DESIGN_SCALE})`,
+        transformOrigin: "center",
+        width: DESIGN_WIDTH,
+      }}
+    >
+      {children}
+    </div>
   </AbsoluteFill>
 );
 

@@ -6,12 +6,12 @@
   "scripts": {
     "studio": "node ../../node_modules/@remotion/cli/remotion-cli.js studio",
     "typecheck": "tsc --noEmit",
-    "render:video": "node ../../node_modules/@remotion/cli/remotion-cli.js render src/index.ts Demo out/video.mp4 --codec=h264 --crf=26 --scale=2.2857142857 --muted",
-    "render:video-webm": "node ../../node_modules/@remotion/cli/remotion-cli.js render src/index.ts Demo out/video.webm --codec=vp9 --crf=34 --scale=2.2857142857 --muted",
+    "render:video": "node ../../node_modules/@remotion/cli/remotion-cli.js render src/index.ts Demo out/video.mp4 --codec=h264 --crf=26 --scale=2 --muted",
+    "render:video-webm": "node ../../node_modules/@remotion/cli/remotion-cli.js render src/index.ts Demo out/video.webm --codec=vp9 --crf=34 --scale=2 --muted",
     "render:audio": "node ../../node_modules/@remotion/cli/remotion-cli.js render src/index.ts Demo out/audio.wav --codec=wav",
     "render:mp4": "bun run render:video && bun run render:audio && node ../../ops/mux-film.mjs out/video.mp4 out/audio.wav out/wapi-demo.mp4",
     "render:webm": "bun run render:video-webm && node ../../ops/mux-film.mjs out/video.webm out/audio.wav out/wapi-demo.webm",
-    "render:poster": "node ../../node_modules/@remotion/cli/remotion-cli.js still src/index.ts Demo out/poster.jpg --frame=900 --image-format=jpeg --jpeg-quality=88 --scale=2.2857142857 && ffmpeg -v error -y -i out/poster.jpg -vf scale=1280:-1 -q:v 4 ../web/public/demo-poster.jpg",
+    "render:poster": "node ../../node_modules/@remotion/cli/remotion-cli.js still src/index.ts Demo out/poster.jpg --frame=900 --image-format=jpeg --jpeg-quality=88 --scale=2 && ffmpeg -v error -y -i out/poster.jpg -vf scale=1280:-1 -q:v 4 ../web/public/demo-poster.jpg",
     "render": "bun run render:mp4 && bun run render:webm && bun run render:poster"
   },
   "dependencies": {
