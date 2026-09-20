@@ -68,6 +68,11 @@ class Transport:
 
         payload = None if body is None else json.dumps(body).encode("utf-8")
         req = urllib.request.Request(url, data=payload, method=method)
+        # Identify the client. urllib would otherwise send "Python-urllib/3.x", which says the
+        # language and nothing about the caller; the audit trail asks which client, not which
+        # runtime. No version number: it would have to agree with pyproject.toml by hand.
+        req.add_header("User-Agent", "wapi-sdk-python")
+        # Caller's headers win over the default above, but never over the credential below.
         for key, value in self.extra_headers.items():
             req.add_header(key, value)
         # Added last so a caller cannot override the credential through `headers`.

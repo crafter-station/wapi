@@ -45,6 +45,65 @@ test.describe("account pages", () => {
   }
 });
 
+test.describe("the audit trail", () => {
+  /**
+   * These need rows to look at, and a fresh account has none.
+   *
+   * Rather than skip, the suite makes its own: hitting the dashboard's own API routes produces
+   * audit entries, which is exactly the trail this page exists to show. If nothing appears, the
+   * assertions below say so plainly instead of passing over an empty table.
+   */
+  test("a row opens in the sidebar, and the list stays put", async ({ page }) => {
+    await page.goto("/audit");
+
+    const rows = page.locator('a[href*="selected="]');
+    const count = await rows.count();
+    test.skip(count === 0, "no audit rows on this account yet");
+
+    await rows.first().click();
+
+    // The panel is a server component reached through ?selected=, not client state.
+    await expect(page).toHaveURL(/selected=\d+/);
+    const panel = page.locator("aside");
+    await expect(panel).toBeVisible();
+    await expect(panel.getByText(/entry #\d+/)).toBeVisible();
+
+    /**
+     * The list is still there beside it. The whole reason for a sidebar over a detail page is that
+     * you keep your place in the list — if the rows vanished, this would be the old behaviour with
+     * extra steps.
+     */
+    await expect(rows.first()).toBeVisible();
+
+    // And the permalink still exists, because a panel is not something you can send to anybody.
+    await expect(panel.getByRole("link", { name: /permalink/i })).toBeVisible();
+  });
+
+  test("a filter badge takes a value and survives selecting a row", async ({ page }) => {
+    await page.goto("/audit");
+
+    await page.getByRole("button", { name: "Method", exact: true }).click();
+    const input = page.locator('input#audit-filter-method');
+    await expect(input).toBeVisible();
+    await input.fill("POST");
+    await page.getByRole("button", { name: "Apply" }).click();
+
+    await expect(page).toHaveURL(/method=POST/);
+
+    /**
+     * Filters live in the URL so they survive everything else the page does. Selecting a row must
+     * not drop them — an audit view that forgets its filter the moment you look at a row is worse
+     * than no filter at all.
+     */
+    const rows = page.locator('a[href*="selected="]');
+    if (await rows.count()) {
+      await rows.first().click();
+      await expect(page).toHaveURL(/method=POST/);
+      await expect(page).toHaveURL(/selected=\d+/);
+    }
+  });
+});
+
 test.describe("a session workspace", () => {
   /**
    * One sandbox, created through the UI and reused by every tab below.

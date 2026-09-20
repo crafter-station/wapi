@@ -1,4 +1,6 @@
 import WapiClient from "@wapi/sdk";
+// Bundled into the compiled binary, and already the source of `wapi --version`.
+import pkg from "../package.json" with { type: "json" };
 import { resolveProfile, saveProfile, type Profile } from "./config.ts";
 import { EXIT, fail } from "./output.ts";
 
@@ -13,12 +15,27 @@ import { EXIT, fail } from "./output.ts";
 
 export type Ctx = { json: boolean; profileName: string; profile: Profile; yes: boolean };
 
+/**
+ * How the CLI identifies itself to the API.
+ *
+ * The SDK sends `wapi-sdk-ts`, which is true but not useful here: a call from the CLI and a call
+ * from somebody's server both arrive looking like the SDK. The audit trail's question is which
+ * client acted, and this is the one client that can answer with a version for free — it already
+ * reads one from its bundled package.json for `--version`, so there is no second number to keep
+ * in step.
+ */
+const USER_AGENT = `wapi-cli/${pkg.version}`;
+
 /** The account-level client. Everything PAT-scoped goes through this. */
 export function accountClient(ctx: Ctx): WapiClient {
   if (!ctx.profile.token) {
     fail("Not signed in. Run `wapi login` first.", EXIT.auth);
   }
-  return new WapiClient({ apiKey: ctx.profile.token, baseUrl: ctx.profile.baseUrl });
+  return new WapiClient({
+    apiKey: ctx.profile.token,
+    baseUrl: ctx.profile.baseUrl,
+    headers: { "User-Agent": USER_AGENT },
+  });
 }
 
 /**
@@ -49,7 +66,13 @@ export function sessionId(ctx: Ctx, override?: number): number {
 export async function sessionClient(ctx: Ctx, override?: number): Promise<WapiClient> {
   const id = sessionId(ctx, override);
   const cached = ctx.profile.sessionKeys?.[String(id)];
-  if (cached) return new WapiClient({ apiKey: cached, baseUrl: ctx.profile.baseUrl });
+  if (cached) {
+    return new WapiClient({
+      apiKey: cached,
+      baseUrl: ctx.profile.baseUrl,
+      headers: { "User-Agent": USER_AGENT },
+    });
+  }
 
   const account = accountClient(ctx);
   const detail = (await account.sessions.get(id)) as { api_key?: string | null };

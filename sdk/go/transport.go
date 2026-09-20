@@ -64,6 +64,10 @@ func (t *transport) do(
 	if err != nil {
 		return nil, fmt.Errorf("wapi: building request: %w", err)
 	}
+	// Identify the client. net/http would otherwise send "Go-http-client/1.1", which names the
+	// runtime rather than the caller — the audit trail wants to know which client called.
+	req.Header.Set("User-Agent", "wapi-sdk-go")
+	// Caller's headers win over the default above, but never over the credential below.
 	for k, v := range t.headers {
 		req.Header.Set(k, v)
 	}

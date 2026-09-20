@@ -1,6 +1,6 @@
 import "server-only";
 import { auth } from "@clerk/nextjs/server";
-import { and, count, desc, eq, gte, isNull } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import {
   accounts,
   auditLogs,
@@ -324,16 +324,98 @@ export async function getDoctorRun(sessionId: number): Promise<DoctorRun | null>
  * Personal Access Token — creating a session, rotating a key — belong to the account and have no
  * session at all. Filing them under a session would hide exactly the actions most worth auditing.
  */
-export async function listAuditLogs(
-  page: number,
-  perPage = 50,
-  filter: { sessionId?: number; status?: "errors" } = {},
-): Promise<{ rows: AuditLog[]; total: number }> {
-  const accountId = await currentAccountId();
+/**
+ * What the audit list can be narrowed by.
+ *
+ * Every field here is one the table already stores — this adds no columns, it stops throwing away
+ * what was being recorded. `route` is the *pattern* rather than the concrete path, so filtering by
+ * endpoint means "every call to this endpoint" rather than "every call with this group id in it".
+ */
+export type AuditFilter = {
+  sessionId?: number;
+  status?: "errors";
+  /** An exact status code, for when "errors" is too broad — 429 and 503 are different problems. */
+  code?: number;
+  method?: string;
+  route?: string;
+  /** Matched with a prefix, so 203.0.113 finds a subnet rather than only one address. */
+  ip?: string;
+  credential?: string;
+  /** Substring, case-insensitive. Useful for picking one client out of a shared address. */
+  userAgent?: string;
+};
+
+/** The `where` clauses a filter implies, shared by the list and its tally so they cannot diverge. */
+function auditWhere(accountId: number, filter: AuditFilter) {
   const where = [eq(auditLogs.accountId, accountId)];
   if (filter.sessionId !== undefined) where.push(eq(auditLogs.sessionId, filter.sessionId));
   // 4xx and 5xx together: "what went wrong" rarely means one or the other.
   if (filter.status === "errors") where.push(gte(auditLogs.status, 400));
+  if (filter.code !== undefined) where.push(eq(auditLogs.status, filter.code));
+  if (filter.method) where.push(eq(auditLogs.method, filter.method.toUpperCase()));
+  if (filter.route) where.push(eq(auditLogs.route, filter.route));
+  // Prefix rather than equality: an operator chasing an address usually wants its neighbours too.
+  if (filter.ip) where.push(ilike(auditLogs.ip, `${filter.ip}%`));
+  if (filter.credential === "none") where.push(isNull(auditLogs.credentialKind));
+  else if (filter.credential) where.push(eq(auditLogs.credentialKind, filter.credential));
+  if (filter.userAgent) where.push(ilike(auditLogs.userAgent, `%${filter.userAgent}%`));
+  return where;
+}
+
+/**
+ * The values worth offering as suggestions, from this account's own rows.
+ *
+ * Read from the data rather than hardcoded: an endpoint list taken from the route contract would
+ * offer 57 options, most of which this account has never called, and would miss anything a proxy
+ * or a stray client actually hit. Capped because these fill a picker, not a report.
+ */
+export async function auditFilterOptions(): Promise<{
+  routes: string[];
+  ips: string[];
+  methods: string[];
+}> {
+  const accountId = await currentAccountId();
+  const scope = eq(auditLogs.accountId, accountId);
+  // Only the recent past: a year of history would make these lists useless as a picker.
+  const recent = and(scope, gte(auditLogs.createdAt, new Date(Date.now() - 30 * 86_400_000)));
+
+  const [routes, ips, methods] = await Promise.all([
+    db()
+      .selectDistinct({ v: auditLogs.route })
+      .from(auditLogs)
+      .where(and(recent, isNotNull(auditLogs.route)))
+      .orderBy(auditLogs.route)
+      .limit(80),
+    db()
+      .select({ v: auditLogs.ip, n: count() })
+      .from(auditLogs)
+      .where(and(recent, isNotNull(auditLogs.ip)))
+      .groupBy(auditLogs.ip)
+      // Busiest first: the address somebody is looking for is usually a frequent one.
+      .orderBy(desc(count()))
+      .limit(25),
+    db()
+      .selectDistinct({ v: auditLogs.method })
+      .from(auditLogs)
+      .where(recent)
+      .orderBy(auditLogs.method)
+      .limit(10),
+  ]);
+
+  return {
+    ips: ips.map((r) => r.v).filter((v): v is string => Boolean(v)),
+    methods: methods.map((r) => r.v).filter((v): v is string => Boolean(v)),
+    routes: routes.map((r) => r.v).filter((v): v is string => Boolean(v)),
+  };
+}
+
+export async function listAuditLogs(
+  page: number,
+  perPage = 50,
+  filter: AuditFilter = {},
+): Promise<{ rows: AuditLog[]; total: number }> {
+  const accountId = await currentAccountId();
+  const where = auditWhere(accountId, filter);
 
   const [tally] = await db()
     .select({ n: count() })

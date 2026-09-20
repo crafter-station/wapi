@@ -74,6 +74,19 @@ export class Transport {
       response = await this.fetchImpl(url, {
         body: options.body === undefined ? undefined : JSON.stringify(options.body),
         headers: {
+          /*
+           * Identify the client.
+           *
+           * `fetch` sends no User-Agent of its own, so every call from this SDK reached the audit
+           * trail anonymous — 5 rows in 34,543 had one. "Which client made this call" is an audit
+           * question, and the answer was blank for effectively every row.
+           *
+           * No version number: it would have to be repeated here and in package.json with nothing
+           * checking the two agree, and a User-Agent that lies about its version is worse than one
+           * that omits it. Browsers drop this header, which is fine — this client is server-side.
+           */
+          "User-Agent": "wapi-sdk-ts",
+          // Caller's headers win over the default above, but never over the credential below.
           ...this.extraHeaders,
           Authorization: `Bearer ${this.apiKey}`,
           "Content-Type": "application/json",

@@ -54,6 +54,14 @@ export async function apiFetch(
     headers: {
       Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
+      /*
+       * Identify the dashboard in the audit trail.
+       *
+       * `fetch` sends no User-Agent, so the dashboard's own reads arrived indistinguishable from
+       * any other anonymous client — which matters because these are the calls an operator sees
+       * most and is least likely to have made deliberately.
+       */
+      "User-Agent": "wapi-dashboard",
       ...(opts.init?.headers ?? {}),
     },
     signal: AbortSignal.timeout(opts.timeoutMs ?? 15_000),
