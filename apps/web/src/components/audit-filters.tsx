@@ -10,9 +10,27 @@ export type FilterField = {
   placeholder: string;
   /** Offered in a datalist — typed values are still allowed, so a new IP is not locked out. */
   suggestions?: string[];
-  /** Renders the chosen value shorter than it is stored, for keys like a long route pattern. */
-  short?: (value: string) => string;
+  /**
+   * A friendlier badge label for a stored value — a session id shown as its name.
+   *
+   * Data, not a function, and that is not a style choice: this component is a client component and
+   * its props are built on the server, so a callback here crashes the page with "Functions cannot
+   * be passed directly to Client Components". A lookup serialises; a closure does not.
+   */
+  labels?: Record<string, string>;
+  /** Long values are clipped in the badge. `keep` is the end worth reading. */
+  clip?: { keep: "start" | "end"; max: number };
 };
+
+/** What a badge shows for a chosen value: a friendly label if there is one, else clipped. */
+function display(field: FilterField, value: string): string {
+  const label = field.labels?.[value];
+  if (label) return label;
+  const max = field.clip?.max;
+  if (!max || value.length <= max) return value;
+  // A route is identified by its tail and a user agent by its head, so which end is kept matters.
+  return field.clip?.keep === "start" ? `${value.slice(0, max - 1)}…` : `…${value.slice(-(max - 1))}`;
+}
 
 /**
  * The filter bar.
@@ -81,7 +99,7 @@ export function AuditFilters({
               {value ? (
                 <>
                   <span className="text-[var(--muted-foreground)]">{f.label}</span>{" "}
-                  <span className="font-[560]">{f.short ? f.short(value) : value}</span>
+                  <span className="font-[560]">{display(f, value)}</span>
                 </>
               ) : (
                 f.label

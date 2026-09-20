@@ -77,8 +77,8 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
       key: "route",
       label: "Endpoint",
       placeholder: "/api/send-message",
-      // The pattern, so one badge covers every call to an endpoint rather than one group's id.
-      short: (v) => (v.length > 26 ? `…${v.slice(-25)}` : v),
+      // The tail identifies a route, so that is the end the badge keeps.
+      clip: { keep: "end" as const, max: 26 },
       suggestions: options.routes,
     },
     { key: "ip", label: "IP", placeholder: "203.0.113 matches the subnet", suggestions: options.ips },
@@ -94,15 +94,16 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
       key: "ua",
       label: "User agent",
       placeholder: "curl, node, wapi-cli…",
-      short: (v) => (v.length > 18 ? `${v.slice(0, 17)}…` : v),
+      // A user agent is identified by its head — "wapi-cli/0.3.1" before anything else.
+      clip: { keep: "start" as const, max: 18 },
     },
     {
       key: "session",
       label: "Session",
       placeholder: sessions[0] ? `${sessions[0].id}` : "session id",
       // Names are ambiguous — two sessions may share one — so the value is the id, shown by name.
-      short: (v) => sessions.find((s) => String(s.id) === v)?.name ?? `#${v}`,
-      suggestions: sessions.map((s) => String(s.id)),
+      labels: Object.fromEntries(sessions.map((x) => [String(x.id), x.name])),
+      suggestions: sessions.map((x) => String(x.id)),
     },
   ];
 
