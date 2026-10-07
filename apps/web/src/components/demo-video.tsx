@@ -5,10 +5,8 @@ import { useState } from "react";
 /**
  * Where the rendered film lives.
  *
- * A release asset rather than a file in this repo. The mp4 is ~4.2 MB (webm ~2.7 MB, and it is
- * listed first so most browsers take it) and gets re-rendered every time the cut changes, while
- * `apps/web/public` is otherwise 48 KB — putting it in git would be permanent weight in every
- * future clone for something that is regenerated, not authored. The same
+ * A release asset rather than a file in this repo: it is regenerated on every cut, and a few
+ * megabytes per version would be permanent weight in each future clone. The same
  * `releases/latest/download` mechanism already serves the CLI binaries.
  *
  * Overridable so a deployment can serve it from its own origin instead.
@@ -53,8 +51,19 @@ export function DemoVideo({ className }: { className?: string }) {
           width: "100%",
         }}
       >
-        <source src={WEBM} type="video/webm" />
+        {/*
+          Ordered by measured bytes, and mp4 is currently the smaller one.
+          
+          A browser takes the FIRST source it can play, so this order decides what everybody
+          downloads. The webm was listed first on the strength of a number written into a comment
+          back when the film was 1120x630 — at 2560x1440 the vp9 encode overtook h264 and nobody
+          re-derived the order, so every play fetched 9.0 MB instead of 4.9 MB. Measure the release
+          assets before changing this (`gh release view --json assets`); do not trust the shape of
+          the usual answer, and do not write the sizes here, because a number in a comment goes
+          stale and then quietly decides things.
+        */}
         <source src={MP4} type="video/mp4" />
+        <source src={WEBM} type="video/webm" />
       </video>
     );
   }

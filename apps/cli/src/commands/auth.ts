@@ -26,8 +26,18 @@ export function registerAuth(program: Command): void {
     .command("login")
     .description("Authorise this machine by approving a code in your browser")
     .option("--no-browser", "print the URL instead of trying to open one")
-    .action(async (opts: { browser: boolean }) => {
-      const ctx = context(program.opts());
+    .option("--base-url <url>", "the API to sign in to; saved to the profile")
+    .option("--dashboard-url <url>", "the dashboard that approves the code; saved to the profile")
+    .action(async (opts: { baseUrl?: string; browser: boolean; dashboardUrl?: string }) => {
+      const resolved = context(program.opts());
+      const ctx: Ctx = {
+        ...resolved,
+        profile: {
+          ...resolved.profile,
+          baseUrl: opts.baseUrl ? url(opts.baseUrl) : resolved.profile.baseUrl,
+          dashboardUrl: opts.dashboardUrl ? url(opts.dashboardUrl) : resolved.profile.dashboardUrl,
+        },
+      };
       const start = await fetch(`${ctx.profile.dashboardUrl}/api/cli/start`, {
         body: JSON.stringify({ hostname: hostname() }),
         headers: { "Content-Type": "application/json" },
@@ -50,7 +60,28 @@ export function registerAuth(program: Command): void {
       info(dim("  Waiting for approval…"));
 
       const token = await poll(ctx, req);
-      saveProfile(ctx.profileName, { token });
+
+      /**
+       * The token is saved together with the server that issued it.
+       *
+       * Saving the token alone let a login made with `WAPI_BASE_URL` set write a self-hosted PAT
+       * into a profile that, once the variable was gone, resolved to the hosted default — and the
+       * next command sent that credential to a deployment its owner does not control. It 401s, so
+       * nothing looks wrong; the token has already left. A profile must never pair one server's
+       * token with another server's URL.
+       *
+       * Moving a profile to a different server also drops its pinned session and cached keys:
+       * they are ids and secrets from the old deployment, and a cached session key is sent
+       * without asking the account first.
+       */
+      const previous = readConfig().profiles[ctx.profileName];
+      const moved = previous !== undefined && previous.baseUrl !== ctx.profile.baseUrl;
+      saveProfile(ctx.profileName, {
+        baseUrl: ctx.profile.baseUrl,
+        dashboardUrl: ctx.profile.dashboardUrl,
+        token,
+        ...(moved ? { sessionId: undefined, sessionKeys: undefined } : {}),
+      });
 
       /**
        * Pin the session now, while there is exactly one.
@@ -63,7 +94,7 @@ export function registerAuth(program: Command): void {
       if (sessions.length === 1) saveProfile(ctx.profileName, { sessionId: sessions[0]!.id });
 
       info("");
-      info(`${green("✓")} Signed in. Token saved to ${CONFIG_PATH}`);
+      info(`${green("✓")} Signed in to ${ctx.profile.baseUrl}. Token saved to ${CONFIG_PATH}`);
       if (sessions.length === 1) info(dim(`  Using session ${sessions[0]!.id}.`));
       else if (sessions.length > 1) info(dim("  Pick a session with `wapi use <id>`."));
     });
@@ -151,6 +182,26 @@ export function registerAuth(program: Command): void {
       saveProfile(ctx.profileName, { sessionId: id });
       info(`${green("✓")} Using session ${id}${session.name ? dim(` (${session.name})`) : ""}.`);
     });
+}
+
+/**
+ * A URL flag, checked before it is saved.
+ *
+ * A typo here would otherwise be written into the profile and surface later as "could not reach",
+ * on some command that never mentioned a URL. The trailing slash goes because every request path
+ * is appended with its own.
+ */
+function url(raw: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return fail(`Not a URL: ${raw}`, EXIT.usage);
+  }
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+    fail(`Not an http(s) URL: ${raw}`, EXIT.usage);
+  }
+  return raw.replace(/\/+$/, "");
 }
 
 /** Poll until approved or expired, honouring the interval the server asked for. */
